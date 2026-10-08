@@ -1,0 +1,231 @@
+#-----------------------------------------------------------
+# xsim v2026.1 (64-bit)
+# SW Build 6511674 on Tue Jun 16 11:01:26 MDT 2026
+# IP Build 6504888 on Tue Jun 09 09:05:25 MDT 2026
+# SharedData Build 6501428 on Mon Jun 08 17:34:18 MDT 2026
+# Start of session at: Thu Oct  8 22:39:18 2026
+# Process ID         : 99273
+# Current directory  : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/lab5_baseline
+# Command line       : xsim -mode tcl -source {xsim.dir/riscv_sim/xsim_script.tcl}
+# Log file           : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/lab5_baseline/xsim.log
+# Journal file       : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/lab5_baseline/xsim.jou
+# Running On         : heisenburg
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 26.04.1 LTS
+# Processor Detail   : Intel(R) Core(TM) Ultra 7 256V
+# CPU Frequency      : 4359.985 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 8
+# Host memory        : 15800 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20095 MB
+# Available Virtual  : 7581 MB
+#-----------------------------------------------------------
+source xsim.dir/riscv_sim/xsim_script.tcl
+# xsim {riscv_sim} -autoloadwcfg -tclbatch {xsim_run.tcl}
+Time resolution is 1 ps
+source xsim_run.tcl
+## log_wave -recursive *
+## run all
+next_pc = 00000000
+next_pc = 00000004
+next_pc = 00000008
+next_pc = 0000000c
+next_pc = 00000010
+next_pc = 00000014
+next_pc = 00000018
+time:	              165000 ,result =	         3
+next_pc = 0000001c
+next_pc = 00000020
+time:	              185000 ,result =	         6
+next_pc = 00000024
+next_pc = 00000028
+time:	              205000 ,result =	         3
+next_pc = 0000002c
+next_pc = 00000030
+time:	              225000 ,result =	         9
+next_pc = 00000034
+next_pc = 00000038
+next_pc = 0000003c
+next_pc = 00000040
+next_pc = 00000044
+next_pc = 000000e4
+next_pc = 000000e8
+next_pc = 000000ec
+next_pc = 000000f0
+next_pc = 000000f4
+time:	              325000 ,result =	         2
+next_pc = 000000f8
+next_pc = 00000040
+next_pc = 00000044
+next_pc = 00000048
+next_pc = 0000004c
+next_pc = 00000050
+time:	              385000 ,result =	         0
+next_pc = 00000054
+time:	              395000 ,result =	       -16
+next_pc = 00000058
+time:	              405000 ,result =	       -64
+next_pc = 0000005c
+next_pc = 00000060
+next_pc = 00000064
+time:	              435000 ,result =	         1
+next_pc = 00000068
+time:	              445000 ,result =	         4
+next_pc = 0000006c
+time:	              455000 ,result =	       -12
+next_pc = 00000070
+time:	              465000 ,result =	       -60
+next_pc = 00000074
+next_pc = 00000078
+next_pc = 0000007c
+next_pc = 00000080
+time:	              505000 ,result =	         0
+next_pc = 00000084
+time:	              515000 ,result =	       -16
+next_pc = 00000088
+time:	              525000 ,result =	       -64
+next_pc = 0000008c
+next_pc = 00000090
+next_pc = 00000094
+next_pc = 00000098
+time:	              565000 ,result =	         1
+next_pc = 0000009c
+time:	              575000 ,result =	         4
+next_pc = 000000a0
+time:	              585000 ,result =	       -12
+next_pc = 000000a4
+time:	              595000 ,result =	       -60
+next_pc = 000000a8
+next_pc = 000000ac
+next_pc = 000000b0
+time:	              625000 ,result =	         0
+next_pc = 000000b4
+time:	              635000 ,result =	       -16
+next_pc = 000000b8
+time:	              645000 ,result =	       -64
+next_pc = 000000bc
+next_pc = 000000c0
+next_pc = 000000c4
+time:	              675000 ,result =	         1
+next_pc = 000000c8
+time:	              685000 ,result =	         4
+next_pc = 000000cc
+time:	              695000 ,result =	       -12
+next_pc = 000000d0
+time:	              705000 ,result =	       -60
+next_pc = 000000d4
+next_pc = 000000d8
+next_pc = 000000dc
+time:	              735000 ,result =	         1
+next_pc = 000000e0
+next_pc = 000000e4
+next_pc = 000000e8
+time:	              765000 ,result =	         1
+next_pc = 000000ec
+next_pc = 000000f0
+next_pc = 000000f4
+time:	              795000 ,result =	         2
+next_pc = 000000f8
+next_pc = 00000040
+next_pc = 00000044
+next_pc = 00000048
+next_pc = 0000004c
+next_pc = 00000050
+time:	              855000 ,result =	         4
+next_pc = 00000054
+time:	              865000 ,result =	       -12
+next_pc = 00000058
+time:	              875000 ,result =	       -60
+next_pc = 0000005c
+next_pc = 00000060
+next_pc = 00000064
+time:	              905000 ,result =	         2
+next_pc = 00000068
+time:	              915000 ,result =	         8
+next_pc = 0000006c
+time:	              925000 ,result =	        -8
+next_pc = 00000070
+time:	              935000 ,result =	       -56
+next_pc = 00000074
+next_pc = 000000d8
+next_pc = 000000dc
+next_pc = 000000e0
+next_pc = 000000e4
+next_pc = 000000e8
+time:	              995000 ,result =	         2
+next_pc = 000000ec
+next_pc = 000000f0
+next_pc = 000000f4
+time:	             1025000 ,result =	         2
+next_pc = 000000f8
+next_pc = 000000fc
+next_pc = 00000100
+next_pc = 00000104
+time:	             1065000 ,result =	         2
+next_pc = 00000108
+next_pc = 0000010c
+next_pc = 00000110
+time:	             1095000 ,result =	         1
+next_pc = 00000034
+next_pc = 00000038
+next_pc = 0000003c
+next_pc = 00000040
+next_pc = 00000044
+next_pc = 000000e4
+next_pc = 000000e8
+next_pc = 000000ec
+next_pc = 000000f0
+next_pc = 000000f4
+time:	             1195000 ,result =	         1
+next_pc = 000000f8
+next_pc = 00000040
+next_pc = 00000044
+next_pc = 00000048
+next_pc = 0000004c
+next_pc = 00000050
+time:	             1255000 ,result =	         0
+next_pc = 00000054
+time:	             1265000 ,result =	       -16
+next_pc = 00000058
+time:	             1275000 ,result =	       -64
+next_pc = 0000005c
+next_pc = 00000060
+next_pc = 00000064
+time:	             1305000 ,result =	         1
+next_pc = 00000068
+time:	             1315000 ,result =	         4
+next_pc = 0000006c
+time:	             1325000 ,result =	       -12
+next_pc = 00000070
+time:	             1335000 ,result =	       -60
+next_pc = 00000074
+next_pc = 000000d8
+next_pc = 000000dc
+next_pc = 000000e0
+next_pc = 000000e4
+next_pc = 000000e8
+time:	             1395000 ,result =	         1
+next_pc = 000000ec
+next_pc = 000000f0
+next_pc = 000000f4
+time:	             1425000 ,result =	         1
+next_pc = 000000f8
+next_pc = 000000fc
+next_pc = 00000100
+next_pc = 00000104
+time:	             1465000 ,result =	         1
+next_pc = 00000108
+next_pc = 0000010c
+next_pc = 00000110
+time:	             1495000 ,result =	         1
+next_pc = 00000114
+next_pc = 00000118
+next_pc = 0000011c
+next_pc = 00000120
+All instructions are Fetched
+next_pc = 00000000
+$finish called at time : 1545 ns : File "/home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/lab5_baseline/tb_pipeline.v" Line 138
+## exit
+INFO: xsimkernel Simulation Memory Usage: 288104 KB (Peak: 345636 KB), Simulation CPU Usage: 760 ms
+INFO: [Common 17-206] Exiting xsim at Thu Oct  8 22:39:20 2026...
