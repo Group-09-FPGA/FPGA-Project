@@ -1,0 +1,34 @@
+#-----------------------------------------------------------
+# xsim v2026.1 (64-bit)
+# SW Build 6511674 on Tue Jun 16 11:01:26 MDT 2026
+# IP Build 6504888 on Tue Jun 09 09:05:25 MDT 2026
+# SharedData Build 6501428 on Mon Jun 08 17:34:18 MDT 2026
+# Start of session at: Fri Oct  9 11:59:40 2026
+# Process ID         : 20496
+# Current directory  : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core
+# Command line       : xsim -mode tcl -source {xsim.dir/bus_err_sim/xsim_script.tcl}
+# Log file           : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/xsim.log
+# Journal file       : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/xsim.jou
+# Running On         : heisenburg
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 26.04.1 LTS
+# Processor Detail   : Intel(R) Core(TM) Ultra 7 256V
+# CPU Frequency      : 1012.829 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 8
+# Host memory        : 15800 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20095 MB
+# Available Virtual  : 12451 MB
+#-----------------------------------------------------------
+source xsim.dir/bus_err_sim/xsim_script.tcl
+# xsim {bus_err_sim} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+time:               145000 [INTERCONNECT] bus_rsp_error received for unmapped access (addr=0000000c)!
+time:               155000 [CPU] Exception signal asserted!
+[PASS] Bus error correctly triggered and CPU asserted exception!
+$finish called at time : 400 ns : File "/home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/tb_bus_error.v" Line 130
+exit
+INFO: xsimkernel Simulation Memory Usage: 288128 KB (Peak: 345660 KB), Simulation CPU Usage: 2000 ms
+INFO: [Common 17-206] Exiting xsim at Fri Oct  9 11:59:44 2026...
