@@ -1,0 +1,41 @@
+
+code.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text.main:
+
+00000000 <main>:
+   0:	fd010113          	addi	sp,sp,-48
+   4:	02812623          	sw	s0,44(sp)
+   8:	03010413          	addi	s0,sp,48
+   c:	00a00793          	li	a5,10
+  10:	fef42023          	sw	a5,-32(s0)
+  14:	fe042623          	sw	zero,-20(s0)
+  18:	00100793          	li	a5,1
+  1c:	fef42423          	sw	a5,-24(s0)
+  20:	00200793          	li	a5,2
+  24:	fef42223          	sw	a5,-28(s0)
+  28:	0300006f          	j	58 <.L2>
+
+0000002c <.L3>:
+  2c:	fec42703          	lw	a4,-20(s0)
+  30:	fe842783          	lw	a5,-24(s0)
+  34:	00f707b3          	add	a5,a4,a5
+  38:	fcf42e23          	sw	a5,-36(s0)
+  3c:	fe842783          	lw	a5,-24(s0)
+  40:	fef42623          	sw	a5,-20(s0)
+  44:	fdc42783          	lw	a5,-36(s0)
+  48:	fef42423          	sw	a5,-24(s0)
+  4c:	fe442783          	lw	a5,-28(s0)
+  50:	00178793          	addi	a5,a5,1
+  54:	fef42223          	sw	a5,-28(s0)
+
+00000058 <.L2>:
+  58:	fe442703          	lw	a4,-28(s0)
+  5c:	fe042783          	lw	a5,-32(s0)
+  60:	fcf746e3          	blt	a4,a5,2c <.L3>
+  64:	fe842783          	lw	a5,-24(s0)
+  68:	00078513          	mv	a0,a5
+  6c:	02c12403          	lw	s0,44(sp)
+  70:	03010113          	addi	sp,sp,48
+  74:	00008067          	ret
