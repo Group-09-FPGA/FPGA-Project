@@ -11,30 +11,23 @@ module cpu_core
     output reg    exception,
     output [31:0] pc_out,
 
-    input         inst_mem_is_valid,
-    input  [31:0] inst_mem_read_data,
-    output [31:0] inst_mem_address,
-
-    input  [31:0] dmem_read_data_temp,
-    input         dmem_write_valid,
-    input         dmem_read_valid,
-    output        dmem_read_ready,
-    output [31:0] dmem_read_address,
-    output        dmem_write_ready,
-    output [31:0] dmem_write_address,
-    output [31:0] dmem_write_data,
-    output [ 3:0] dmem_write_byte
+    output        bus_req_valid,
+    output        bus_req_write,
+    output [31:0] bus_req_addr,
+    output [31:0] bus_req_wdata,
+    output [ 3:0] bus_req_wstrb,
+    input         bus_rsp_valid,
+    input  [31:0] bus_rsp_rdata,
+    input         bus_rsp_error
 );
     `include "opcode.vh"
+    wire stall_pipeline;
+    wire [31:0] ex_mem_address;
 
     // --------------------------------------------------------
     // STALL AND HAZARD LOGIC
     // --------------------------------------------------------
-    reg stall_read;
-    always @(posedge clk or negedge reset) begin
-        if (!reset) stall_read <= 1'b0;
-        else        stall_read <= stall;
-    end
+    // stall_pipeline removed, using stall_pipeline directly
 
     wire wb_stall_first, wb_stall_second, wb_stall;
     reg wb_mem_to_reg, wb_branch;
@@ -42,9 +35,9 @@ module cpu_core
     hazard_unit u_hazard (
         .clk(clk),
         .reset(reset),
-        .stall_read_i(stall_read),
+        .stall_read_i(stall_pipeline),
         .wb_mem_to_reg_i(wb_mem_to_reg),
-        .dmem_read_valid_i(dmem_read_valid),
+        .dmem_read_valid_i(1'b1),
         .wb_branch_i(wb_branch),
         .wb_stall_first_o(wb_stall_first),
         .wb_stall_second_o(wb_stall_second),
@@ -59,30 +52,32 @@ module cpu_core
     reg [31:0] fetch_pc;
     wire [31:0] next_pc;
     wire branch_taken;
+    reg [31:0] if_buf;
+    reg        if_buf_valid;
 
     always @(posedge clk or negedge reset) begin
         if (!reset)
             fetch_pc <= RESET;
-        else if (!stall_read) begin
+        else if (!stall_pipeline && !if_buf_valid) begin
             fetch_pc <= branch_stall ? fetch_pc + 4 : next_pc;
         end
     end
 
-    assign inst_mem_address = fetch_pc;
+    
     assign pc_out = fetch_pc;
 
-    wire [31:0] instruction = stall_read ? NOP : inst_mem_read_data;
+    wire [31:0] instruction;
 
     reg [31:0] id_pc;
     always @(posedge clk or negedge reset) begin
         if (!reset) id_pc <= RESET;
-        else if (!stall_read) id_pc <= fetch_pc;
+        else if (!stall_pipeline) id_pc <= fetch_pc;
     end
 
     wire illegal_inst;
     always @(posedge clk or negedge reset) begin
         if (!reset) exception <= 1'b0;
-        else if (illegal_inst || fetch_pc[1:0] != 2'b00) exception <= 1'b1;
+        else if (illegal_inst || fetch_pc[1:0] != 2'b00 || (bus_rsp_valid && bus_rsp_error)) exception <= 1'b1;
         else exception <= 1'b0;
     end
 
@@ -120,7 +115,7 @@ module cpu_core
             ex_rd <= 5'h0; ex_rs1 <= 5'h0; ex_rs2 <= 5'h0; ex_alu_op <= 3'h0;
             ex_imm_sel <= 1'b0; ex_alu <= 1'b0; ex_lui <= 1'b0; ex_jal <= 1'b0; ex_jalr <= 1'b0;
             ex_branch <= 1'b0; ex_mem_write <= 1'b0; ex_mem_to_reg <= 1'b0; ex_arithsubtype <= 1'b0;
-        end else if (!stall_read) begin
+        end else if (!stall_pipeline) begin
             ex_pc <= id_pc; ex_imm <= id_imm;
             ex_rd <= id_rd; ex_rs1 <= id_rs1; ex_rs2 <= id_rs2; ex_alu_op <= id_funct3;
             ex_imm_sel <= id_imm_sel; ex_alu <= id_alu; ex_lui <= id_lui; ex_jal <= id_jal;
@@ -143,7 +138,7 @@ module cpu_core
         .clk(clk), .reset(reset),
         .read_addr1(ex_rs1), .read_data1(reg_rdata1_raw),
         .read_addr2(ex_rs2), .read_data2(reg_rdata2_raw),
-        .write_enable(wb_reg_write_en && !stall_read && !wb_stall),
+        .write_enable(wb_reg_write_en && !stall_pipeline && !wb_stall),
         .write_addr(wb_dest_reg_sel),
         .write_data(wb_mem_to_reg ? wb_read_data : wb_result)
     );
@@ -176,7 +171,7 @@ module cpu_core
         .branch_op(ex_alu_op), .condition_met(branch_cond_met)
     );
 
-    wire [31:0] ex_mem_address = alu_operand1 + ex_imm;
+    assign ex_mem_address = alu_operand1 + ex_imm;
 
     reg [31:0] ex_result;
     always @(*) begin
@@ -200,7 +195,7 @@ module cpu_core
         fetch_pc + 4;
     assign next_pc = next_pc_comb;
     
-    assign dmem_read_address = ex_mem_address;
+    
 
     // --------------------------------------------------------
     // EX -> WB PIPELINE REGISTERS
@@ -215,7 +210,7 @@ module cpu_core
             wb_dest_reg_sel <= 5'h0; wb_branch <= 1'b0; wb_branch_nxt <= 1'b0;
             wb_mem_to_reg <= 1'b0; wb_alu_operation <= 3'h0;
             wb_mem_address <= 32'h0; wb_reg_rdata2 <= 32'h0;
-        end else if (!stall_read) begin
+        end else if (!stall_pipeline) begin
             wb_result <= ex_result;
             wb_mem_write <= ex_mem_write && !branch_stall;
             wb_reg_write_en <= ex_alu || ex_lui || ex_jal || ex_jalr || ex_mem_to_reg;
@@ -232,16 +227,14 @@ module cpu_core
     // --------------------------------------------------------
     // WRITEBACK STAGE (LOAD / STORE ALIGNMENT)
     // --------------------------------------------------------
-    assign dmem_read_ready = ex_mem_to_reg;
-    assign dmem_write_ready = wb_mem_write;
-    assign dmem_write_address = wb_mem_address;
+
     
     reg [31:0] wb_write_data;
     reg [3:0]  wb_write_byte;
     always @* begin
         wb_write_data = 32'h0;
         wb_write_byte = 4'h0;
-        if (!stall_read && !wb_stall && wb_mem_write) begin
+        if (wb_mem_write) begin
             case (wb_alu_operation)
                 SB: begin
                     wb_write_data = {4{wb_reg_rdata2[7:0]}};
@@ -267,11 +260,17 @@ module cpu_core
             endcase
         end
     end
-    assign dmem_write_data = wb_write_data;
-    assign dmem_write_byte = wb_write_byte;
+    
+    
 
-    wire [1:0] wb_read_address = wb_mem_address[1:0];
-    wire [31:0] dmem_rdata = dmem_read_data_temp;
+    
+    reg [31:0] bus_rdata_reg;
+    always @(posedge clk or negedge reset) begin
+        if (!reset) bus_rdata_reg <= 32'h0;
+        else if (!stall_pipeline) bus_rdata_reg <= bus_rsp_rdata;
+    end
+wire [1:0] wb_read_address = wb_mem_address[1:0];
+    wire [31:0] dmem_rdata = bus_rdata_reg;
     reg [31:0] wb_read_data_out;
     always @* begin
         case (wb_alu_operation)
@@ -299,4 +298,87 @@ module cpu_core
     end
     assign wb_read_data = wb_read_data_out;
 
+
+    // --------------------------------------------------------
+    // BUS MASTER ARBITER
+    // --------------------------------------------------------
+    localparam ST_IDLE    = 2'b00;
+    localparam ST_WAIT_IF = 2'b01;
+    localparam ST_WAIT_EX = 2'b10;
+    localparam ST_WAIT_WB = 2'b11;
+
+    reg [1:0] bus_state;
+    reg ex_done, wb_done;
+
+    // 1-word instruction holding register (skid buffer)
+    always @(posedge clk or negedge reset) begin
+        if (!reset) begin
+            if_buf       <= 32'h0;
+            if_buf_valid <= 1'b0;
+        end else if (branch_taken) begin
+            if_buf_valid <= 1'b0;
+        end else if (bus_state == ST_WAIT_IF && bus_rsp_valid) begin
+            if (stall_pipeline) begin
+                if_buf       <= bus_rsp_rdata;
+                if_buf_valid <= 1'b1;
+            end
+        end else if (!stall_pipeline) begin
+            if_buf_valid <= 1'b0;
+        end
+    end
+
+    wire [31:0] fetched_instr = if_buf_valid ? if_buf :
+                                (bus_state == ST_WAIT_IF && bus_rsp_valid) ? bus_rsp_rdata : NOP;
+    assign instruction = fetched_instr;
+
+    wire wb_req = wb_mem_write && !wb_done && !(bus_state == ST_WAIT_WB && bus_rsp_valid);
+    wire ex_req = ex_mem_to_reg && !ex_done && !branch_stall && !(bus_state == ST_WAIT_EX && bus_rsp_valid);
+    
+    wire launch_wb = wb_req;
+    wire launch_ex = ex_req && !wb_req;
+    wire launch_if = !wb_req && !ex_req && !if_buf_valid;
+
+    wire launch_req = (bus_state == ST_IDLE) || bus_rsp_valid;
+
+    assign bus_req_valid = launch_req && (launch_wb || launch_ex || launch_if);
+
+    // Determine which transaction is actively being requested OR waited on
+    wire active_wb = launch_req ? launch_wb : (bus_state == ST_WAIT_WB);
+    wire active_ex = launch_req ? launch_ex : (bus_state == ST_WAIT_EX);
+
+    assign bus_req_write = active_wb ? 1'b1 : 1'b0;
+
+    assign bus_req_addr  = active_wb ? wb_mem_address :
+                           active_ex ? ex_mem_address :
+                           fetch_pc;
+
+    assign bus_req_wdata = active_wb ? wb_write_data : 32'h0;
+    assign bus_req_wstrb = active_wb ? wb_write_byte : 4'h0;
+
+    wire wb_stalling = wb_req && !(bus_state == ST_WAIT_WB && bus_rsp_valid);
+    wire ex_stalling = ex_req && !(bus_state == ST_WAIT_EX && bus_rsp_valid);
+    wire if_stalling = (bus_state == ST_WAIT_IF && !bus_rsp_valid) && !if_buf_valid;
+
+    assign stall_pipeline = stall || wb_stalling || ex_stalling || if_stalling;
+
+    always @(posedge clk or negedge reset) begin
+        if (!reset) begin
+            bus_state <= ST_IDLE;
+            ex_done <= 1'b0;
+            wb_done <= 1'b0;
+        end else begin
+            if (!stall_pipeline) wb_done <= 1'b0;
+            else if (bus_state == ST_WAIT_WB && bus_rsp_valid) wb_done <= 1'b1;
+
+            if (!stall_pipeline) ex_done <= 1'b0;
+            else if (bus_state == ST_WAIT_EX && bus_rsp_valid) ex_done <= 1'b1;
+
+            if (launch_req) begin
+                if (launch_wb) bus_state <= ST_WAIT_WB;
+                else if (launch_ex) bus_state <= ST_WAIT_EX;
+                else if (launch_if) bus_state <= ST_WAIT_IF;
+                else bus_state <= ST_IDLE;
+            end
+        end
+    end
 endmodule

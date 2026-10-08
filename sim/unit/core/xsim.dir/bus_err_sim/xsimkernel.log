@@ -1,0 +1,7 @@
+Running: xsim.dir/bus_err_sim/xsimk -runall -simmode gui -wdb bus_err_sim.wdb -simrunnum 0 -socket 53767
+Design successfully loaded
+Design Loading Memory Usage: 206392 KB (Peak: 206392 KB)
+Design Loading CPU Usage: 2000 ms
+Simulation completed
+Simulation Memory Usage: 288128 KB (Peak: 345660 KB)
+Simulation CPU Usage: 2000 ms

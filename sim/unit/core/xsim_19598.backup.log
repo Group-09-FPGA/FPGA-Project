@@ -1,0 +1,101 @@
+#-----------------------------------------------------------
+# xsim v2026.1 (64-bit)
+# SW Build 6511674 on Tue Jun 16 11:01:26 MDT 2026
+# IP Build 6504888 on Tue Jun 09 09:05:25 MDT 2026
+# SharedData Build 6501428 on Mon Jun 08 17:34:18 MDT 2026
+# Start of session at: Fri Oct  9 11:56:13 2026
+# Process ID         : 19598
+# Current directory  : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core
+# Command line       : xsim -mode tcl -source {xsim.dir/riscv_sim/xsim_script.tcl}
+# Log file           : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/xsim.log
+# Journal file       : /home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/xsim.jou
+# Running On         : heisenburg
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 26.04.1 LTS
+# Processor Detail   : Intel(R) Core(TM) Ultra 7 256V
+# CPU Frequency      : 591.486 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 8
+# Host memory        : 15800 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20095 MB
+# Available Virtual  : 12471 MB
+#-----------------------------------------------------------
+source xsim.dir/riscv_sim/xsim_script.tcl
+# xsim {riscv_sim} -autoloadwcfg -tclbatch {xsim_run.tcl}
+Time resolution is 1 ps
+source xsim_run.tcl
+## log_wave -recursive *
+## run all
+next_pc = 00000000
+next_pc = 00000004
+next_pc = 00000008
+next_pc = 0000000c
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000010
+next_pc = 00000014
+time:	              215000 ,result =	       100
+next_pc = 00000018
+next_pc = 0000001c
+next_pc = 0000001c
+next_pc = 0000001c
+next_pc = 0000001c
+next_pc = 0000001c
+next_pc = 0000001c
+next_pc = 0000001c
+time:	              295000 ,result =	         2
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000020
+next_pc = 00000024
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 00000028
+next_pc = 0000002c
+time:	              505000 ,result =	       102
+next_pc = 00000030
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000034
+next_pc = 00000038
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 0000003c
+next_pc = 00000040
+All instructions are Fetched
+next_pc = 00000000
+$finish called at time : 735 ns : File "/home/ronit/acad/sem-3/hardware/fpga-lob/sim/unit/core/tb_cpu_core.v" Line 177
+## exit
+INFO: xsimkernel Simulation Memory Usage: 288128 KB (Peak: 345660 KB), Simulation CPU Usage: 1980 ms
+INFO: [Common 17-206] Exiting xsim at Fri Oct  9 11:56:17 2026...

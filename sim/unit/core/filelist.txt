@@ -1,3 +1,6 @@
+../../../rtl/cpu/core/sys_bus_interconnect.v
+../../../rtl/cpu/core/imem_slave.v
+../../../rtl/cpu/core/dmem_slave.v
 ../../../rtl/cpu/core/cpu_core.v
 ../../../rtl/cpu/core/reg_file.v
 ../../../rtl/cpu/core/alu.v
