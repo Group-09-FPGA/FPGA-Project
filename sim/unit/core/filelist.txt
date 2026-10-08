@@ -1,0 +1,9 @@
+../../../rtl/cpu/core/cpu_core.v
+../../../rtl/cpu/core/reg_file.v
+../../../rtl/cpu/core/alu.v
+../../../rtl/cpu/core/decoder.v
+../../../rtl/cpu/core/branch_unit.v
+../../../rtl/cpu/core/hazard_unit.v
+../../../rtl/cpu/core/forwarding_unit.v
+../../../rtl/cpu/core/memory.v
+./tb_cpu_core.v
