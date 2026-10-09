@@ -51,8 +51,13 @@ module tb_rv32m_unit;
         input [31:0] exp_cycles,
         input [127:0] test_name
     );
-        integer cycles;
+        integer active_edges;
+        integer elapsed_periods;
+        time    t_start, t_done;
+        integer exp_periods;
         begin
+            exp_periods = (exp_cycles == 3) ? 2 : 32;
+
             @(posedge clk);
             #1;
             funct3 = f3;
@@ -62,23 +67,27 @@ module tb_rv32m_unit;
 
             @(posedge clk);
             #1;
-            start = 1'b0;
-            cycles = 1;
+            t_start = $time - 1; // accepted start posedge clk
+            start   = 1'b0;
+            active_edges = 1;
 
             while (!done) begin
                 @(posedge clk);
                 #1;
-                cycles = cycles + 1;
-                if (cycles > 50) begin
+                active_edges = active_edges + 1;
+                if (active_edges > 50) begin
                     $display("[FAIL] Timeout waiting for done on %0s", test_name);
                     fail_count = fail_count + 1;
                     $finish;
                 end
             end
+            t_done = $time - 1; // done posedge clk
+            elapsed_periods = (t_done - t_start) / 10;
 
-            // Check latency
-            if (cycles != exp_cycles) begin
-                $display("[FAIL] %0s: Latency mismatch: got %0d cycles, expected %0d", test_name, cycles, exp_cycles);
+            // Check latency under both conventions
+            if (active_edges != exp_cycles || elapsed_periods != exp_periods) begin
+                $display("[FAIL] %0s: Latency mismatch: active_edges=%0d (exp %0d), elapsed_periods=%0d (exp %0d)",
+                         test_name, active_edges, exp_cycles, elapsed_periods, exp_periods);
                 fail_count = fail_count + 1;
             end
 
@@ -87,7 +96,8 @@ module tb_rv32m_unit;
                 $display("[FAIL] %0s: Result mismatch! a=%08x, b=%08x, got=%08x, expected=%08x", test_name, a, b, result, expected);
                 fail_count = fail_count + 1;
             end else begin
-                $display("[PASS] %0s: a=%08x, b=%08x -> res=%08x (cycles=%0d)", test_name, a, b, result, cycles);
+                $display("[PASS] %0s: a=%08x, b=%08x -> res=%08x (edges=%0d, elapsed_periods=%0d)",
+                         test_name, a, b, result, active_edges, elapsed_periods);
                 pass_count = pass_count + 1;
             end
 

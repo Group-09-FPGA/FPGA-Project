@@ -108,6 +108,10 @@ module tb_rv32m_pipeline;
 
     integer i;
     integer errors = 0;
+    integer passed_checks = 0;
+    integer div_stall_counter = 0;
+    integer skid_div_stalls_verified = 0;
+    reg     skid_check_failed = 0;
 
     initial begin
         clk = 0;
@@ -195,18 +199,56 @@ module tb_rv32m_pipeline;
             errors = errors + 1;
         end else begin
             $display("[PASS] DMEM[0] store verified = 30870");
+            passed_checks = passed_checks + 1;
+        end
+
+        // Verify skid-buffer retention during DIV stalls
+        if (skid_check_failed || skid_div_stalls_verified < 4) begin
+            $display("[FAIL] Skid-buffer retention check failed (stalls_verified=%0d, failed=%b)",
+                     skid_div_stalls_verified, skid_check_failed);
+            errors = errors + 1;
+        end else begin
+            $display("[PASS] Skid-buffer retention and bus arbitration verified across %0d DIV stalls",
+                     skid_div_stalls_verified);
+            passed_checks = passed_checks + 1;
         end
 
         $display("\n=======================================================");
         if (errors == 0) begin
-            $display("   *** ALL RV32M PIPELINE TESTS PASSED (0 ERRORS) ***");
+            $display("   *** ALL %0d RV32M PIPELINE TESTS PASSED (0 ERRORS) ***", passed_checks);
         end else begin
-            $display("   *** PIPELINE TESTS FAILED: %0d ERRORS ***", errors);
+            $display("   *** PIPELINE TESTS FAILED: %0d ERRORS (PASSED %0d) ***", errors, passed_checks);
         end
         $display("=======================================================\n");
 
         if (errors > 0) $fatal(1, "RV32M pipeline verification failed");
         $finish;
+    end
+
+    // Concurrent skid-buffer and bus arbiter monitor during long DIV stalls
+    reg prev_if_buf_valid = 0;
+    always @(posedge clk) begin
+        if (reset) begin
+            if (DUT.ex_m && DUT.ex_alu_op[2] && DUT.m_stalling) begin
+                div_stall_counter <= div_stall_counter + 1;
+                // If a buffer became valid during the stall, it must remain valid until pipeline advances
+                if (div_stall_counter > 1 && prev_if_buf_valid && !DUT.if_buf_valid) begin
+                    $display("[FAIL] if_buf_valid dropped during active DIV stall at T=%0t!", $time);
+                    skid_check_failed <= 1;
+                end
+                // Bus must never launch a spurious IF fetch during an active M stall
+                if (DUT.bus_state == 2'b01 && div_stall_counter > 2) begin // ST_WAIT_IF
+                    $display("[FAIL] Spurious instruction fetch launched during DIV stall at T=%0t!", $time);
+                    skid_check_failed <= 1;
+                end
+            end else begin
+                if (div_stall_counter >= 30) begin
+                    skid_div_stalls_verified <= skid_div_stalls_verified + 1;
+                end
+                div_stall_counter <= 0;
+            end
+            prev_if_buf_valid <= DUT.if_buf_valid;
+        end
     end
 
     // Timeout guard
@@ -219,17 +261,18 @@ module tb_rv32m_pipeline;
     task check_reg;
         input integer r;
         input [31:0] expected;
-        input [255:0] test_name;
+        input [383:0] test_name;
         reg [31:0] actual;
         begin
             actual = DUT.u_reg_file.regs[r];
             if (actual !== expected) begin
-                $display("[FAIL] %s: Reg x%0d expected %08x (%0d), got %08x (%0d)",
+                $display("[FAIL] %0s: Reg x%0d expected %08x (%0d), got %08x (%0d)",
                          test_name, r, expected, $signed(expected), actual, $signed(actual));
                 errors = errors + 1;
             end else begin
-                $display("[PASS] %s: Reg x%0d = %08x (%0d)",
+                $display("[PASS] %0s: Reg x%0d = %08x (%0d)",
                          test_name, r, actual, $signed(actual));
+                passed_checks = passed_checks + 1;
             end
         end
     endtask
