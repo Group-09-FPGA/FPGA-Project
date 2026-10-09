@@ -2,7 +2,8 @@
 
 module top_fpga #(
 	parameter IMEMSIZE = 4096,
-	parameter DMEMSIZE = 4096
+	parameter DMEMSIZE = 4096,
+	parameter CLK_DIV_COUNT = 26'd49_999_999
 )(
 	input  wire clk,   // fast board clock (100 MHz)
 	input  wire reset, // active-low reset
@@ -21,6 +22,12 @@ wire [31:0] pc_out;
 // Changed from pc_out to dmem_write_data: directly verifies STORE instructions executed by the CPU
 // Moved below wire declaration
 
+	// Explicit internal active-low reset definition
+	// Board push button CPU_RESETN (Nexys A7 pin C12) is active-low:
+	//   Unpressed = 1 (onboard 10k pull-up to 3.3V) -> CPU runs normally
+	//   Pressed   = 0 (GND)                         -> CPU and peripherals reset
+	wire rst_n = reset;
+
 	////////////////////////////////////////////////////////////
 	// Slow clock generator (clock divider)
 	////////////////////////////////////////////////////////////
@@ -30,12 +37,12 @@ wire [31:0] pc_out;
 reg [25:0] clk_cnt;   	// enough for 50 million
 reg    	slow_clk;
 
-always @(posedge clk or negedge reset) begin
-	if (!reset) begin
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
     	clk_cnt  <= 26'd0;
     	slow_clk <= 1'b0;
 	end else begin
-    	if (clk_cnt == 26'd49_999_999) begin
+    	if (clk_cnt == CLK_DIV_COUNT) begin
         	clk_cnt  <= 26'd0;
         	slow_clk <= ~slow_clk;   // toggle every 0.5 sec
     	end else begin
@@ -77,7 +84,16 @@ end
     // Optional delay for DMEM (can be changed to test delayed slave)
     parameter DMEM_DELAY_CYCLES = 0;
 	
-	assign led = bus_req_wdata[15:0]; // Shows the write data currently on the bus
+	// Registered LED output: latches write data when a bus write to DMEM is accepted
+	reg [15:0] led_reg;
+	always @(posedge slow_clk or negedge rst_n) begin
+		if (!rst_n) begin
+			led_reg <= 16'h0000;
+		end else if (bus_rsp_valid && !bus_rsp_error && bus_req_write && (bus_req_addr[31:28] == 4'h2)) begin
+			led_reg <= bus_req_wdata[15:0];
+		end
+	end
+	assign led = led_reg;
 
 ////////////////////////////////////////////////////////////
 // PIPELINE CPU
@@ -86,7 +102,7 @@ end
 // TODO completed, description: Connected all memory interface ports to cpu_core instance
 cpu_core pipe_u (
 	.clk(slow_clk),
-	.reset(reset),
+	.reset(rst_n),
 	.stall(1'b0),
 	.exception(exception),
 	.pc_out(pc_out),
@@ -103,7 +119,7 @@ cpu_core pipe_u (
 
 sys_bus_interconnect interconnect_u (
     .clk(slow_clk),
-    .reset(reset),
+    .reset(rst_n),
     .cpu_req_valid(bus_req_valid),
     .cpu_req_write(bus_req_write),
     .cpu_req_addr(bus_req_addr),
@@ -136,7 +152,7 @@ sys_bus_interconnect interconnect_u (
 ////////////////////////////////////////////////////////////
 imem_slave imem_u (
     .clk(slow_clk),
-    .reset(reset),
+    .reset(rst_n),
     .req_valid(imem_req_valid),
     .req_write(imem_req_write),
     .req_addr(imem_req_addr),
@@ -153,7 +169,7 @@ dmem_slave #(
     .DELAY_CYCLES(DMEM_DELAY_CYCLES)
 ) dmem_u (
     .clk(slow_clk),
-    .reset(reset),
+    .reset(rst_n),
     .req_valid(dmem_req_valid),
     .req_write(dmem_req_write),
     .req_addr(dmem_req_addr),
@@ -172,7 +188,7 @@ dmem_slave #(
 ////////////////////////////////////////////////////////////
 seven_seg_driver seg_u (
 	.clk   (clk),
-	.reset (reset),
+	.reset (rst_n),
 	.value (pc_out),   // show current fetch PC
 	.an    (an),
 	.seg   (seg),

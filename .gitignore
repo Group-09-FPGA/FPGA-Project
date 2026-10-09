@@ -1,0 +1,28 @@
+# Vivado build outputs & checkpoints
+build/
+.Xil/
+*.bit
+*.dcp
+*.rpt
+
+# Vivado journals, logs & backups
+vivado*.jou
+vivado*.log
+vivado*.backup.*
+xsim*.jou
+xsim*.log
+xsim*.backup.*
+xvlog*.log
+xvlog*.pb
+xelab*.log
+xelab*.pb
+
+# Simulation waveforms & transient artifacts
+*.wdb
+*.vcd
+xsim.dir/
+
+# Scratch logs and diffs
+diff_*.txt
+output_*.log
+implementation_plan.md
