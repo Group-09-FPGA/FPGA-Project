@@ -8,5 +8,6 @@
 ../../../rtl/cpu/core/branch_unit.v
 ../../../rtl/cpu/core/hazard_unit.v
 ../../../rtl/cpu/core/forwarding_unit.v
+../../../rtl/cpu/core/rv32m_unit.v
 ../../../rtl/cpu/core/memory.v
 ./tb_cpu_core.v
