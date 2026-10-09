@@ -108,6 +108,81 @@ module tb_rv32m_unit;
         end
     endtask
 
+    // Independent architectural reference model task
+    task check_ref(
+        input [2:0]   f3,
+        input [31:0]  a,
+        input [31:0]  b,
+        input [127:0] tname
+    );
+        reg [31:0] exp_val;
+        reg signed [63:0] prod_signed;
+        reg signed [63:0] prod_su;
+        reg [63:0] prod_unsigned;
+        integer exp_cyc;
+        begin
+            case (f3)
+                F3_MUL: begin
+                    prod_unsigned = {32'b0, a} * {32'b0, b};
+                    exp_val = prod_unsigned[31:0];
+                    exp_cyc = 3;
+                end
+                F3_MULH: begin
+                    prod_signed = $signed({{32{a[31]}}, a}) * $signed({{32{b[31]}}, b});
+                    exp_val = prod_signed[63:32];
+                    exp_cyc = 3;
+                end
+                F3_MULHSU: begin
+                    prod_su = $signed({{32{a[31]}}, a}) * $signed({32'b0, b});
+                    exp_val = prod_su[63:32];
+                    exp_cyc = 3;
+                end
+                F3_MULHU: begin
+                    prod_unsigned = {32'b0, a} * {32'b0, b};
+                    exp_val = prod_unsigned[63:32];
+                    exp_cyc = 3;
+                end
+                F3_DIV: begin
+                    exp_cyc = 33;
+                    if (b == 32'd0) begin
+                        exp_val = 32'hFFFFFFFF;
+                    end else if (a == 32'h80000000 && b == 32'hFFFFFFFF) begin
+                        exp_val = 32'h80000000;
+                    end else begin
+                        exp_val = $signed(a) / $signed(b);
+                    end
+                end
+                F3_DIVU: begin
+                    exp_cyc = 33;
+                    if (b == 32'd0) begin
+                        exp_val = 32'hFFFFFFFF;
+                    end else begin
+                        exp_val = a / b;
+                    end
+                end
+                F3_REM: begin
+                    exp_cyc = 33;
+                    if (b == 32'd0) begin
+                        exp_val = a;
+                    end else if (a == 32'h80000000 && b == 32'hFFFFFFFF) begin
+                        exp_val = 32'h0;
+                    end else begin
+                        exp_val = $signed(a) % $signed(b);
+                    end
+                end
+                F3_REMU: begin
+                    exp_cyc = 33;
+                    if (b == 32'd0) begin
+                        exp_val = a;
+                    end else begin
+                        exp_val = a % b;
+                    end
+                end
+            endcase
+            run_op(f3, a, b, exp_val, exp_cyc, tname);
+        end
+    endtask
+
     initial begin
         clk = 0;
         reset = 0;
@@ -214,6 +289,52 @@ module tb_rv32m_unit;
         // Large unsigned division:
         run_op(F3_DIVU, 32'hFFFFFFFF, 32'd2, 32'h7FFFFFFF, 33, "DIVU_max_half");
         run_op(F3_REMU, 32'hFFFFFFFF, 32'd2, 32'd1, 33, "REMU_max_half");
+
+        // --- Section 4.2 Comprehensive Directed Multiplier Tests ---
+        // Zero and One
+        run_op(F3_MUL,    32'd1,        32'd1,        32'd1,        3, "MUL_1_1");
+        run_op(F3_MUL,    32'd1,       -32'd1,       -32'd1,        3, "MUL_1_neg1");
+        run_op(F3_MUL,   -32'd1,        32'd1,       -32'd1,        3, "MUL_neg1_1");
+        run_op(F3_MUL,   -32'd1,       -32'd1,        32'd1,        3, "MUL_neg1_neg1");
+        run_op(F3_MULH,   32'd1,        32'd1,        32'd0,        3, "MULH_1_1");
+        run_op(F3_MULH,   32'd1,       -32'd1,        32'hFFFFFFFF, 3, "MULH_1_neg1");
+        run_op(F3_MULH,  -32'd1,        32'd1,        32'hFFFFFFFF, 3, "MULH_neg1_1");
+        run_op(F3_MULH,  -32'd1,       -32'd1,        32'd0,        3, "MULH_neg1_neg1");
+        run_op(F3_MULHSU, 32'd1,        32'd1,        32'd0,        3, "MULHSU_1_1");
+        run_op(F3_MULHSU,-32'd1,        32'd1,        32'hFFFFFFFF, 3, "MULHSU_neg1_1");
+        run_op(F3_MULHSU, 32'd1,        32'hFFFFFFFF, 32'd0,        3, "MULHSU_1_uFFFFFFFF");
+        run_op(F3_MULHU,  32'd1,        32'd1,        32'd0,        3, "MULHU_1_1");
+        run_op(F3_MULHU,  32'd1,        32'hFFFFFFFF, 32'd0,        3, "MULHU_1_FFFFFFFF");
+        run_op(F3_MULHU,  32'hFFFFFFFF, 32'd1,        32'd0,        3, "MULHU_FFFFFFFF_1");
+
+        // Upper products with significant bits above bit 31
+        run_op(F3_MUL,    32'h10000000, 32'h10,       32'h00000000, 3, "MUL_overflow_bits");
+        run_op(F3_MULHU,  32'h10000000, 32'h10,       32'h00000001, 3, "MULHU_high_bit");
+        run_op(F3_MULH,   32'h40000000, 32'd2,        32'h00000000, 3, "MULH_pos_near_overflow");
+        run_op(F3_MULH,   32'h40000000, 32'd4,        32'h00000001, 3, "MULH_high_bit");
+        run_op(F3_MULH,  -32'h40000000, 32'd4,        32'hFFFFFFFF, 3, "MULH_neg_high");
+
+        // Extreme values: 0x80000000, 0x7FFFFFFF, 0xFFFFFFFF
+        run_op(F3_MUL,    32'h80000000, 32'h80000000, 32'h00000000, 3, "MUL_min_min");
+        run_op(F3_MUL,    32'h7FFFFFFF, 32'h7FFFFFFF, 32'h00000001, 3, "MUL_max_max");
+        run_op(F3_MUL,    32'h80000000, 32'h7FFFFFFF, 32'h80000000, 3, "MUL_min_max");
+        run_op(F3_MULH,   32'h80000000, 32'h7FFFFFFF, 32'hC0000000, 3, "MULH_min_max");
+        run_op(F3_MULHSU, 32'h7FFFFFFF, 32'h80000000, 32'h3FFFFFFF, 3, "MULHSU_max_min");
+        run_op(F3_MULHSU,-32'd1,        32'h80000000, 32'hFFFFFFFF, 3, "MULHSU_neg1_min");
+
+        // --- Randomized Testing Against Independent Reference Model ---
+        $display("Testing 160 randomized vectors against independent mathematical model...");
+        begin : rand_block
+            integer r_i;
+            reg [31:0] rand_a, rand_b;
+            reg [2:0]  rand_op;
+            for (r_i = 0; r_i < 160; r_i = r_i + 1) begin
+                rand_op = r_i % 8;
+                rand_a = $urandom();
+                rand_b = $urandom();
+                check_ref(rand_op, rand_a, rand_b, "RANDOM_TEST");
+            end
+        end
 
         // --- Back-to-Back Sequences & Transitions ---
         $display("Testing Back-to-back Multiplier -> Divider...");

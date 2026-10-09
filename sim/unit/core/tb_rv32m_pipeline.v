@@ -144,15 +144,19 @@ module tb_rv32m_pipeline;
         imem_u.IMEM.imem[18] = 32'h02208833; // 48: mul  x16, x1, x2      (x16 = 63) [MUL after store]
         imem_u.IMEM.imem[19] = 32'h0007a883; // 4c: lw   x17, 0(x15)      (x17 = 30870) [DMEM load]
         imem_u.IMEM.imem[20] = 32'h0218c933; // 50: div  x18, x17, x1     (x18 = 4410) [DIV after load, load forwarding]
-        imem_u.IMEM.imem[21] = 32'hffb00a13; // 54: addi x20, x0, -5      (x20 = -5 = 0xfffffffb)
-        imem_u.IMEM.imem[22] = 32'h00200a93; // 58: addi x21, x0, 2       (x21 = 2)
-        imem_u.IMEM.imem[23] = 32'h035a1b33; // 5c: mulh x22, x20, x21    (x22 = -1 = 0xffffffff)
-        imem_u.IMEM.imem[24] = 32'h035a2bb3; // 60: mulhsu x23, x20, x21  (x23 = -1 = 0xffffffff)
-        imem_u.IMEM.imem[25] = 32'h035a3c33; // 64: mulhu x24, x20, x21   (x24 = 1)
-        imem_u.IMEM.imem[26] = 32'h035a5cb3; // 68: divu x25, x20, x21    (x25 = 0x7ffffffd)
-        imem_u.IMEM.imem[27] = 32'h035a7d33; // 6c: remu x26, x20, x21    (x26 = 1)
-        imem_u.IMEM.imem[28] = 32'h00100d93; // 70: addi x27, x0, 1       (x27 = 1) [COMPLETION FLAG]
-        imem_u.IMEM.imem[29] = 32'h0000006f; // 74: jal  x0, 0            (halt loop)
+        imem_u.IMEM.imem[21] = 32'h02208033; // 54: mul  x0, x1, x2       (MUL writing x0 - must not modify x0)
+        imem_u.IMEM.imem[22] = 32'h02234033; // 58: div  x0, x6, x2       (DIV writing x0 - must not modify x0)
+        imem_u.IMEM.imem[23] = 32'h021809b3; // 5c: mul  x19, x16, x1     (x19 = 63 * 7 = 441)
+        imem_u.IMEM.imem[24] = 32'h0137a223; // 60: sw   x19, 4(x15)      (DMEM[1] = 441) [Store immediately after MUL]
+        imem_u.IMEM.imem[25] = 32'hffb00a13; // 64: addi x20, x0, -5      (x20 = -5 = 0xfffffffb)
+        imem_u.IMEM.imem[26] = 32'h00200a93; // 68: addi x21, x0, 2       (x21 = 2)
+        imem_u.IMEM.imem[27] = 32'h035a1b33; // 6c: mulh x22, x20, x21    (x22 = -1 = 0xffffffff)
+        imem_u.IMEM.imem[28] = 32'h035a2bb3; // 70: mulhsu x23, x20, x21  (x23 = -1 = 0xffffffff)
+        imem_u.IMEM.imem[29] = 32'h035a3c33; // 74: mulhu x24, x20, x21   (x24 = 1)
+        imem_u.IMEM.imem[30] = 32'h035a5cb3; // 78: divu x25, x20, x21    (x25 = 0x7ffffffd)
+        imem_u.IMEM.imem[31] = 32'h035a7d33; // 7c: remu x26, x20, x21    (x26 = 1)
+        imem_u.IMEM.imem[32] = 32'h00100d93; // 80: addi x27, x0, 1       (x27 = 1) [COMPLETION FLAG]
+        imem_u.IMEM.imem[33] = 32'h0000006f; // 84: jal  x0, 0            (halt loop)
 
         #100;
         reset = 1;
@@ -166,6 +170,7 @@ module tb_rv32m_pipeline;
         $display("   RV32M PIPELINE INTEGRATION VERIFICATION");
         $display("=======================================================\n");
 
+        check_reg(0,  32'd0,          "x0  = hardwired zero after MUL/DIV");
         check_reg(1,  32'd7,          "x1  = addi 7");
         check_reg(2,  32'd9,          "x2  = addi 9");
         check_reg(3,  32'd63,         "x3  = mul 7*9");
@@ -184,6 +189,7 @@ module tb_rv32m_pipeline;
         check_reg(16, 32'd63,         "x16 = mul after store");
         check_reg(17, 32'd30870,      "x17 = lw from dmem");
         check_reg(18, 32'd4410,       "x18 = div after lw (load forwarding)");
+        check_reg(19, 32'd441,        "x19 = mul after load/div (x16*x1 = 63*7)");
         check_reg(20, 32'hfffffffb,   "x20 = addi -5");
         check_reg(21, 32'd2,          "x21 = addi 2");
         check_reg(22, 32'hffffffff,   "x22 = mulh (-5 * 2) >> 32");
@@ -193,12 +199,20 @@ module tb_rv32m_pipeline;
         check_reg(26, 32'd1,          "x26 = remu 0xfffffffb % 2");
         check_reg(27, 32'd1,          "x27 = completion flag");
 
-        // Verify dmem stored value
+        // Verify dmem stored values
         if (dmem_u.DMEM.dmem[0] !== 32'd30870) begin
             $display("[FAIL] DMEM[0] expected 30870, got %d", dmem_u.DMEM.dmem[0]);
             errors = errors + 1;
         end else begin
             $display("[PASS] DMEM[0] store verified = 30870");
+            passed_checks = passed_checks + 1;
+        end
+
+        if (dmem_u.DMEM.dmem[1] !== 32'd441) begin
+            $display("[FAIL] DMEM[1] expected 441, got %d", dmem_u.DMEM.dmem[1]);
+            errors = errors + 1;
+        end else begin
+            $display("[PASS] DMEM[1] store verified = 441 (store immediately after MUL)");
             passed_checks = passed_checks + 1;
         end
 
@@ -264,7 +278,7 @@ module tb_rv32m_pipeline;
         input [383:0] test_name;
         reg [31:0] actual;
         begin
-            actual = DUT.u_reg_file.regs[r];
+            actual = (r == 0) ? 32'd0 : DUT.u_reg_file.regs[r];
             if (actual !== expected) begin
                 $display("[FAIL] %0s: Reg x%0d expected %08x (%0d), got %08x (%0d)",
                          test_name, r, expected, $signed(expected), actual, $signed(actual));
