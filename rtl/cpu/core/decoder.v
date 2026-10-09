@@ -20,6 +20,7 @@ module decoder(
     output            mem_write,
     output            mem_to_reg,
     output            arithsubtype,
+    output            m_op,
     output reg        illegal_inst
 );
     `include "opcode.vh"
@@ -30,9 +31,11 @@ module decoder(
     assign funct3 = instruction[`FUNC3];
 
     wire [6:0] opcode = instruction[`OPCODE];
+    wire [6:0] funct7 = instruction[31:25];
 
+    assign m_op          = (opcode == ARITHR) && (funct7 == 7'b0000001);
     assign immediate_sel = (opcode == JALR) || (opcode == LOAD) || (opcode == ARITHI) || (opcode == STORE);
-    assign alu           = (opcode == ARITHI) || (opcode == ARITHR);
+    assign alu           = (opcode == ARITHI) || ((opcode == ARITHR) && !m_op);
     assign lui           = (opcode == LUI);
     assign jal           = (opcode == JAL);
     assign jalr          = (opcode == JALR);
@@ -53,7 +56,12 @@ module decoder(
             LOAD  : immediate = {{20{instruction[31]}}, instruction[31:20]};
             STORE : immediate = {{20{instruction[31]}}, instruction[31:25], instruction[11:7]};
             ARITHI: immediate = (funct3 == SLL || funct3 == SR) ? {27'b0, instruction[24:20]} : {{20{instruction[31]}}, instruction[31:20]};
-            ARITHR: immediate = 32'h0;
+            ARITHR: begin
+                immediate = 32'h0;
+                if (funct7 != 7'b0000000 && funct7 != 7'b0100000 && funct7 != 7'b0000001) begin
+                    illegal_inst = 1'b1;
+                end
+            end
             LUI   : immediate = {instruction[31:12], 12'b0};
             JAL   : immediate = {{11{instruction[31]}}, instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
             default: illegal_inst = 1'b1;
