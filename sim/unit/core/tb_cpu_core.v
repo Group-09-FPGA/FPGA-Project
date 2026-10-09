@@ -23,34 +23,44 @@ end
 
 
 ////////////////////////////////////////////////////////////
-// PIPE ↔ MEMORY SIGNALS
+// BUS SIGNALS
 ////////////////////////////////////////////////////////////
-wire [31:0] inst_mem_read_data;
-wire [31:0] inst_mem_address;
-wire    	inst_mem_is_valid;
+    wire        bus_req_valid;
+    wire        bus_req_write;
+    wire [31:0] bus_req_addr;
+    wire [31:0] bus_req_wdata;
+    wire [ 3:0] bus_req_wstrb;
+    wire        bus_rsp_valid;
+    wire [31:0] bus_rsp_rdata;
+    wire        bus_rsp_error;
+    
+    wire        imem_req_valid;
+    wire        imem_req_write;
+    wire [31:0] imem_req_addr;
+    wire [31:0] imem_req_wdata;
+    wire [ 3:0] imem_req_wstrb;
+    wire        imem_rsp_valid;
+    wire [31:0] imem_rsp_rdata;
 
-wire [31:0] dmem_read_data;
-wire        dmem_read_ready;
-wire [31:0] dmem_read_address;
-wire        dmem_write_ready;
-wire [31:0] dmem_write_address;
-wire [31:0] dmem_write_data;
-wire [3:0]  dmem_write_byte;
-wire    	dmem_write_valid;
-wire    	dmem_read_valid;
+    wire        dmem_req_valid;
+    wire        dmem_req_write;
+    wire [31:0] dmem_req_addr;
+    wire [31:0] dmem_req_wdata;
+    wire [ 3:0] dmem_req_wstrb;
+    wire        dmem_rsp_valid;
+    wire [31:0] dmem_rsp_rdata;
 
-assign inst_mem_is_valid = 1'b1;
-assign dmem_write_valid  = 1'b1;
-assign dmem_read_valid   = 1'b1;
-
-wire exception;
-wire [31:0] pc_out;
+    wire exception;
+    wire [31:0] pc_out;
+    
+    // Optional delay for DMEM (can be changed to test delayed slave)
+    parameter DMEM_DELAY_CYCLES = 0;
 
 
 ////////////////////////////////////////////////////////////
 // DUT : PIPELINE CPU
 ////////////////////////////////////////////////////////////
-// TODO completed, description: Connected all port signals including memory interface and pc_out to DUT pipe
+// DUT : PIPELINE CPU
 cpu_core DUT (
 	.clk(clk),
 	.reset(reset),
@@ -58,48 +68,76 @@ cpu_core DUT (
 	.exception(exception),
 	.pc_out(pc_out),
 
-	.inst_mem_is_valid(inst_mem_is_valid),
-	.inst_mem_read_data(inst_mem_read_data),
-	.inst_mem_address(inst_mem_address),
+    .bus_req_valid(bus_req_valid),
+    .bus_req_write(bus_req_write),
+    .bus_req_addr(bus_req_addr),
+    .bus_req_wdata(bus_req_wdata),
+    .bus_req_wstrb(bus_req_wstrb),
+    .bus_rsp_valid(bus_rsp_valid),
+    .bus_rsp_rdata(bus_rsp_rdata),
+    .bus_rsp_error(bus_rsp_error)
+);
 
-	.dmem_read_data_temp(dmem_read_data),
-	.dmem_write_valid(dmem_write_valid),
-	.dmem_read_valid(dmem_read_valid),
-	.dmem_read_ready(dmem_read_ready),
-	.dmem_read_address(dmem_read_address),
-	.dmem_write_ready(dmem_write_ready),
-	.dmem_write_address(dmem_write_address),
-	.dmem_write_data(dmem_write_data),
-	.dmem_write_byte(dmem_write_byte)
+sys_bus_interconnect interconnect_u (
+    .clk(clk),
+    .reset(reset),
+    .cpu_req_valid(bus_req_valid),
+    .cpu_req_write(bus_req_write),
+    .cpu_req_addr(bus_req_addr),
+    .cpu_req_wdata(bus_req_wdata),
+    .cpu_req_wstrb(bus_req_wstrb),
+    .cpu_rsp_valid(bus_rsp_valid),
+    .cpu_rsp_rdata(bus_rsp_rdata),
+    .cpu_rsp_error(bus_rsp_error),
+    
+    .imem_req_valid(imem_req_valid),
+    .imem_req_write(imem_req_write),
+    .imem_req_addr(imem_req_addr),
+    .imem_req_wdata(imem_req_wdata),
+    .imem_req_wstrb(imem_req_wstrb),
+    .imem_rsp_valid(imem_rsp_valid),
+    .imem_rsp_rdata(imem_rsp_rdata),
+    
+    .dmem_req_valid(dmem_req_valid),
+    .dmem_req_write(dmem_req_write),
+    .dmem_req_addr(dmem_req_addr),
+    .dmem_req_wdata(dmem_req_wdata),
+    .dmem_req_wstrb(dmem_req_wstrb),
+    .dmem_rsp_valid(dmem_rsp_valid),
+    .dmem_rsp_rdata(dmem_rsp_rdata)
 );
 
 
 ////////////////////////////////////////////////////////////
-// INSTRUCTION MEMORY  (matches instr_mem.v)
+// INSTRUCTION MEMORY SLAVE
 ////////////////////////////////////////////////////////////
-// TODO completed, description: Connected inst_mem_address as a port signal from the pipe
-instr_mem IMEM (
-	.clk(clk),
-	.pc(inst_mem_address),
-	.instr(inst_mem_read_data)
+imem_slave imem_u (
+    .clk(clk),
+    .reset(reset),
+    .req_valid(imem_req_valid),
+    .req_write(imem_req_write),
+    .req_addr(imem_req_addr),
+    .req_wdata(imem_req_wdata),
+    .req_wstrb(imem_req_wstrb),
+    .rsp_valid(imem_rsp_valid),
+    .rsp_rdata(imem_rsp_rdata)
 );
 
-
 ////////////////////////////////////////////////////////////
-// DATA MEMORY  (matches data_mem.v)
+// DATA MEMORY SLAVE
 ////////////////////////////////////////////////////////////
-// TODO completed, description: Connected all read and write signals from the pipe to DMEM
-data_mem DMEM (
-	.clk(clk),
-
-	.re(dmem_read_ready),
-	.raddr(dmem_read_address),
-	.rdata(dmem_read_data),
-
-	.we(dmem_write_ready),
-	.waddr(dmem_write_address),
-	.wdata(dmem_write_data),
-	.wstrb(dmem_write_byte)
+dmem_slave #(
+    .DELAY_CYCLES(DMEM_DELAY_CYCLES)
+) dmem_u (
+    .clk(clk),
+    .reset(reset),
+    .req_valid(dmem_req_valid),
+    .req_write(dmem_req_write),
+    .req_addr(dmem_req_addr),
+    .req_wdata(dmem_req_wdata),
+    .req_wstrb(dmem_req_wstrb),
+    .rsp_valid(dmem_rsp_valid),
+    .rsp_rdata(dmem_rsp_rdata)
 );
 
 
@@ -125,14 +163,15 @@ end
 always @(posedge clk) begin
     if (reset) begin
         $display("next_pc = %08x", DUT.fetch_pc);
-        
-        // Print the ALU writes to track results
-        if (DUT.wb_reg_write_en && DUT.wb_dest_reg_sel == 15 && !DUT.wb_stall && !DUT.wb_mem_to_reg) begin
+
+
+
+        if (DUT.wb_reg_write_en && DUT.wb_dest_reg_sel == 15 && !DUT.wb_stall && !DUT.stall_pipeline && !DUT.wb_mem_to_reg) begin
             $display("time:\t%10t ,result =\t%10d", $time, $signed(DUT.wb_result));
         end
-        
+
         // Dynamic stop condition for ALL workloads
-        if (DUT.inst_mem_read_data == 32'h00008067) begin
+        if (DUT.instruction == 32'h00008067) begin
             $display("All instructions are Fetched");
             $display("next_pc = 00000000");
             #10 $finish;
