@@ -10,9 +10,10 @@ create_generated_clock -name slow_clk -source [get_pins slow_clk_reg/C] -divide_
 set_false_path -from [get_cells slow_clk_reg] -to [get_cells slow_clk_reg]
 
 ################ RESET ################
-set_property PACKAGE_PIN N17 [get_ports reset]
+# CPU_RESETN: Dedicated red pushbutton (btnCpuReset) on Nexys A7-100T
+# Active-low hardware button: unpressed = 1 (onboard 10k pull-up to 3.3V), pressed = 0 (GND)
+set_property PACKAGE_PIN C12 [get_ports reset]
 set_property IOSTANDARD LVCMOS33 [get_ports reset]
-# set_property PULLUP true [get_ports reset]
 
 ################ LEDS #################
 # LEDs LD0-LD15
