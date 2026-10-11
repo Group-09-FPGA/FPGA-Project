@@ -38,7 +38,7 @@ const SLIDES: SlideConfig[] = [
   {
     id: 'div',
     title: '39-Cycle Restoring Divider (RTL Datapath)',
-    kicker: '★ PURE HARDWARE BLOCK DIAGRAM · 36 RECURRENCE ITERS · CORNER CASES',
+    kicker: '★ PURE HARDWARE BLOCK DIAGRAM · 32 RECURRENCE ITERS (34 CYC) · 1-TO-1 VERILOG MATCH',
     component: <Slide4_Divider />,
     isNew: true,
   },
