@@ -16,10 +16,13 @@ CFLAGS  = -march=rv32i -mabi=ilp32
 SRC_ADDITION     = code_addition.c
 SRC_SORT     = code_sort.c
 SRC_NEGATIVE = code_negative.c
+SRC_RV32M    = code_rv32m.s
+
+CFLAGS_RV32M = -march=rv32im -mabi=ilp32
 
 TARGET   = code.elf
 
-.PHONY: all clean
+.PHONY: all clean rv32m
 
 #/// generating .text file of code cross-compiled from highlevel-c code to risc-v code
 # ////////////// Copying and converting the text file into binary files
@@ -64,3 +67,11 @@ xor: code_xor.c
 	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
 	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
 	cd imem_dmem && python3 bin2hex.py
+
+rv32m: $(SRC_RV32M)
+	$(CC) -c  $(SRC_RV32M) -o $(TARGET) $(CFLAGS_RV32M)
+	$(OBJCOPY) -O binary $(TARGET) ./imem_dmem/imem.bin
+	$(OBJCOPY) -j .data -O binary $(TARGET) ./imem_dmem/dmem.bin
+	$(OBJDUMP) -d $(TARGET) > ./imem_dmem/code.dis
+	cd imem_dmem && python3 bin2hex.py
+
