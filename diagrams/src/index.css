@@ -1,0 +1,185 @@
+:root {
+  --paper: #efefed;
+  --paper-card: rgba(255, 255, 255, 0.72);
+  --paper-new: #e3e4f4;
+  --ink: #16181d;
+  --ink-2: #4a4e57;
+  --ink-3: #8b8f98;
+  --navy: #2a2e86;
+  --navy-light: #5a5fb8;
+  --line: #1c1f26;
+  --line-light: #8b8f98;
+  --ok: #1f7a4d;
+  --warn: #b4451f;
+  --font: 'Inter', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'DejaVu Sans Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; background: #0d0e14; overflow: hidden; }
+body { font-family: var(--font); color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+/* ─── Presentation Stage (Auto-scaling 1920x1080) ────────────────────────── */
+.stage {
+  width: 1920px;
+  height: 1080px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: hidden;
+  background: var(--paper);
+  border-top: 14px solid var(--navy);
+  border-bottom: 14px solid var(--navy);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 44px 80px 0;
+}
+
+/* ─── Typography & Headers ───────────────────────────────────────────────── */
+.kicker {
+  font: 600 18px var(--font);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.title {
+  font: 600 52px/1.05 var(--font);
+  letter-spacing: -.025em;
+  margin-top: 6px;
+  color: var(--ink);
+}
+
+/* ─── Slide Top Bar & Navigation Tabs ────────────────────────────────────── */
+.nav-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+  border-bottom: 1.5px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font: 600 15px var(--mono);
+  color: var(--ink-2);
+  letter-spacing: .04em;
+  transition: all .15s;
+}
+
+.nav-tab:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--navy);
+}
+
+.nav-tab.active {
+  background: #ffffff;
+  border-color: var(--navy);
+  color: var(--navy);
+  box-shadow: 0 2px 8px rgba(42, 46, 134, 0.12);
+}
+
+.nav-tab .badge-new {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+.foot {
+  position: absolute;
+  left: 80px;
+  right: 80px;
+  bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 500 18px var(--mono);
+  color: var(--ink-3);
+  letter-spacing: .04em;
+  border-top: 1px solid #dcdcd8;
+  padding-top: 12px;
+}
+
+.foot .dots { display: flex; gap: 8px; align-items: center; }
+.foot .dot {
+  width: 9px; height: 9px;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.foot .dot.on { background: var(--navy); border-color: var(--navy); }
+
+/* ─── Legend Pill ────────────────────────────────────────────────────────── */
+.legend-pills {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  font: 500 15px var(--mono);
+  color: var(--ink-2);
+}
+
+.legend-pills .pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pill-swatch {
+  width: 18px;
+  height: 14px;
+  border: 1.5px solid;
+  border-radius: 2px;
+}
+
+/* ─── SVG Canvas Styles ──────────────────────────────────────────────────── */
+.svg-canvas {
+  overflow: visible;
+  display: block;
+}
+
+/* Text halos for crisp line crossing */
+.halo-text {
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.halo-text-white {
+  paint-order: stroke fill;
+  stroke: #ffffff;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* Flowline animation */
+@keyframes flow { to { stroke-dashoffset: -28; } }
+.flowline { stroke-dasharray: 8 6; animation: flow 1.2s linear infinite; }
+
+/* Rise animation */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .45s cubic-bezier(.2,.7,.2,1) both; }
+
+/* ─── Keyboard Hints ─────────────────────────────────────────────────────── */
+.hint {
+  position: fixed;
+  right: 20px;
+  top: 14px;
+  color: #7d8090;
+  font: 500 13px var(--mono);
+  z-index: 20;
+}
