@@ -26,3 +26,9 @@ xsim.dir/
 diff_*.txt
 output_*.log
 implementation_plan.md
+
+# Python and general artifacts
+__pycache__/
+*.pyc
+*.out
+*.log

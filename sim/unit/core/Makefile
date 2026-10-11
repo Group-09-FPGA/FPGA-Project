@@ -10,13 +10,13 @@ XVLOG = xvlog
 XELAB = xelab
 XSIM  = xsim
 
-.PHONY: help clean sort addition negative fibo xor
+.PHONY: help clean sort addition negative fibo xor rv32m
 
 help:
 	@echo "Usage: make <program_name> (e.g. make addition)"
 
 # Generic Rule for all programs
-sort addition negative fibo xor:
+sort addition negative fibo xor rv32m:
 	# 1. Generate Hex Files
 	$(MAKE) clean -C $(MEM_GEN)
 	$(MAKE) $@ -C $(MEM_GEN)

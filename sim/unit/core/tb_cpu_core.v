@@ -160,20 +160,83 @@ end
 
 
 
+    integer test_errors = 0;
+    task check_result(input [199:0] name, input [31:0] actual, input [31:0] expected);
+        begin
+            if (actual !== expected) begin
+                $display("[FAIL] %0s: expected %08x (%0d), got %08x (%0d)", name, expected, $signed(expected), actual, $signed(actual));
+                test_errors = test_errors + 1;
+            end else begin
+                $display("[PASS] %0s: %08x (%0d)", name, actual, $signed(actual));
+            end
+        end
+    endtask
+
 always @(posedge clk) begin
     if (reset) begin
         $display("next_pc = %08x", DUT.fetch_pc);
-
-
 
         if (DUT.wb_reg_write_en && DUT.wb_dest_reg_sel == 15 && !DUT.wb_stall && !DUT.stall_pipeline && !DUT.wb_mem_to_reg) begin
             $display("time:\t%10t ,result =\t%10d", $time, $signed(DUT.wb_result));
         end
 
-        // Dynamic stop condition for ALL workloads
+        // Dynamic stop condition for baseline C workloads
         if (DUT.instruction == 32'h00008067) begin
             $display("All instructions are Fetched");
             $display("next_pc = 00000000");
+            #10 $finish;
+        end
+
+        // Terminal halt loop check (pass_loop / fail_loop: j .)
+        if (DUT.instruction == 32'h0000006f) begin
+            $display("[INFO] Terminal halt loop reached at PC = %08x", DUT.fetch_pc);
+            repeat (10) @(posedge clk);
+
+            if (DUT.u_reg_file.regs[22] == 32'hcafe || DUT.u_reg_file.regs[23] != 32'h0) begin
+                $display("\n=======================================================");
+                $display("       RV32M HARDWARE TEST PROGRAM VERIFICATION");
+                $display("=======================================================");
+
+                check_result("x3  (MUL 6*7)",           DUT.u_reg_file.regs[3],  32'd42);
+                check_result("x6  (MULH -5*2)",          DUT.u_reg_file.regs[6],  32'hffffffff);
+                check_result("x7  (MULHU 0xfffffffb*2)", DUT.u_reg_file.regs[7],  32'd1);
+                check_result("x8  (MULHSU -5*2)",        DUT.u_reg_file.regs[8],  32'hffffffff);
+                check_result("x11 (DIV 100/7)",          DUT.u_reg_file.regs[11], 32'd14);
+                check_result("x12 (DIVU unsigned)",      DUT.u_reg_file.regs[12], 32'd2147483645);
+                check_result("x13 (REM 100%7)",          DUT.u_reg_file.regs[13], 32'd2);
+                check_result("x14 (REMU unsigned)",      DUT.u_reg_file.regs[14], 32'd1);
+                check_result("x16 (DIV by zero)",        DUT.u_reg_file.regs[16], 32'hffffffff);
+                check_result("x17 (DIVU by zero)",       DUT.u_reg_file.regs[17], 32'hffffffff);
+                check_result("x18 (REM by zero)",        DUT.u_reg_file.regs[18], 32'd100);
+                check_result("x19 (REMU by zero)",       DUT.u_reg_file.regs[19], 32'd100);
+                check_result("x20 (DIV overflow)",       DUT.u_reg_file.regs[20], 32'h80000000);
+                check_result("x21 (REM overflow)",       DUT.u_reg_file.regs[21], 32'd0);
+                check_result("x22 (PASS sentinel)",      DUT.u_reg_file.regs[22], 32'hcafe);
+
+                // Memory checks
+                check_result("DMEM[0]  (MUL store)",    dmem_u.DMEM.dmem[0],  32'd42);
+                check_result("DMEM[1]  (MULH store)",   dmem_u.DMEM.dmem[1],  32'hffffffff);
+                check_result("DMEM[2]  (MULHU store)",  dmem_u.DMEM.dmem[2],  32'd1);
+                check_result("DMEM[3]  (MULHSU store)", dmem_u.DMEM.dmem[3],  32'hffffffff);
+                check_result("DMEM[4]  (DIV store)",    dmem_u.DMEM.dmem[4],  32'd14);
+                check_result("DMEM[5]  (DIVU store)",   dmem_u.DMEM.dmem[5],  32'd2147483645);
+                check_result("DMEM[6]  (REM store)",    dmem_u.DMEM.dmem[6],  32'd2);
+                check_result("DMEM[7]  (REMU store)",   dmem_u.DMEM.dmem[7],  32'd1);
+                check_result("DMEM[8]  (DIV/0 store)",  dmem_u.DMEM.dmem[8],  32'hffffffff);
+                check_result("DMEM[9]  (DIVU/0 store)", dmem_u.DMEM.dmem[9],  32'hffffffff);
+                check_result("DMEM[10] (REM/0 store)",  dmem_u.DMEM.dmem[10], 32'd100);
+                check_result("DMEM[11] (REMU/0 store)", dmem_u.DMEM.dmem[11], 32'd100);
+                check_result("DMEM[12] (DIVovf store)", dmem_u.DMEM.dmem[12], 32'h80000000);
+                check_result("DMEM[13] (REMovf store)", dmem_u.DMEM.dmem[13], 32'd0);
+                check_result("DMEM[14] (PASS store)",   dmem_u.DMEM.dmem[14], 32'hcafe);
+
+                if (test_errors == 0) begin
+                    $display("\n>>> ALL RV32M TEST CHECKS PASSED (0 ERRORS) <<<\n");
+                end else begin
+                    $display("\n>>> RV32M TEST FAILED: %0d ERRORS <<<\n", test_errors);
+                end
+                $display("=======================================================\n");
+            end
             #10 $finish;
         end
     end

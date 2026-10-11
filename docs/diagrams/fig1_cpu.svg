@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1150" width="1700" height="1150" font-family="Liberation Sans, Helvetica, Arial, sans-serif"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/></marker></defs><rect width="1700" height="1150" fill="white"/><text x="40" y="40" font-size="22" text-anchor="start" fill="#1a1a1a" font-weight="bold">Figure 1 - RV32IM core: datapath, control and bus master</text>
+<text x="40" y="62" font-size="12" text-anchor="start" fill="#444">cpu_core.v  |  3-stage pipeline: IF+ID | EX | MEM+WB  |  single clk (100 MHz target), async active-low reset on every register</text>
+<rect x="40" y="70" width="1620" height="3" fill="#004870"/>
+<rect x="40" y="84" width="560" height="26" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<rect x="660" y="84" width="520" height="26" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<rect x="1240" y="84" width="420" height="26" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="170" y="102" font-size="13" text-anchor="middle" fill="#1a1a1a" font-weight="bold">IF</text>
+<text x="460" y="102" font-size="13" text-anchor="middle" fill="#1a1a1a" font-weight="bold">ID</text>
+<text x="920" y="102" font-size="13" text-anchor="middle" fill="#1a1a1a" font-weight="bold">EX</text>
+<text x="1345" y="102" font-size="13" text-anchor="middle" fill="#1a1a1a" font-weight="bold">MEM</text>
+<text x="1560" y="102" font-size="13" text-anchor="middle" fill="#1a1a1a" font-weight="bold">WB</text>
+<line x1="320" y1="84" x2="320" y2="110" stroke="#1a1a1a"/>
+<line x1="1457" y1="84" x2="1457" y2="110" stroke="#1a1a1a"/>
+<rect x="304" y="140" width="40" height="364" fill="#6b6b6b"/>
+<rect x="300" y="136" width="40" height="364" fill="#e3e3e3" stroke="#1a1a1a"/>
+<text x="317.0" y="318.0" font-size="11" text-anchor="middle" fill="#1a1a1a" font-weight="bold" transform="rotate(-90 317.0 318.0)">IF/ID</text>
+<text x="331.0" y="318.0" font-size="9" text-anchor="middle" fill="#1a1a1a" transform="rotate(-90 331.0 318.0)">id_pc[31:0]</text>
+<rect x="610" y="140" width="46" height="364" fill="#6b6b6b"/>
+<rect x="606" y="136" width="46" height="364" fill="#e3e3e3" stroke="#1a1a1a"/>
+<text x="626.0" y="318.0" font-size="11" text-anchor="middle" fill="#1a1a1a" font-weight="bold" transform="rotate(-90 626.0 318.0)">ID/EX</text>
+<text x="640.0" y="318.0" font-size="9" text-anchor="middle" fill="#1a1a1a" transform="rotate(-90 640.0 318.0)">pc, imm[31:0], rd rs1 rs2[4:0], funct3[2:0], ctrl</text>
+<rect x="1180" y="140" width="46" height="364" fill="#6b6b6b"/>
+<rect x="1176" y="136" width="46" height="364" fill="#e3e3e3" stroke="#1a1a1a"/>
+<text x="1196.0" y="318.0" font-size="11" text-anchor="middle" fill="#1a1a1a" font-weight="bold" transform="rotate(-90 1196.0 318.0)">EX/WB</text>
+<text x="1210.0" y="318.0" font-size="9" text-anchor="middle" fill="#1a1a1a" transform="rotate(-90 1210.0 318.0)">result, mem_addr, rs2 [31:0], rd[4:0], ctrl</text>
+<rect x="64" y="176" width="210" height="52" fill="#6b6b6b"/>
+<rect x="60" y="172" width="210" height="52" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="165.0" y="195.0" font-size="10" text-anchor="middle" fill="#1a1a1a">next_pc[31:0] select</text>
+<text x="165.0" y="208.0" font-size="10" text-anchor="middle" fill="#1a1a1a">+4 | jal | jalr | branch</text>
+<rect x="64" y="256" width="210" height="40" fill="#6b6b6b"/>
+<rect x="60" y="252" width="210" height="40" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="165.0" y="276.0" font-size="11" text-anchor="middle" fill="#1a1a1a">fetch_pc[31:0]</text>
+<rect x="64" y="336" width="210" height="44" fill="#6b6b6b"/>
+<rect x="60" y="332" width="210" height="44" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="165.0" y="351.0" font-size="10" text-anchor="middle" fill="#1a1a1a">instruction mux</text>
+<text x="165.0" y="364.0" font-size="10" text-anchor="middle" fill="#1a1a1a">if_buf_valid ? if_buf : rsp_rdata</text>
+<rect x="64" y="424" width="210" height="44" fill="#6b6b6b"/>
+<rect x="60" y="420" width="210" height="44" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="165.0" y="439.0" font-size="10" text-anchor="middle" fill="#1a1a1a">if_buf[31:0] + valid</text>
+<text x="165.0" y="452.0" font-size="10" text-anchor="middle" fill="#1a1a1a">skid buffer, holds fetch on stall</text>
+<polyline points="165,224 165,252" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="165,420 165,376" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="270,272 300,272" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="285,272 285,790" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="285" cy="272" r="2.6" fill="#1a1a1a"/>
+<text x="279" y="600" font-size="9" text-anchor="end" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">fetch_pc -&gt; req_addr</text>
+<rect x="404" y="176" width="190" height="236" fill="#6b6b6b"/>
+<rect x="400" y="172" width="190" height="236" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="495.0" y="254.5" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">decoder</text>
+<text x="495.0" y="267.5" font-size="10" text-anchor="middle" fill="#1a1a1a">rs1 rs2 rd[4:0]</text>
+<text x="495.0" y="280.5" font-size="10" text-anchor="middle" fill="#1a1a1a">funct3[2:0]</text>
+<text x="495.0" y="293.5" font-size="10" text-anchor="middle" fill="#1a1a1a">immediate[31:0]  immediate_sel</text>
+<text x="495.0" y="306.5" font-size="10" text-anchor="middle" fill="#1a1a1a">alu lui jal jalr branch</text>
+<text x="495.0" y="319.5" font-size="10" text-anchor="middle" fill="#1a1a1a">mem_write mem_to_reg</text>
+<text x="495.0" y="332.5" font-size="10" text-anchor="middle" fill="#1a1a1a">arithsubtype m_op</text>
+<polyline points="270,354 400,354" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="344" y="347" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">instr[31:0]</text>
+<polyline points="340,146 606,146" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="473" y="140" font-size="10" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">id_pc[31:0]</text>
+<polyline points="590,290 606,290" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="404" y="440" width="190" height="40" fill="#6b6b6b"/>
+<rect x="400" y="436" width="190" height="40" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="495.0" y="453.0" font-size="9" text-anchor="middle" fill="#1a1a1a">exception = illegal_inst</text>
+<text x="495.0" y="465.0" font-size="9" text-anchor="middle" fill="#1a1a1a">| pc[1:0]!=0 | bus_rsp_error</text>
+<polyline points="495,408 495,436" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="694" y="194" width="170" height="80" fill="#6b6b6b"/>
+<rect x="690" y="190" width="170" height="80" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="775.0" y="220.0" font-size="11" text-anchor="middle" fill="#1a1a1a" font-weight="bold">reg_file</text>
+<text x="775.0" y="234.0" font-size="11" text-anchor="middle" fill="#1a1a1a">32 x 32b, 2R / 1W</text>
+<text x="775.0" y="248.0" font-size="11" text-anchor="middle" fill="#1a1a1a">read in EX via ex_rs1/2</text>
+<rect x="694" y="330" width="170" height="62" fill="#6b6b6b"/>
+<rect x="690" y="326" width="170" height="62" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="775.0" y="347.5" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">forwarding_unit</text>
+<text x="775.0" y="360.5" font-size="10" text-anchor="middle" fill="#1a1a1a">WB -&gt; EX bypass</text>
+<text x="775.0" y="373.5" font-size="10" text-anchor="middle" fill="#1a1a1a">rd==rs &amp; RegWrite; x0 -&gt; 0</text>
+<polyline points="652,215 690,215" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="671" y="208" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">rs1/2[4:0]</text>
+<polyline points="775,270 775,326" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="782" y="303" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">raw[31:0]</text>
+<polyline points="662,548 662,370 690,370" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="662" cy="240" r="2.6" fill="#1a1a1a"/>
+<polyline points="662,240 690,240" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="700" y="542" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">wb_data[31:0], wb_rd[4:0], wb_reg_write_en  (bypass + regfile write)</text>
+<polyline points="860,357 884,357" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<line x1="884" y1="196" x2="884" y2="446" stroke="#1a1a1a" stroke-width="1.6"/>
+<text x="876" y="320" font-size="9" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 876 320)">alu_operand1/2[31:0]</text>
+<polyline points="884,198 910,198" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="884,264 910,264" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="884,322 910,322" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="884,436 910,436" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="914" y="174" width="170" height="56" fill="#6b6b6b"/>
+<rect x="910" y="170" width="170" height="56" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="995.0" y="195.0" font-size="10" text-anchor="middle" fill="#1a1a1a">branch_unit + target adders</text>
+<text x="995.0" y="208.0" font-size="10" text-anchor="middle" fill="#1a1a1a">condition_met, next_pc[31:0]</text>
+<rect x="914" y="240" width="170" height="46" fill="#6b6b6b"/>
+<rect x="910" y="236" width="170" height="46" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="995.0" y="256.0" font-size="10" text-anchor="middle" fill="#1a1a1a">rs1 + imm adder</text>
+<text x="995.0" y="269.0" font-size="10" text-anchor="middle" fill="#1a1a1a">ex_mem_address[31:0]</text>
+<rect x="914" y="296" width="170" height="56" fill="#6b6b6b"/>
+<rect x="910" y="292" width="170" height="56" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="995.0" y="310.5" font-size="10" text-anchor="middle" fill="#1a1a1a">alu</text>
+<text x="995.0" y="323.5" font-size="10" text-anchor="middle" fill="#1a1a1a">ADD SUB AND OR XOR SLT SH*</text>
+<text x="995.0" y="336.5" font-size="10" text-anchor="middle" fill="#1a1a1a">1 cycle</text>
+<rect x="914" y="362" width="170" height="142" fill="#7f9fb3"/>
+<rect x="910" y="358" width="170" height="142" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="995.0" y="401.0" font-size="9.5" text-anchor="middle" fill="white" font-weight="bold">rv32m_unit</text>
+<text x="995.0" y="413.5" font-size="9.5" text-anchor="middle" fill="white">MUL MULH MULHSU MULHU</text>
+<text x="995.0" y="426.0" font-size="9.5" text-anchor="middle" fill="white">33x33 -&gt; 66b, 3 stages (DSP48E1)</text>
+<text x="995.0" y="438.5" font-size="9.5" text-anchor="middle" fill="white">DIV DIVU REM REMU</text>
+<text x="995.0" y="451.0" font-size="9.5" text-anchor="middle" fill="white">32-iteration restoring divider</text>
+<text x="995.0" y="463.5" font-size="9.5" text-anchor="middle" fill="white">start, funct3[2:0] -&gt; busy, done</text>
+<polyline points="1040,500 1040,514 950,514 950,500" fill="none" stroke="#1a1a1a" stroke-width="1.1" marker-end="url(#ah)"/>
+<text x="995" y="527" font-size="8.5" text-anchor="middle" fill="#1a1a1a">iterate x32 (div) / 3 stages (mul)</text>
+<rect x="1109" y="296" width="46" height="208" fill="#6b6b6b"/>
+<rect x="1105" y="292" width="46" height="208" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1132" y="396" font-size="9" text-anchor="middle" fill="#1a1a1a" transform="rotate(-90 1132 396)">ex_result mux (store|PC+4|imm|alu|m)</text>
+<polyline points="1080,320 1105,320" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1080,430 1105,430" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1151,396 1176,396" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1080,259 1176,259" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1128" y="253" font-size="9" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">ex_mem_address[31:0]</text>
+<polyline points="995,170 995,128 165,128 165,172" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="640" y="124" font-size="10" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">branch_taken, next_pc[31:0]</text>
+<polyline points="1095,259 1095,790" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="1095" cy="259" r="2.6" fill="#1a1a1a"/>
+<text x="1101" y="760" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">ex_mem_address[31:0]</text>
+<rect x="1249" y="176" width="200" height="96" fill="#6b6b6b"/>
+<rect x="1245" y="172" width="200" height="96" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1345.0" y="204.0" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">store align</text>
+<text x="1345.0" y="217.0" font-size="10" text-anchor="middle" fill="#1a1a1a">SB / SH / SW</text>
+<text x="1345.0" y="230.0" font-size="10" text-anchor="middle" fill="#1a1a1a">wb_write_data[31:0]</text>
+<text x="1345.0" y="243.0" font-size="10" text-anchor="middle" fill="#1a1a1a">wb_write_byte[3:0]</text>
+<polyline points="1222,220 1245,220" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1270,268 1270,790" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1264" y="730" font-size="9" text-anchor="end" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">wb_mem_address, wb_write_data, wb_write_byte</text>
+<rect x="1304" y="334" width="145" height="48" fill="#6b6b6b"/>
+<rect x="1300" y="330" width="145" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1372.5" y="351.0" font-size="10" text-anchor="middle" fill="#1a1a1a">bus_rdata_reg[31:0]</text>
+<text x="1372.5" y="364.0" font-size="10" text-anchor="middle" fill="#1a1a1a">!stall_pipeline</text>
+<rect x="1479" y="334" width="185" height="70" fill="#6b6b6b"/>
+<rect x="1475" y="330" width="185" height="70" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1567.5" y="349.0" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">load align</text>
+<text x="1567.5" y="362.0" font-size="10" text-anchor="middle" fill="#1a1a1a">LB LH LW LBU LHU</text>
+<text x="1567.5" y="375.0" font-size="10" text-anchor="middle" fill="#1a1a1a">sign / zero extend</text>
+<text x="1567.5" y="388.0" font-size="10" text-anchor="middle" fill="#1a1a1a">wb_read_data[31:0]</text>
+<polyline points="1445,354 1475,354" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="1479" y="444" width="185" height="46" fill="#6b6b6b"/>
+<rect x="1475" y="440" width="185" height="46" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1567.5" y="460.0" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">writeback mux</text>
+<text x="1567.5" y="473.0" font-size="10" text-anchor="middle" fill="#1a1a1a">wb_mem_to_reg ? read : result</text>
+<polyline points="1567,400 1567,440" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1222,463 1475,463" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1348" y="457" font-size="9" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">wb_result[31:0]</text>
+<polyline points="1567,486 1567,548 662,548" fill="none" stroke="#1a1a1a" stroke-width="1.2"/>
+<text x="1250" y="542" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">write_data[31:0]</text>
+<rect x="1479" y="176" width="185" height="96" fill="#6b6b6b"/>
+<rect x="1475" y="172" width="185" height="96" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1567.5" y="199.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">clock and reset</text>
+<text x="1567.5" y="211.0" font-size="9" text-anchor="middle" fill="#1a1a1a">clk : 100 MHz core clock</text>
+<text x="1567.5" y="223.0" font-size="9" text-anchor="middle" fill="#1a1a1a">reset : active-low, async</text>
+<text x="1567.5" y="235.0" font-size="9" text-anchor="middle" fill="#1a1a1a">stall : external freeze</text>
+<text x="1567.5" y="247.0" font-size="9" text-anchor="middle" fill="#1a1a1a">regs: posedge clk / negedge reset</text>
+<rect x="694" y="574" width="200" height="76" fill="#6b6b6b"/>
+<rect x="690" y="570" width="200" height="76" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="790.0" y="593.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">hazard_unit</text>
+<text x="790.0" y="605.0" font-size="9" text-anchor="middle" fill="#1a1a1a">wb_branch -&gt; wb_stall_first/second</text>
+<text x="790.0" y="617.0" font-size="9" text-anchor="middle" fill="#1a1a1a">branch_stall = first | wb_branch</text>
+<text x="790.0" y="629.0" font-size="9" text-anchor="middle" fill="#1a1a1a">2-cycle redirect bubble</text>
+<rect x="924" y="574" width="170" height="76" fill="#6b6b6b"/>
+<rect x="920" y="570" width="170" height="76" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1005.0" y="599.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">stall_pipeline</text>
+<text x="1005.0" y="611.0" font-size="9" text-anchor="middle" fill="#1a1a1a">stall | wb_stalling | ex_stalling</text>
+<text x="1005.0" y="623.0" font-size="9" text-anchor="middle" fill="#1a1a1a">| if_stalling | m_stalling</text>
+<polyline points="890,608 920,608" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1070,500 1070,570" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1078" y="566" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">m_done / m_busy</text>
+<text x="700" y="678" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">stall_pipeline freezes fetch_pc, id_pc, ID/EX, EX/WB</text>
+<polyline points="1005,646 1005,662 629,662 629,500" fill="none" stroke="#1a1a1a" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#ah)"/>
+<circle cx="1005" cy="662" r="2.6" fill="#1a1a1a"/>
+<polyline points="1005,662 1199,662 1199,500" fill="none" stroke="#1a1a1a" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#ah)"/>
+<rect x="274" y="794" width="1075" height="60" fill="#6b6b6b"/>
+<rect x="270" y="790" width="1075" height="60" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="807.5" y="817.0" font-size="10" text-anchor="middle" fill="#1a1a1a" font-weight="bold">bus master arbiter</text>
+<text x="807.5" y="830.0" font-size="10" text-anchor="middle" fill="#1a1a1a">FSM ST_IDLE / WAIT_IF / WAIT_EX / WAIT_WB  |  priority WB-store &gt; EX-load &gt; IF-fetch  |  one outstanding request</text>
+<rect x="270" y="898" width="1075" height="48" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="807.5" y="919.0" font-size="10" text-anchor="middle" fill="#1a1a1a">OUT  bus_req_valid, req_write, req_addr[31:0], req_wdata[31:0], req_wstrb[3:0]   -&gt;   sys_bus_interconnect (Fig. 2)</text>
+<text x="807.5" y="932.0" font-size="10" text-anchor="middle" fill="#1a1a1a">IN   bus_rsp_valid, rsp_rdata[31:0], rsp_error   &lt;-   sys_bus_interconnect</text>
+<polyline points="800,850 800,898" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="1345,922 1400,922 1400,378" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1408" y="700" font-size="9" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">bus_rsp_rdata[31:0]</text>
+<polyline points="270,922 50,922 50,354 60,354" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="50" cy="442" r="2.6" fill="#1a1a1a"/>
+<polyline points="50,442 60,442" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="44" y="700" font-size="9" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 44 700)">bus_rsp_rdata[31:0], rsp_valid, rsp_error</text>
+<rect x="40" y="975" width="800" height="140" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="52" y="995" font-size="11" text-anchor="start" fill="#1a1a1a" font-weight="bold">Key control signals (assignment name -&gt; RTL name)</text>
+<text x="52" y="1022" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">RegWrite</text>
+<text x="137" y="1022" font-size="9.5" text-anchor="start" fill="#1a1a1a">wb_reg_write_en = alu|lui|jal|jalr|load|m</text>
+<text x="52" y="1044" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">MemRead</text>
+<text x="137" y="1044" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_mem_to_reg</text>
+<text x="52" y="1066" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">MemWrite</text>
+<text x="137" y="1066" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_mem_write -&gt; wb_mem_write</text>
+<text x="52" y="1088" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">ALUSrc</text>
+<text x="137" y="1088" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_imm_sel</text>
+<text x="452" y="1022" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">ALUOp</text>
+<text x="537" y="1022" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_alu_op[2:0] + ex_arithsubtype</text>
+<text x="452" y="1044" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">Branch/Jump</text>
+<text x="537" y="1044" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_branch, ex_jal, ex_jalr -&gt; branch_taken</text>
+<text x="452" y="1066" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">M select</text>
+<text x="537" y="1066" font-size="9.5" text-anchor="start" fill="#1a1a1a">ex_m -&gt; m_start; m_stalling = ex_m &amp; !m_done</text>
+<text x="452" y="1088" font-size="10" text-anchor="start" fill="#1a1a1a" font-weight="bold">Stall</text>
+<text x="537" y="1088" font-size="9.5" text-anchor="start" fill="#1a1a1a">stall_pipeline</text>
+<rect x="880" y="975" width="780" height="140" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="892" y="995" font-size="11" text-anchor="start" fill="#1a1a1a" font-weight="bold">Legend</text>
+<rect x="895" y="1011" width="30" height="16" fill="#6b6b6b"/>
+<rect x="892" y="1008" width="30" height="16" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="932" y="1021" font-size="10" text-anchor="start" fill="#1a1a1a">existing RTL in rtl/cpu/core</text>
+<rect x="895" y="1037" width="30" height="16" fill="#7f9fb3"/>
+<rect x="892" y="1034" width="30" height="16" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="932" y="1047" font-size="10" text-anchor="start" fill="#1a1a1a">new in this project</text>
+<text x="892" y="1075" font-size="10" text-anchor="start" fill="#1a1a1a">Honest stage mapping: IF+ID fetch and decode in one cycle (no instruction register);</text>
+<text x="892" y="1089" font-size="10" text-anchor="start" fill="#1a1a1a">EX reads regfile, executes, issues loads; MEM+WB stores from EX/WB regs, aligns loads,</text>
+<text x="892" y="1103" font-size="10" text-anchor="start" fill="#1a1a1a">writes regfile. Dashed = stall_pipeline hold.</text></svg>
