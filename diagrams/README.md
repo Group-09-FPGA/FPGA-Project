@@ -10,15 +10,16 @@ pnpm install
 pnpm dev
 ```
 
-Visit the local URL (e.g. `http://localhost:5173/` or `http://localhost:5174/`).
+Visit the local URL: `http://localhost:5174/` (or default `http://localhost:5173/`).
 
 ## Diagram Views
 
-Use the sidebar navigation or keyboard keys (`←`, `→`, `PageUp`, `PageDown`):
+Navigate using the top tabs, keyboard arrows (`←`, `→`, `Space`), or numbers `1`–`7`:
 
-1. **System Overview (`#system`)**: Top-level 3-clock-domain architecture (`clk_eth` 50 MHz, `clk_core` 100 MHz, `clk_vga` 25.175 MHz), showing RMII PHY, MAC RX, network parser, async CDC FIFO, 3-stage RV32IM CPU core, system bus interconnect, memory slaves, hardware LOB core, and display path.
-2. **CPU Pipeline (`#cpu`)**: Detailed 3-stage pipeline (IF, EX, WB) with decoded control signals, operand multiplexers, ALU, branch condition unit, multi-cycle `rv32m_unit`, register file, WB-to-EX forwarding paths, 2-cycle branch hazard stalls, and bus master arbiter with priority `WB > EX > IF`.
-3. **RV32M Unit (`#rv32m`)**: Deep-dive into the hardware extension: 4-state FSM (`IDLE`, `MULT`, `DIV`, `DONE`), 3-stage pipelined multiplier (3-cycle stall), 32-iteration restoring divider (33-cycle stall), div-by-zero, overflow detection, and funct3 truth table.
-4. **Hardware LOB Core (`#lob`)**: 10-cycle Add schedule, 8-cycle Cancel/Delete schedules, Op Sequencer FSM, 2048-set 4-way CRC32-C Hash Table (24 BRAMs), CAM Stash, 4096-entry Slot Table (15 BRAMs), Free-List FIFO, 65536-entry Price Level RAM (64 BRAMs), 3-level Occupancy Mask, priority-encoder BBO Engine, shadow snapshot registers, and fail-stop invariants.
-5. **Ethernet & ITCH Ingestion (`#eth`)**: 50 MHz RMII RX, ping-pong Packet RAM bank-ownership protocol, IPv4/UDP parser, MoldUDP64 sequence gap/duplicate handling, ITCH 5.0 message parser (`A`, `F`, `E`, `C`, `X`, `D`, `U`), 128-bit Canonical Event bitfield layout, and dual-clock async FIFO.
-6. **Complete Module Table (`#modules`)**: Exhaustive status table of all 32 modules across CPU, Memory, Bus, I/O, LOB, Clock, Ethernet, ITCH, CDC, and Display subsystems with exact source file paths and implementation status, plus Artix-7 XC7A100T FPGA resource utilization budget.
+1. **Top-Level System Architecture (`#system`)**: Full-page 3-clock-domain overview (`clk_eth` 50 MHz, `clk_core` 100 MHz, `clk_vga` 25.175 MHz) showing the complete dataflow across network front-end, async CDC FIFO, 3-stage CPU, system bus interconnect, memory slaves, pure-hardware LOB core, and VGA display.
+2. **CPU Pipeline (`#pipeline`)**: Detailed 3-stage pipeline (IF · ID · EX · WB) with exact stage boundaries, 3 physical pipeline registers (`IF/ID`, `ID/EX`, `EX/WB`), MUX selectors, WB→EX forwarding loops, and 2-cycle branch hazard logic.
+3. **4-Cycle Pipelined Multiplier RTL Datapath (`#mul`)**: Pure RTL hardware schematic (no FSM bubbles) with 1-to-1 Verilog correspondence to `rv32m_unit.v`. Shows signed/unsigned sign-extension MUXes, 33×33-bit multiplication array, 66-bit partial product accumulation, lower/upper 32-bit formatting MUX, and output handshake across Cycles 1 to 4.
+4. **39-Cycle Restoring Divider RTL Datapath (`#div`)**: Pure RTL hardware schematic (no FSM bubbles) with 1-to-1 Verilog correspondence to `rv32m_unit.v`. Shows absolute value negator MUXes, corner-case detectors (div-by-zero, overflow), 36-iteration restoring recurrence loop (`shifted_rem - div_reg`, borrow bit, remainder restoration MUX, quotient shift-in), sign correction MUXes, priority exception MUX, and output handshake across Cycles 1 to 39.
+5. **Pure-Hardware Limit Order Book Accelerator (`#lob`)**: 10-cycle Add schedule, 8-cycle Cancel/Delete schedules, Op Sequencer, 2048-set 4-way Hash Table (24 BRAMs), CAM Stash, 4096-entry Slot Table (15 BRAMs), Free-List FIFO, 65536-entry Price Level RAM (64 BRAMs), 3-level Occupancy Mask, BBO Engine, coherent MMIO shadow registers, and fail-stop invariants.
+6. **Pipeline Execution Timing Diagram (`#timing`)**: Interactive cycle-by-cycle trace from real hardware simulation (`tb_rv32m_pipeline.v`) across 25 clock cycles, demonstrating multi-cycle execution, skid buffer holding, RAW hazard forwarding, and hazard bubbles.
+7. **Module Summary & FPGA Resource Estimates (`#modules`)**: Exhaustive technical table of all 27 project modules classified by language and purpose, alongside the Artix-7 XC7A100T utilization budget and verification strategy.
