@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FPGA Market Data Processor - Project Gantt Chart</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #0f172a;
+    }
+    p.subtitle {
+      margin: 4px 0 0 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+    .btn {
+      background-color: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.15s ease;
+    }
+    .btn:hover {
+      background-color: #059669;
+    }
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid #64748b;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    #copy-status {
+      margin-left: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #059669;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>End-to-End FPGA Market Data Processor & LOB: Gantt Chart</h1>
+        <p class="subtitle">Group 09 | Target: Digilent Nexys A7-100T (Artix-7) | RV32IM SoC + Hardware LOB Accelerator</p>
+      </div>
+      <div>
+        <button class="btn" onclick="copyGanttTable()">
+          📋 Copy Table for Google Docs
+        </button>
+        <span id="copy-status">Copied to clipboard! Ready to paste into Google Docs.</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-box" style="background-color: #A8D08D;"></div>
+        <span><strong>Active Sprint Task</strong> (Green)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-box" style="background-color: #fef08a; border-color: #ca8a04;"></div>
+        <span><strong>25 Oct Milestone:</strong> Core LOB Hash & Occupancy Bitmask Tested</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-box" style="background-color: #fed7aa; border-color: #ea580c;"></div>
+        <span><strong>01 Nov Milestone:</strong> Minimum Working System on Nexys A7 FPGA Flashed & Verified</span>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+<table id="gantt-table" border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 11px; text-align: center; border: 1px solid #666; margin: 0 auto; width: 100%;">
+  <thead>
+    <tr style="background-color: #f2f2f2; font-weight: bold; border-bottom: 2px solid #444;">
+      <th rowspan="2" style="border: 1px solid #444; width: 280px; text-align: left; padding: 6px 8px; vertical-align: middle;">Activity</th>
+      <th rowspan="2" style="border: 1px solid #444; width: 85px; text-align: center; padding: 6px 4px; vertical-align: middle;">Owner</th>
+      <th colspan="31" style="border: 1px solid #444; background-color: #e2e8f0; padding: 4px; color: #1e293b; font-size: 12px;">Oct</th>
+      <th colspan="8" style="border: 1px solid #444; background-color: #cbd5e1; padding: 4px; color: #1e293b; font-size: 12px;">Nov</th>
+    </tr>
+    <tr style="background-color: #f8fafc; font-weight: bold; font-size: 10px;">
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">1</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">2</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">3</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">4</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">5</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">6</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">7</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">8</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">9</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">10</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">11</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">12</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">13</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">14</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">15</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">16</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">17</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">18</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">19</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">20</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">21</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">22</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">23</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">24</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px; background-color: #fef08a;">25</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">26</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">27</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">28</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">29</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">30</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">31</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px; background-color: #fed7aa;">1</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">2</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">3</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">4</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">5</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">6</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">7</th>
+      <th style="border: 1px solid #94a3b8; width: 18px; padding: 3px 1px; min-width: 16px;">8</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement Booth multiplier + standalone testbench</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Akshit</td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Integrate MUL into EX stage & data forwarding bypass</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Akshit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Add stall logic for multi-cycle ops (hazard unit)</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Akshit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 32-bit serial Radix-2 divider + corner TB</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Akshit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Pipeline timing optimization & multi-cycle STA audit</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Akshit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Design 4-state system bus arbiter & interconnect crossbar</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Ronit</td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement dual-port BRAM memory slave wrappers (IMEM/DMEM)</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Ronit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Synthesize & debug baseline RV32IM on Nexys A7 FPGA</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Ronit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Integrate LOB MMIO crossbar slave & atomic shadow registers</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Ronit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 640x480 VGA controller & ladder video bridge</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Ronit</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Design ITCH 5.0 streaming decoder & canonical event formatter</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya K</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 256-bit dual-clock async CDC FIFO & Gray sync</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya K</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 4096-entry order slot table & free-list FSM</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya K</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 4-way set-associative hash table & CAM stash</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya K</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement RMII MAC RX Ethernet receiver + CRC-32 checker</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya K</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Design dual-bank Bid/Ask Price Level BRAM datapath</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya M</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement hierarchical occupancy bitmask tree & priority encoder</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya M</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement 2-stage pipelined DSP48 BBO price engine</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya M</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Standalone LOB core testbench vs 10,000 synthetic orders</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya M</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Top-level multi-source stress simulation & latency test</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditya M</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Verify RV32I/M CPU using 5 bare-metal C test programs</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditeya</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Implement UART telemetry transmitter core & FIFO buffer</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditeya</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Design 8-digit 7-segment display dynamic multiplexer</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditeya</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Develop bare-metal C firmware for synthetic orders & BBO polling</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditeya</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+    <tr style="height: 22px;">
+      <td style="border: 1px solid #94a3b8; text-align: left; padding: 3px 6px; white-space: nowrap; font-weight: 500; font-size: 11px;">Physical FPGA Minimum System debug & BBO board validation</td>
+      <td style="border: 1px solid #94a3b8; text-align: center; padding: 3px 4px; font-weight: bold; font-size: 11px;">Aditeya</td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #64748b; background-color: #A8D08D;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+      <td style="border: 1px solid #e2e8f0; background-color: #ffffff;"></td>
+    </tr>
+  </tbody>
+</table>
+    </div>
+  </div>
+
+  <script>
+    function copyGanttTable() {
+      const table = document.getElementById("gantt-table");
+      const html = table.outerHTML;
+      const text = table.innerText;
+
+      if (navigator.clipboard && window.ClipboardItem) {
+        const item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        });
+        navigator.clipboard.write([item]).then(() => {
+          showCopied();
+        }).catch(err => {
+          fallbackCopy(html);
+        });
+      } else {
+        fallbackCopy(html);
+      }
+    }
+
+    function fallbackCopy(html) {
+      const listener = function(e) {
+        e.clipboardData.setData("text/html", html);
+        e.clipboardData.setData("text/plain", html);
+        e.preventDefault();
+      };
+      document.addEventListener("copy", listener);
+      document.execCommand("copy");
+      document.removeEventListener("copy", listener);
+      showCopied();
+    }
+
+    function showCopied() {
+      const status = document.getElementById("copy-status");
+      status.style.opacity = "1";
+      setTimeout(() => {
+        status.style.opacity = "0";
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

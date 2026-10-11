@@ -1,0 +1,27 @@
+Activity	Owner	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Oct	Nov	Nov	Nov	Nov	Nov	Nov	Nov	Nov
+		1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24	25	26	27	28	29	30	31	1	2	3	4	5	6	7	8
+Implement Booth multiplier + standalone testbench	Akshit	■	■	■	■	■																																		
+Integrate MUL into EX stage & data forwarding bypass	Akshit				■	■	■	■	■																															
+Add stall logic for multi-cycle ops (hazard unit)	Akshit							■	■	■	■	■																												
+Implement 32-bit serial Radix-2 divider + corner TB	Akshit											■	■	■	■	■	■	■																						
+Pipeline timing optimization & multi-cycle STA audit	Akshit																											■	■	■	■	■	■							
+Design 4-state system bus arbiter & interconnect crossbar	Ronit	■	■	■	■	■	■																																	
+Implement dual-port BRAM memory slave wrappers (IMEM/DMEM)	Ronit						■	■	■	■	■																													
+Synthesize & debug baseline RV32IM on Nexys A7 FPGA	Ronit								■	■	■	■	■																											
+Integrate LOB MMIO crossbar slave & atomic shadow registers	Ronit																					■	■	■	■	■	■													
+Implement 640x480 VGA controller & ladder video bridge	Ronit																																■	■	■	■	■	■		
+Design ITCH 5.0 streaming decoder & canonical event formatter	Aditya K										■	■	■	■	■	■																								
+Implement 256-bit dual-clock async CDC FIFO & Gray sync	Aditya K														■	■	■	■	■	■																				
+Implement 4096-entry order slot table & free-list FSM	Aditya K																		■	■	■	■	■	■																
+Implement 4-way set-associative hash table & CAM stash	Aditya K																				■	■	■	■	■	■														
+Implement RMII MAC RX Ethernet receiver + CRC-32 checker	Aditya K																										■	■	■	■	■	■								
+Design dual-bank Bid/Ask Price Level BRAM datapath	Aditya M															■	■	■	■	■	■																			
+Implement hierarchical occupancy bitmask tree & priority encoder	Aditya M																				■	■	■	■	■	■														
+Implement 2-stage pipelined DSP48 BBO price engine	Aditya M																								■	■	■	■	■											
+Standalone LOB core testbench vs 10,000 synthetic orders	Aditya M																										■	■	■	■	■									
+Top-level multi-source stress simulation & latency test	Aditya M																																■	■	■	■	■	■		
+Verify RV32I/M CPU using 5 bare-metal C test programs	Aditeya				■	■	■	■	■	■																														
+Implement UART telemetry transmitter core & FIFO buffer	Aditeya											■	■	■	■	■	■																							
+Design 8-digit 7-segment display dynamic multiplexer	Aditeya																	■	■	■	■	■	■																	
+Develop bare-metal C firmware for synthetic orders & BBO polling	Aditeya																										■	■	■	■	■	■								
+Physical FPGA Minimum System debug & BBO board validation	Aditeya																												■	■	■	■	■							
