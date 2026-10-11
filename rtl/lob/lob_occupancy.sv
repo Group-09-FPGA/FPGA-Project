@@ -49,10 +49,10 @@ module lob_occupancy #(
     // -------------------------------------------------------------------------
     // Leaf Memories (256 words x 32 bits per side)
     // -------------------------------------------------------------------------
-    (* ram_style = "block" *)
+    (* ram_style = "distributed" *)
     logic [31:0] leaf_mem_bid [0:OCC_LEAF_WORDS-1];
 
-    (* ram_style = "block" *)
+    (* ram_style = "distributed" *)
     logic [31:0] leaf_mem_ask [0:OCC_LEAF_WORDS-1];
 
     // L1 Register Masks (256 bits per side)
@@ -274,6 +274,21 @@ module lob_occupancy #(
         end
     end
 
+    // Leaf memory synchronous writes (no asynchronous reset)
+    always_ff @(posedge clk) begin
+        if (initializing) begin
+            leaf_mem_bid[init_cnt[7:0]] <= 32'd0;
+            leaf_mem_ask[init_cnt[7:0]] <= 32'd0;
+        end else if (leaf_upd_en) begin
+            if (leaf_upd_side == 1'b0) begin
+                leaf_mem_bid[upd_word_addr] <= upd_new_word_bid;
+            end else begin
+                leaf_mem_ask[upd_word_addr] <= upd_new_word_ask;
+            end
+        end
+    end
+
+    // Hierarchy masks (L1, L0) and initialization FSM
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             l1_bid       <= '0;
@@ -293,8 +308,6 @@ module lob_occupancy #(
                 l0_bid       <= '0;
                 l0_ask       <= '0;
             end else if (initializing) begin
-                leaf_mem_bid[init_cnt[7:0]] <= 32'd0;
-                leaf_mem_ask[init_cnt[7:0]] <= 32'd0;
                 if (init_cnt == OCC_LEAF_WORDS - 1) begin
                     initializing <= 1'b0;
                     init_done    <= 1'b1;
@@ -303,7 +316,6 @@ module lob_occupancy #(
                 end
             end else if (leaf_upd_en) begin
                 if (leaf_upd_side == 1'b0) begin
-                    leaf_mem_bid[upd_word_addr] <= upd_new_word_bid;
                     // Update L1
                     l1_bid[upd_word_addr] <= (upd_new_word_bid != 32'd0);
                     // Update L0
@@ -317,7 +329,6 @@ module lob_occupancy #(
                         l0_bid[g] <= (grp_l1 != 32'd0);
                     end
                 end else begin
-                    leaf_mem_ask[upd_word_addr] <= upd_new_word_ask;
                     // Update L1
                     l1_ask[upd_word_addr] <= (upd_new_word_ask != 32'd0);
                     // Update L0
