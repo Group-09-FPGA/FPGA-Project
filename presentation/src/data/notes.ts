@@ -58,14 +58,8 @@ export const NOTES: Notes[] = [
   },
   {
     time: '1:00',
-    points: [
-      'Five owners matched directly to our Project Abstract: Ronit (Bus/VGA), Akshit (RV32M), Aditya K (LOB Datapath), Aditya M (BRAM Queues/BBO), Aditeya G (C Drivers/Telemetry).',
-      'The right side shows the strict sequential execution order: Aditeya G (Workload) -> Aditya K (Parsing/LOB) -> Aditya M (BBO) -> Ronit (Bus Arbiter) -> Akshit/Ronit (CPU & VGA).',
-    ],
-    qa: [
-      'Why is bus access collision-free? 4-state non-preemptive arbiter with wait-states and dual-port BRAM controllers.',
-      'Who verifies? Each member owns standalone Verilog testbenches before main bus integration.',
-    ],
+    points: ['Four owners, four non-overlapping deliverables. Each can be tested alone.'],
+    qa: ['Who integrates? D owns the FPGA top and the demo, B and C hand over tested modules.'],
   },
   {
     time: '1:00 - 1:30',
