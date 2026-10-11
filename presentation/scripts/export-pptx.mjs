@@ -294,26 +294,68 @@ const bullets = (s, items, x, y, w, h, size = 32) =>
 
 // ---------- 6 ----------
 {
-  const s = frame(6, 'Non-overlapping ownership', 'Team responsibilities')
-  nut(s, 1760, 150)
-  const hd = (t) => ({ text: t.toUpperCase(), options: { fontFace: MONO, fontSize: 11, bold: true, color: INK3, charSpacing: 2, border: [{ type: 'none' }, { type: 'none' }, { pt: 1, color: INK }, { type: 'none' }] } })
-  const bd = { type: 'none' }, bb = { pt: 0.75, color: 'C4C4C0' }
-  const rows = [
-    ['A', 'Golden model', 'Python book, event contract, test vectors. Then stretch: Ethernet + ITCH parser.'],
-    ['B', 'LOB core', 'Hash + stash, slot table, free list, price RAM, with testbenches.'],
-    ['C', 'BBO + MMIO + firmware', 'Occupancy hierarchy, MMIO slave, bus decode, C test programs.'],
-    ['D', 'FPGA + demo', '100 MHz clocking, XDC constraints, synthesis, timing closure, demo.'],
+  const s = frame(6, 'Non-overlapping ownership · Group 9 Abstract', 'Team responsibilities & system partitioning')
+  nut(s, 1760, 95)
+
+  // Left Column: 5 Subsystem tasks
+  label(s, 'Member responsibilities & owned deliverables', 96, 210)
+  const tasks = [
+    { m: 'Ronit', c: '2563EB', tint: 'EFF6FF', t: 'Hardware System Bus Architect', tag: 'MMIO Arbiter · Bus Interconnect · VGA', rtl: 'sys_bus_interconnect.v · MMIO Address Decoder · vga_core.v · wait-state FSM', d: 'Integrating the LOB Accelerator and MMIO interfaces to the RISC-V memory map with 4-state wait-state bus arbitration, plus physical 640x480 VGA display controller integration.' },
+    { m: 'Akshit', c: '7C3AED', tint: 'F5F3FF', t: 'RV32M Hardware Datapath & Stall Logic', tag: 'Multi-cycle M · DSP MUL · Radix-2 Serial DIV', rtl: 'rv32m_unit.v · hazard_unit.v · forwarding_unit.v · cpu_core.v', d: 'RV32M hardware datapath: DSP48E1 multiplier (2–3 cycles) and iterative 32-bit serial divider (~33 cycles). Pipeline hazard detection, forwarding bypass muxes, and multi-cycle stall logic.' },
+    { m: 'Aditya K', c: '059669', tint: 'ECFDF5', t: 'LOB Hardware Datapath & Order Parsing', tag: 'Hardware Order Parsing · Memory Controllers', rtl: 'lob_core.sv · lob_event_decoder.sv · lob_slot_table.sv · lob_price_ram.sv', d: 'Limit Order Book hardware datapath, canonical order parsing, and dual-port BRAM memory controller logic. Fixed ~8–12 cycle datapath for complete BRAM read-match-write per order.' },
+    { m: 'Aditya M', c: '0891B2', tint: 'ECFEFF', t: 'BRAM Priority Queues & Encoders', tag: 'Parallel BRAM Queues · O(1) Priority Encoders', rtl: 'lob_occupancy.sv · lob_bbo.sv · tb_lob_occupancy.sv · tb_lob_bbo.sv', d: 'Physical BRAM priority queues, parallel multi-bank memory architecture, and O(1) hardware hierarchical priority encoders for dynamic instantaneous Best Bid/Offer tracking.' },
+    { m: 'Aditeya G', c: 'E11D48', tint: 'FFF1F2', t: 'Bare-Metal C Drivers & Telemetry', tag: '5 C-Program Workloads · Interrupts · Telemetry', rtl: 'bare-metal C test drivers · uart_telemetry.v · seven_seg_driver.v', d: 'Bare-metal C-program drivers (5 synthetic trading workloads) used to validate accelerator I/O against edge cases. Software interrupt handling, UART streaming, and 7-segment telemetry output.' },
   ]
-  const cellOpts = (o) => ({ valign: 'middle', border: [bd, bd, bb, bd], margin: [0, 8, 0, 8], ...o })
-  const body = rows.map(([m, r, d]) => [
-    { text: m, options: cellOpts({ fontFace: MONO, fontSize: 32, bold: true, color: NAVY }) },
-    { text: r, options: cellOpts({ fontFace: SANS, fontSize: 16, bold: true, color: INK }) },
-    { text: d, options: cellOpts({ fontFace: SANS, fontSize: 16, color: INK2 }) },
-  ])
-  s.addTable([[hd('Member'), hd('Responsibility'), hd('Deliverable')], ...body], {
-    x: P(96), y: P(260 + OFF), w: P(1728), colW: [P(130), P(520), P(1078)], rowH: [P(50), ...rows.map(() => P(150))],
+
+  tasks.forEach((tk, i) => {
+    const y = 244 + i * 142
+    R(s, 96, y, 1070, 134, { fill: 'FFFFFF', line: 'E2E8F0', lw: 1.2 })
+    R(s, 96, y, 6, 134, { fill: tk.c, line: false })
+    T(s, tk.m, 114, y + 8, 140, 26, { size: 24, bold: true, color: '0F172A' })
+    T(s, '— ' + tk.t, 258, y + 9, 480, 24, { size: 19, bold: true, color: tk.c })
+    R(s, 746, y + 8, 406, 24, { fill: tk.tint, line: false })
+    T(s, tk.tag, 752, y + 10, 396, 20, { size: 15, mono: true, bold: true, color: tk.c })
+    T(s, tk.rtl, 114, y + 38, 1030, 20, { size: 15, mono: true, color: INK3 })
+    T(s, tk.d, 114, y + 62, 1030, 64, { size: 18, color: '334155', ls: 1.05 })
   })
-  T(s, 'Roles are proposed for this plan. Replace with the real team split.', 96, 940, 1500, 30, { size: 20, mono: true, color: INK3 })
+
+  // Right Column: Vertical sequential data pipeline & guarantees
+  label(s, 'Hardware execution pipeline (strict sequential flow)', 1214, 210)
+  const steps = [
+    { n: '1', a: 'Aditeya G', c: 'E11D48', t: 'Workload Generation (C Drivers)', d: 'Bare-metal C driver generates synthetic market orders on CPU' },
+    { n: '2', a: 'Aditya K', c: '059669', t: 'Order Parsing & LOB Datapath', d: 'Canonical parsing & 8–12 cycle BRAM read-match-write FSM' },
+    { n: '3', a: 'Aditya M', c: '0891B2', t: 'BRAM Queues & Priority Encoders', d: 'Parallel BRAM queues & O(1) encoders instantly extract Best Bid/Offer' },
+    { n: '4', a: 'Ronit', c: '2563EB', t: 'System Bus & MMIO Arbiter', d: 'Maps LOB registers to RISC-V memory space with wait-state control' },
+    { n: '5', a: 'Akshit & Ronit', c: '7C3AED', t: 'RV32M Core & VGA Display Output', d: 'Softcore executes telemetry while FPGA VGA renders the live order book' },
+  ]
+
+  const py0 = 244
+  steps.forEach((st, i) => {
+    const y = py0 + i * 86
+    R(s, 1214, y, 610, 56, { fill: 'FFFFFF', line: 'E2E8F0', lw: 1 })
+    R(s, 1214, y, 4, 56, { fill: st.c, line: false })
+    R(s, 1224, y + 13, 30, 30, { fill: st.c, line: false })
+    T(s, st.n, 1224, y + 16, 30, 24, { size: 18, mono: true, bold: true, color: 'FFFFFF', align: 'center', valign: 'middle' })
+    T(s, st.t, 1266, y + 7, 430, 22, { size: 17, bold: true, color: '0F172A' })
+    T(s, st.a, 1696, y + 8, 118, 20, { size: 14, mono: true, bold: true, color: st.c, align: 'right' })
+    T(s, st.d, 1266, y + 29, 540, 20, { size: 14, color: '475569' })
+    if (i < steps.length - 1) {
+      L(s, 1519, y + 57, 1519, y + 84, { color: '94A3B8', lw: 1.5, arrow: true })
+    }
+  })
+
+  // Guarantees
+  const cards = [
+    { t: 'Modular Hardware Development', c: '059669', d: 'Processor extensions and pure-hardware accelerator are designed in Verilog and independently verified in simulation before main bus integration.' },
+    { t: 'Atomic Bus Contract & Zero Collisions', c: '2563EB', d: 'Zero memory collisions during dual-port BRAM read-modify-writes; 100% exact match against Python Golden I/O models on edge cases.' },
+  ]
+  cards.forEach((cd, i) => {
+    const y = 692 + i * 126
+    R(s, 1214, y, 610, 114, { fill: 'FFFFFF', line: 'E2E8F0', lw: 1 })
+    R(s, 1214, y, 5, 114, { fill: cd.c, line: false })
+    T(s, cd.t.toUpperCase(), 1230, y + 10, 580, 22, { size: 15, mono: true, bold: true, color: cd.c })
+    T(s, cd.d, 1230, y + 36, 580, 70, { size: 16, color: '334155', ls: 1.05 })
+  })
 }
 
 // ---------- 7 ----------
