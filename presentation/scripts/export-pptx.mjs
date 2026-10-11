@@ -192,12 +192,19 @@ const bullets = (s, items, x, y, w, h, size = 32) =>
   for (let c = 0; c < CYCLES; c++) T(s, String(c), gx + lw + c * cw, gy, cw, rh, { size: 20, mono: true, bold: true, color: INK3, align: 'center', valign: 'middle' })
   L(s, gx, gy + rh, gx + lw + CYCLES * cw, gy + rh, { lw: 1 })
   const style = {
+    'IF/ID': { fill: 'E5E6F5', line: INK, color: INK },
     IF: { fill: 'FFFFFF', line: INK, color: INK }, ID: { fill: 'E5E6F5', line: INK, color: INK },
-    EX: { fill: NAVY, line: NAVY, color: 'FFFFFF' }, M: { fill: '5A5FB8', line: NAVY, color: 'FFFFFF' },
-    WB: { fill: INK, line: INK, color: 'FFFFFF' }, HOLD: { fill: undefined, line: INK3, color: INK3, dash: 'dash' },
+    EX: { fill: 'C8E6C9', line: '2E7D32', color: '1B5E20' },
+    M: { fill: '0D3B66', line: '062340', color: 'FFFFFF' },
+    D: { fill: '0D3B66', line: '062340', color: 'FFFFFF' },
+    'MEM/WB': { fill: 'FFE0B2', line: 'FB8C00', color: 'E65100' },
+    WB: { fill: INK, line: INK, color: 'FFFFFF' },
+    STALL: { fill: 'FEF3C7', line: 'D97706', color: 'B45309' },
+    HOLD: { fill: undefined, line: INK3, color: INK3, dash: 'dash' },
+    FLUSH: { fill: 'FFE4E6', line: 'E11D48', color: 'BE123C' },
   }
   const cell = (c, y, k, text, fwd) => {
-    const st = style[k]
+    const st = style[k] ?? { fill: undefined, line: INK, color: INK }
     const x = gx + lw + c * cw + 3, yy = y + 4
     R(s, x, yy, 46, 32, { fill: st.fill, line: fwd ? '1F7A4D' : st.line, lw: fwd ? 2.25 : 0.9, dash: st.dash })
     T(s, text, x, yy, 46, 32, { size: 20, mono: true, bold: k !== 'HOLD', color: st.color, align: 'center', valign: 'middle' })
@@ -337,5 +344,6 @@ const bullets = (s, items, x, y, w, h, size = 32) =>
   ], 96, 664, 1500, 280, 32)
 }
 
-await pptx.writeFile({ fileName: new URL('../FPGA-LOB-presentation.pptx', import.meta.url).pathname })
+import { fileURLToPath } from 'url'
+await pptx.writeFile({ fileName: fileURLToPath(new URL('../FPGA-LOB-presentation.pptx', import.meta.url)) })
 console.log('wrote FPGA-LOB-presentation.pptx')
