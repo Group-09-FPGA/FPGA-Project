@@ -182,87 +182,119 @@ export default function Slide4_LOBCore() {
         <SignalWire d="M825,185 V225 H1290 V230" color="navy" label="Dual-Port RAM Sched" lx={1100} ly={180} />
 
         {/* Memory budget callout strip */}
-        <div style={{ position: 'absolute', left: 40, top: 370, width: 1680 }}>
-          <div style={{ background: '#ffffff', border: '1px solid #d0d0c8', padding: '10px 16px', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', font: '13px var(--mono)' }}>
-            <div><b>Total Accelerator BRAMs:</b> 24 (Hash) + 15 (Slots) + 64 (Price RAM) + 2 (Occupancy) + 2 (CDC FIFO) = <b>107 RAMB36E1 Primitives</b></div>
-            <div style={{ color: 'var(--navy)', fontWeight: 600 }}>Artix-7 XC7A100T Utilization: 107 / 135 BRAMs (79.3%)</div>
-            <div style={{ color: 'var(--ok)', fontWeight: 600 }}>Zero Timing Conflicts (Dual-Port Port Sched)</div>
-          </div>
-        </div>
+        <g>
+          <rect x={40} y={368} width={1680} height={38} rx={4} fill="#ffffff" stroke="#d0d0c8" strokeWidth={1} />
+          <text x={56} y={392} style={{ font: '600 13px var(--mono)', fill: 'var(--ink)' }}>
+            Total Accelerator BRAMs: 24 (Hash) + 15 (Slots) + 64 (Price RAM) + 2 (Occupancy) + 2 (CDC FIFO) = 107 RAMB36E1 Primitives
+          </text>
+          <text x={1080} y={392} style={{ font: '700 13px var(--mono)', fill: 'var(--navy)' }}>
+            Artix-7 XC7A100T Utilization: 107 / 135 BRAMs (79.3%)
+          </text>
+          <text x={1520} y={392} style={{ font: '700 13px var(--mono)', fill: 'var(--ok)' }}>
+            ✓ Zero Timing Conflicts
+          </text>
+        </g>
 
         {/* ════════════════════════════════════════════════════════════════════
             BOTTOM: EXACT 10-CYCLE ADD SCHEDULE & FAIL-STOP INVARIANTS
            ════════════════════════════════════════════════════════════════════ */}
         <SubsystemGroup
           x={20}
-          y={460}
+          y={430}
           w={1130}
-          h={260}
+          h={290}
           label="3. Deterministic Add Order Cycle Schedule (lob_core.sv)"
           sub="10 Consecutive Clock Cycles (100 ns total latency @ 100 MHz)"
           isNew
         />
 
-        <div style={{ position: 'absolute', left: 40, top: 495, width: 1090 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', font: '12px var(--mono)' }}>
-            <thead>
-              <tr style={{ borderBottom: '1.5px solid var(--line)', textAlign: 'left', color: 'var(--ink-3)' }}>
-                <th style={{ width: 60, padding: '4px' }}>Cycle</th>
-                <th style={{ width: 180, padding: '4px' }}>Operation</th>
-                <th style={{ padding: '4px' }}>Hardware Action &amp; Memory Access</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ['C0', 'Free Pop & Hash', 'Pop Slot_ID from Free-List FIFO. Simultaneously calculate CRC32-C(Order_ID).'],
-                ['C1', 'Hash Addr Setup', 'Free-List pop validated. Address hash table set index at RAMB port A.'],
-                ['C2', 'Hash BRAM Read', 'Read 4 associative ways from BRAM + parallel CAM stash lookup.'],
-                ['C3', 'Hit / Dup Check', 'Verify Order_ID is not already present. Select empty way (or stash overflow).'],
-                ['C4', 'Hash BRAM Write', 'Write {Order_ID, Slot_ID} to selected way. Prepare Slot Table write address.'],
-                ['C5', 'Slot RAM Write', 'Write {valid=1, side, ID, price, shares} into Slot RAM. Address Price Level RAM.'],
-                ['C6', 'Price RAM Read', 'Read current cumulative quantity at {side, price} via Price RAM Port A.'],
-                ['C7', 'Quantity Accum', 'Price_Qty <= Price_Qty + Shares. Setup Port B write address.'],
-                ['C8', 'Price RAM Write', 'Write updated quantity via Port B. Set corresponding bit in Occupancy Mask.'],
-                ['C9', 'BBO Priority Enc', 'Priority Encoder refreshes Best Bid / Best Ask. Strobe complete. Return to IDLE.'],
-              ].map(([cyc, op, act]) => (
-                <tr key={cyc} style={{ borderBottom: '1px solid #e8e8e4' }}>
-                  <td style={{ padding: '3px 4px', fontWeight: 700, color: 'var(--navy)' }}>{cyc}</td>
-                  <td style={{ padding: '3px 4px', fontWeight: 600, color: 'var(--ink)' }}>{op}</td>
-                  <td style={{ padding: '3px 4px', color: 'var(--ink-2)' }}>{act}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Schedule Table Header */}
+        <g>
+          <rect x={36} y={460} width={1098} height={24} fill="#f5f5f3" rx={2} />
+          <text x={50} y={476} style={{ font: '700 12px var(--mono)', fill: 'var(--ink-2)' }}>CYCLE</text>
+          <text x={120} y={476} style={{ font: '700 12px var(--mono)', fill: 'var(--ink-2)' }}>OPERATION</text>
+          <text x={280} y={476} style={{ font: '700 12px var(--mono)', fill: 'var(--ink-2)' }}>HARDWARE ACTION &amp; MEMORY PIPELINE ACCESS</text>
+          <line x1={36} y1={484} x2={1134} y2={484} stroke="#dcdcd8" strokeWidth={1} />
+        </g>
 
-        {/* ── Invariants & Fail-Stop Box ─────────────────────────────────── */}
+        {/* 10 Schedule Rows */}
+        {[
+          ['C0', 'Free Pop & Hash', 'Pop Slot_ID from Free-List FIFO. Compute CRC32-C(Order_ID) hash index in parallel.'],
+          ['C1', 'Hash Addr Setup', 'Free-List pop validated. Address hash table set index at RAMB port A.'],
+          ['C2', 'Hash BRAM Read', 'Read 4 associative ways from BRAM + parallel CAM stash lookup (1-cycle read latency).'],
+          ['C3', 'Hit / Dup Check', 'Verify Order_ID is not already present. Select empty way (or CAM stash overflow).'],
+          ['C4', 'Hash BRAM Write', 'Write {Order_ID, Slot_ID} to selected way. Prepare Slot Table write address.'],
+          ['C5', 'Slot RAM Write', 'Write {valid=1, side, ID, price, shares} into Slot RAM. Address Price Level RAM.'],
+          ['C6', 'Price RAM Read', 'Read current cumulative quantity at {side, price} via Price RAM Port A.'],
+          ['C7', 'Quantity Accum', 'Price_Qty <= Price_Qty + Shares. Setup Port B write address.'],
+          ['C8', 'Price RAM Write', 'Write updated quantity via Port B. Set corresponding bit in Occupancy Mask.'],
+          ['C9', 'BBO Priority Enc', 'Priority Encoder refreshes Best Bid / Best Ask. Strobe complete. Return to IDLE.'],
+        ].map(([cyc, op, act], i) => {
+          const rowY = 506 + i * 21
+          return (
+            <g key={cyc}>
+              {i % 2 === 1 && (
+                <rect x={36} y={rowY - 14} width={1098} height={19} fill="rgba(255,255,255,0.7)" rx={2} />
+              )}
+              <text x={50} y={rowY} style={{ font: '700 12px var(--mono)', fill: 'var(--navy)' }}>{cyc}</text>
+              <text x={120} y={rowY} style={{ font: '600 12px var(--mono)', fill: 'var(--ink)' }}>{op}</text>
+              <text x={280} y={rowY} style={{ font: '400 12px var(--mono)', fill: 'var(--ink-2)' }}>{act}</text>
+              <line x1={36} y1={rowY + 6} x2={1134} y2={rowY + 6} stroke="#eaeae6" strokeWidth={0.8} />
+            </g>
+          )
+        })}
+
+        {/* ── Section 4: Invariants & Recovery Box ──────────────────────── */}
         <SubsystemGroup
           x={1170}
-          y={460}
+          y={430}
           w={570}
-          h={260}
+          h={290}
           label="4. Fail-Safe Invariants &amp; Recovery"
           sub="BOOK_VALID Flag &amp; GLIMPSE Protocol"
         />
 
-        <div style={{ position: 'absolute', left: 1190, top: 495, width: 530, font: '13px/1.45 var(--font)', color: 'var(--ink-2)' }}>
-          <div style={{ font: '600 13px var(--mono)', color: 'var(--warn)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
-            Deterministic Fail-Stop Triggers:
-          </div>
-          <ul style={{ margin: '6px 0 0 18px', display: 'grid', gap: 4 }}>
-            <li><b>Free-List Underflow:</b> Book capacity of 4,096 active orders exceeded.</li>
-            <li><b>Hash Table + Stash Full:</b> 4-way set and 16-entry stash all occupied.</li>
-            <li><b>Missing / Duplicate Order ID:</b> Lookup miss on cancel, hit on add.</li>
-            <li><b>Sequence Gap:</b> MoldUDP64 seq num &gt; expected seq num.</li>
-          </ul>
+        {/* Invariants Header */}
+        <text x={1190} y={466} style={{ font: '700 13px var(--mono)', fill: 'var(--warn)', letterSpacing: '.06em' }}>
+          DETERMINISTIC FAIL-STOP TRIGGERS:
+        </text>
 
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#ffffff', border: '1.5px solid var(--warn)', borderRadius: 4 }}>
-            <div style={{ font: '700 12px var(--mono)', color: 'var(--warn)' }}>RECOVERY PROTOCOL:</div>
-            <div style={{ fontSize: 13, marginTop: 2 }}>
-              Hardware transitions to <code>INVALID</code>, asserts <code>BOOK_VALID = 0</code>, halts matching. CPU resets book, downloads TCP GLIMPSE snapshot, injects orders via MMIO, and restores <code>VALID</code>.
-            </div>
-          </div>
-        </div>
+        {/* Invariant Bullet Points */}
+        <g>
+          <text x={1190} y={492} style={{ font: '500 13px var(--mono)', fill: 'var(--ink-2)' }}>
+            <tspan style={{ fill: 'var(--warn)', fontWeight: 700 }}>• Free-List Underflow: </tspan>
+            Capacity of 4,096 active orders exceeded
+          </text>
+          <text x={1190} y={516} style={{ font: '500 13px var(--mono)', fill: 'var(--ink-2)' }}>
+            <tspan style={{ fill: 'var(--warn)', fontWeight: 700 }}>• Hash Table + Stash Full: </tspan>
+            4-way set and 16-entry stash all occupied
+          </text>
+          <text x={1190} y={540} style={{ font: '500 13px var(--mono)', fill: 'var(--ink-2)' }}>
+            <tspan style={{ fill: 'var(--warn)', fontWeight: 700 }}>• Missing / Duplicate ID: </tspan>
+            Lookup miss on cancel, hit on add
+          </text>
+          <text x={1190} y={564} style={{ font: '500 13px var(--mono)', fill: 'var(--ink-2)' }}>
+            <tspan style={{ fill: 'var(--warn)', fontWeight: 700 }}>• Sequence Gap: </tspan>
+            MoldUDP64 seq num &gt; expected seq num
+          </text>
+        </g>
+
+        {/* Recovery Card */}
+        <g>
+          <rect x={1190} y={590} width={530} height={115} rx={4} fill="#ffffff" stroke="var(--warn)" strokeWidth={1.5} />
+          <text x={1208} y={615} style={{ font: '700 12px var(--mono)', fill: 'var(--warn)', letterSpacing: '.06em' }}>
+            RECOVERY PROTOCOL (TCP GLIMPSE):
+          </text>
+          <text x={1208} y={638} style={{ font: '400 13px var(--font)', fill: 'var(--ink)' }}>
+            Hardware transitions to <tspan style={{ fontFamily: 'var(--mono)', fontWeight: 600, fill: 'var(--warn)' }}>INVALID</tspan>, asserts <tspan style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>BOOK_VALID = 0</tspan>, halts matching.
+          </text>
+          <text x={1208} y={660} style={{ font: '400 13px var(--font)', fill: 'var(--ink)' }}>
+            CPU resets book, downloads TCP GLIMPSE snapshot, injects orders via MMIO,
+          </text>
+          <text x={1208} y={682} style={{ font: '400 13px var(--font)', fill: 'var(--ink)' }}>
+            and restores <tspan style={{ fontFamily: 'var(--mono)', fontWeight: 600, fill: 'var(--ok)' }}>BOOK_VALID = 1</tspan> without rebooting the FPGA.
+          </text>
+        </g>
       </svg>
     </div>
   )
