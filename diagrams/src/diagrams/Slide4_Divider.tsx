@@ -3,265 +3,318 @@ import { DiagramDefs, ModuleBox, Mux2to1, SignalWire, SubsystemGroup } from '../
 export default function Slide4_Divider() {
   return (
     <div style={{ position: 'relative', width: 1760, height: 860, margin: '20px auto 0' }}>
-      <svg className="svg-canvas" width="1760" height="740" viewBox="0 0 1760 740">
+      <svg className="svg-canvas" width="1760" height="760" viewBox="0 0 1760 760">
         <DiagramDefs />
 
         {/* ════════════════════════════════════════════════════════════════════
-            PHASE 1: INPUT CONDITIONING, ABSOLUTE VALUE & FLAGS (CLOCK 1)
+            STAGE 1: INPUT CONDITIONING, ABSOLUTE VALUES & CORNER CASES (CYCLE 1)
            ════════════════════════════════════════════════════════════════════ */}
         <SubsystemGroup
           x={20}
-          y={20}
-          w={460}
-          h={680}
-          label="Phase 1 · Input Conditioning &amp; Corner-Case Latch (Clock 1)"
-          sub="Absolute Value MUXes · Div-by-Zero &amp; Overflow Flags"
+          y={15}
+          w={440}
+          h={725}
+          label="Stage 1 · Input Conditioning &amp; Corner Cases (Cycle 1)"
+          sub="Absolute Value MUXes · Corner-Case Detectors · Register Init"
           isNew
         />
 
         {/* Inputs */}
-        <ModuleBox x={40} y={60} w={150} h={54} title="Operand 1 (op1)" subtitle="rs1[31:0] (Dividend)" detail="Signed or Unsigned" tag="32-BIT" />
-        <ModuleBox x={40} y={130} w={150} h={54} title="Operand 2 (op2)" subtitle="rs2[31:0] (Divisor)" detail="Signed or Unsigned" tag="32-BIT" />
-        <ModuleBox x={40} y={200} w={150} h={54} title="Funct3 Select" subtitle="funct3[2:0]" detail="DIV, DIVU, REM, REMU" tag="3-BIT" />
+        <ModuleBox x={35} y={55} w={150} h={54} title="Operand 1 (op1)" subtitle="rs1[31:0] · Dividend" tag="32-BIT" />
+        <ModuleBox x={35} y={125} w={150} h={54} title="Operand 2 (op2)" subtitle="rs2[31:0] · Divisor" tag="32-BIT" />
+        <ModuleBox x={35} y={195} w={150} h={54} title="Operation (funct3)" subtitle="DIV / DIVU / REM / REMU" tag="3-BIT" />
 
         {/* 2's Complement Negators */}
         <g>
-          <rect x={220} y={60} width={90} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
-          <text x={265} y={85} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- op1</text>
-          <text x={265} y={102} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Negate 32b</text>
+          <rect x={215} y={55} width={75} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
+          <text x={252} y={80} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- op1</text>
+          <text x={252} y={97} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>~op1 + 1</text>
 
-          <rect x={220} y={130} width={90} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
-          <text x={265} y={155} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- op2</text>
-          <text x={265} y={172} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Negate 32b</text>
+          <rect x={215} y={125} width={75} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
+          <text x={252} y={150} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- op2</text>
+          <text x={252} y={167} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>~op2 + 1</text>
         </g>
 
         {/* Absolute Value MUXes */}
-        <Mux2to1 x={340} y={60} w={28} h={54} label="MUX" selLabel="op1_neg" />
-        <Mux2to1 x={340} y={130} w={28} h={54} label="MUX" selLabel="op2_neg" />
+        <Mux2to1 x={315} y={55} w={28} h={54} label="MUX" selLabel="op1_neg" />
+        <text x={350} y={73} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -op1</text>
+        <text x={350} y={97} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: op1</text>
 
-        {/* Corner-Case & Sign Logic */}
+        <Mux2to1 x={315} y={125} w={28} h={54} label="MUX" selLabel="op2_neg" />
+        <text x={350} y={143} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -op2</text>
+        <text x={350} y={167} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: op2</text>
+
+        {/* Wires to negators and MUXes */}
+        <SignalWire d="M185,82 H213" />
+        <SignalWire d="M185,152 H213" />
+        <SignalWire d="M290,82 H313" />
+        <SignalWire d="M290,152 H313" />
+
+        {/* Corner-Case & Sign Logic Box */}
         <ModuleBox
-          x={40}
-          y={280}
-          w={420}
-          h={150}
-          title="Corner-Case &amp; Sign Detection Logic"
-          subtitle="Combinational Pre-computation"
-          detail="div_zero  = (op2 == 32'd0)&#10;overflow  = op1_is_signed &amp;&amp; (op1 == 32'h8000_0000) &amp;&amp; (op2 == 32'hFFFF_FFFF)&#10;neg_quo   = op1_is_signed &amp;&amp; (op1[31] ^ op2[31]) &amp;&amp; (op2 != 32'd0)&#10;neg_rem   = op1_is_signed &amp;&amp; op1[31] &amp;&amp; (op2 != 32'd0)&#10;orig_op1  = op1 (Preserved for Remainder-by-Zero rule)"
-          tag="FLAGS"
+          x={35}
+          y={265}
+          w={340}
+          h={170}
+          title="Corner-Case &amp; Sign Detector"
+          subtitle="Combinational Predicates (Cycle 1)"
+          detail="div_zero = (op2 == 32'd0)&#10;overflow = op1_is_signed &amp;&amp; (op1 == 80000000 &amp;&amp; op2 == FFFFFFFF)&#10;neg_quo  = op1_is_signed &amp;&amp; (op1[31] ^ op2[31]) &amp;&amp; (op2 != 0)&#10;neg_rem  = op1_is_signed &amp;&amp; op1[31] &amp;&amp; (op2 != 0)&#10;orig_op1 = op1 (Preserved for Rem-by-Zero)"
+          tag="PREDICATES"
         />
 
-        {/* Initial Registers Latched on Clock 1 */}
+        {/* Cycle 1 Latched Registers */}
         <ModuleBox
-          x={40}
-          y={460}
-          w={420}
-          h={220}
-          title="Initial Recurrence Registers (Clock 1 ▲)"
-          subtitle="Latched on (start &amp;&amp; funct3[2])"
-          detail="rem_reg[31:0]  <= 32'd0 (Initial remainder cleared)&#10;quo_reg[31:0]  <= abs_op1 (Dividend loaded into quotient)&#10;div_reg[31:0]  <= abs_op2 (Divisor held constant)&#10;orig_op1[31:0] <= op1&#10;div_cnt[5:0]   <= 6'd0 (Resets 36-cycle iteration counter)&#10;div_op_r[2:0]  <= funct3&#10;busy <= 1'b1 · asserts m_stalling to freeze CPU pipeline"
+          x={35}
+          y={455}
+          w={410}
+          h={265}
+          title="Recurrence Init Registers (Cycle 1 ▲)"
+          subtitle="Latched on (start &amp;&amp; funct3[2]) in STATE_IDLE"
+          detail="rem_reg[31:0]  <= 32'd0 (Initial remainder cleared)&#10;quo_reg[31:0]  <= abs_op1 (Dividend loaded into quotient)&#10;div_reg[31:0]  <= abs_op2 (Divisor held constant)&#10;orig_op1[31:0] <= op1&#10;div_cnt[4:0]   <= 5'd0 (5-bit counter resets for 32 iterations)&#10;div_op_r[2:0]  <= funct3&#10;Latches: div_zero, overflow, neg_quo, neg_rem&#10;busy <= 1'b1 · asserts m_stalling to freeze CPU pipeline"
           isNew
           tag="INIT REGS"
         />
 
-        <SignalWire d="M190,87 H218" />
-        <SignalWire d="M190,157 H218" />
-        <SignalWire d="M310,87 H338" />
-        <SignalWire d="M310,157 H338" />
-        <SignalWire d="M368,87 H390 V458" label="abs_op1" lx={420} ly={240} width={2.2} />
-        <SignalWire d="M368,157 H410 V458" label="abs_op2" lx={435} ly={260} width={2.2} />
+        {/* Vertical bypass wires down to Cycle 1 registers (avoiding the Predicates box) */}
+        <SignalWire d="M343,82 H395 V452" label="abs_op1" lx={395} ly={240} width={2.2} />
+        <SignalWire d="M343,152 H420 V452" label="abs_op2" lx={420} ly={258} width={2.2} />
 
         {/* ════════════════════════════════════════════════════════════════════
-            PHASE 2: RESTORING RECURRENCE LOOP DATAPATH (CLOCKS 2–37)
+            STAGE 2: 32-ITERATION RESTORING RECURRENCE LOOP DATAPATH (CYCLES 2–32)
            ════════════════════════════════════════════════════════════════════ */}
         <SubsystemGroup
+          x={480}
+          y={15}
+          w={730}
+          h={725}
+          label="Stage 2 · 32-Iteration Restoring Recurrence Datapath (Cycles 2–32)"
+          sub="Single Bit / Cycle · 34-bit Trial Subtraction · Remainder Restoration MUX"
+          isNew
+        />
+
+        {/* Recurrence Registers at top */}
+        <ModuleBox x={495} y={55} w={215} h={74} title="rem_reg[31:0]" subtitle="Accumulated Remainder" tag="REG 32b" isNew />
+        <ModuleBox x={735} y={55} w={215} h={74} title="quo_reg[31:0]" subtitle="Quotient Shift Register" tag="REG 32b" isNew />
+        <ModuleBox x={975} y={55} w={215} h={74} title="div_reg[31:0]" subtitle="Divisor Constant" tag="REG 32b" isNew />
+
+        {/* Left Shifter & Divisor Extension */}
+        <ModuleBox
           x={510}
-          y={20}
-          w={650}
-          h={680}
-          label="Phase 2 · Restoring Recurrence Datapath (Clocks 2–37 · 36 Iterations)"
-          sub="Single Quotient Bit Generated per Clock Cycle · Restoring Remainder Feedback"
-          isNew
-        />
-
-        {/* 33-bit Bit Concatenator & Left Shift */}
-        <ModuleBox
-          x={530}
-          y={60}
-          w={280}
-          h={100}
-          title="1-Bit Left Shifter &amp; Concatenator"
-          subtitle="shifted_rem[32:0]"
-          detail="{rem_reg[31:0], quo_reg[31]}&#10;Shifts remainder left by 1 bit and&#10;shifts in MSB of current quotient register"
-          isNew
+          y={165}
+          w={340}
+          h={75}
+          title="1-Bit Left Shifter &amp; Concat"
+          subtitle="shifted_rem[32:0] = {rem_reg[31:0], quo_reg[31]}"
+          detail="Shifts remainder left by 1 bit and shifts in MSB of current quotient"
           tag="CONCAT"
+          isNew
         />
 
-        {/* Divisor Register Constant */}
         <ModuleBox
-          x={840}
-          y={60}
-          w={200}
-          h={100}
-          title="Divisor Register"
-          subtitle="div_reg[31:0]"
-          detail="Zero-extended to 34 bits:&#10;{2'b0, div_reg[31:0]}"
-          isNew
-          tag="32-BIT REG"
+          x={910}
+          y={165}
+          w={260}
+          h={75}
+          title="Divisor Zero-Extension"
+          subtitle="{2'b00, div_reg[31:0]}"
+          detail="Zero-extends 32-bit divisor to 34-bit subtrahend"
+          tag="EXTEND"
         />
+
+        <SignalWire d="M602,129 V163" />
+        <SignalWire d="M842,129 V150 H750 V163" label="quo_reg[31]" lx={790} ly={142} />
+        <SignalWire d="M1082,129 V163" />
 
         {/* 34-bit Trial Subtractor */}
         <ModuleBox
-          x={580}
-          y={190}
-          w={410}
-          h={100}
-          title="34-bit Trial Subtractor"
-          subtitle="trial_sub[33:0]"
-          detail="trial_sub[33:0] = {1'b0, shifted_rem[32:0]} - {2'b0, div_reg[31:0]}&#10;Calculates tentative subtraction for this bit iteration&#10;trial_sub[33] = borrow bit (1 if negative, 0 if successful)"
+          x={530}
+          y={275}
+          w={480}
+          h={82}
+          title="34-Bit Trial Subtractor"
+          subtitle="trial_sub[33:0] = {1'b0, shifted_rem} - {2'b0, div_reg}"
+          detail="trial_sub[33] = borrow bit (1 = negative / underflow, 0 = successful subtraction)"
+          tag="SUBTRACTOR 34b"
           isNew
-          tag="SUBTRACTOR"
         />
 
-        {/* Borrow Detection */}
+        {/* Borrow Flag Box */}
         <ModuleBox
-          x={1020}
-          y={190}
-          w={120}
-          h={100}
+          x={1040}
+          y={275}
+          w={150}
+          h={82}
           title="Borrow Flag"
           subtitle="borrow = trial[33]"
-          detail="1 = Underflow&#10;0 = Success"
+          detail="1: Restore&#10;0: Subtract"
           tag="BORROW"
         />
 
+        <SignalWire d="M680,240 V273" />
+        <SignalWire d="M1040,240 V260 H870 V273" />
+        <SignalWire d="M1010,316 H1038" color="warn" label="trial[33]" lx={1024} ly={306} />
+
         {/* Remainder Restoring MUX */}
-        <Mux2to1 x={660} y={320} w={32} h={80} label="MUX" selLabel="borrow" />
-        <text x={710} y={345} style={{ font: '600 12px var(--mono)', fill: 'var(--ok)' }}>0: trial_sub[31:0] (Subtracted)</text>
-        <text x={710} y={385} style={{ font: '600 12px var(--mono)', fill: 'var(--warn)' }}>1: shifted_rem[31:0] (RESTORED)</text>
+        <Mux2to1 x={610} y={390} w={32} h={80} label="MUX" selLabel="borrow" />
+        <text x={655} y={415} style={{ font: '600 11px var(--mono)', fill: 'var(--ok)' }}>0: trial_sub[31:0] (Subtracted)</text>
+        <text x={655} y={445} style={{ font: '600 11px var(--mono)', fill: 'var(--warn)' }}>1: shifted_rem[31:0] (RESTORED)</text>
 
-        {/* Quotient Shift & Bit-Insert */}
+        {/* Quotient Shift & Bit Insert */}
         <ModuleBox
-          x={840}
-          y={320}
-          w={300}
+          x={780}
+          y={390}
+          w={310}
           h={80}
-          title="Quotient Shift &amp; Append"
-          subtitle="next_quo[31:0]"
-          detail="next_quo = {quo_reg[30:0], ~borrow}&#10;Shifts quotient left and appends inverted borrow bit"
-          isNew
+          title="Quotient Shift &amp; Bit Insert"
+          subtitle="next_quo[31:0] = {quo_reg[30:0], ~borrow}"
+          detail="Shifts quotient left by 1 and inserts inverted borrow at LSB"
           tag="SHIFT-IN"
-        />
-
-        {/* Recurrence Registers (Clocked Feedback Loop) */}
-        <ModuleBox
-          x={530}
-          y={440}
-          w={610}
-          h={140}
-          title="Recurrence State Registers (Clocked on Each Iteration ▲)"
-          subtitle="Updated each clock while (div_cnt < 6'd35)"
-          detail="rem_reg[31:0] <= next_rem (Restored remainder or trial subtraction result)&#10;quo_reg[31:0] <= next_quo (Quotient accumulator accumulating bits MSB to LSB)&#10;div_cnt       <= div_cnt + 6'd1 (Advances iteration count from 0 up to 35)&#10;Feedback loop iterates exactly once per cycle across 36 clock cycles"
           isNew
-          tag="LOOP REGS"
         />
 
-        {/* Feedback Wire Arrows */}
-        <SignalWire d="M670,160 V188" />
-        <SignalWire d="M940,160 V188" />
-        <SignalWire d="M990,240 H1018" color="warn" label="trial[33]" lx={1004} ly={228} />
-        <SignalWire d="M1080,290 V340 H1018" color="warn" label="borrow" lx={1060} ly={330} />
-        <SignalWire d="M692,360 H838" color="ok" label="next_rem" lx={765} ly={350} width={2.2} />
-        <SignalWire d="M835,580 V620 H510 V110 H528" color="navy" label="36-Cycle Iteration Feedback Loop" lx={670} ly={635} width={2.4} dashed flowAnim />
+        <SignalWire d="M720,357 V390 H642" />
+        <SignalWire d="M1115,357 V410 H1092" color="warn" label="borrow" lx={1105} ly={398} />
+        <SignalWire d="M1040,430 H1090" color="ok" label="~borrow" lx={1065} ly={420} />
+
+        {/* Recurrence Loop State Update */}
+        <ModuleBox
+          x={495}
+          y={500}
+          w={440}
+          h={98}
+          title="Recurrence Loop State Update (Cycles 2–32 ▲)"
+          subtitle="while (div_cnt < 5'd31)"
+          detail="rem_reg <= next_rem (Restored remainder or trial subtraction result)&#10;quo_reg <= next_quo (Quotient accumulator accumulating bits MSB to LSB)&#10;Feedback loop iterates exactly once per cycle across 32 clock cycles"
+          tag="LOOP UPDATE"
+        />
 
         {/* Iteration Counter */}
         <ModuleBox
-          x={530}
-          y={600}
-          w={610}
-          h={80}
-          title="Iteration Counter (div_cnt[5:0])"
-          subtitle="Sequence Control"
-          detail="Cycles 2–37: Iteration loop active (div_cnt: 0 → 35)&#10;Cycle 38: div_cnt == 35 triggers final iteration and latch to Phase 3"
+          x={955}
+          y={500}
+          w={235}
+          h={98}
+          title="Iteration Counter"
+          subtitle="div_cnt[4:0] (0 → 31)"
+          detail="Counts 32 iterations (5-bit)&#10;div_cnt == 31: Combinational&#10;32nd step latch to Stage 3"
           tag="COUNTER"
         />
 
-        {/* ════════════════════════════════════════════════════════════════════
-            PHASE 3: POST-PROCESSING, SIGN CORRECTION & EXCEPTIONS (CLOCKS 38–39)
-           ════════════════════════════════════════════════════════════════════ */}
-        <SubsystemGroup
-          x={1190}
-          y={20}
-          w={550}
-          h={680}
-          label="Phase 3 · Sign Correction, Exceptions &amp; Done Strobe (Clocks 38–39)"
-          sub="RISC-V Div-by-Zero / Overflow Invariants · Output Latch"
+        <SignalWire d="M642,470 V498" color="ok" label="next_rem" lx={670} ly={482} />
+        <SignalWire d="M935,470 V498" color="ok" label="next_quo" lx={965} ly={482} />
+
+        {/* Feedback loop back up to registers */}
+        <SignalWire d="M510,500 V95 H493" color="navy" label="32-Cycle Loop Feedback" lx={535} ly={475} width={2.2} dashed flowAnim />
+
+        {/* Timing Clarification Box */}
+        <ModuleBox
+          x={495}
+          y={620}
+          w={695}
+          h={100}
+          title="Hardware Timing: 32 Restoring Iterations (33/34 Total Clocks)"
+          subtitle="Verilog RTL Reference: rtl/cpu/core/rv32m_unit.v:L60-120"
+          detail="Cycle 1: IDLE→DIV input conditioning &amp; register init (Edge 1 captures abs_op1, abs_op2)&#10;Cycles 2–32: 31 clocked restoring iterations (div_cnt: 0 → 30)&#10;Cycle 33: 32nd combinational step + exception check, result_reg <= final_div_result, moves to DONE&#10;Cycle 34: done=1 asserted, pipeline unfreezes (!stall_pipeline), captures result into EX/WB"
+          tag="32 ITERS / 34 CYC"
           isNew
         />
 
-        {/* Final Sign Inversion Units */}
-        <g>
-          <rect x={1210} y={60} width={130} height={70} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
-          <text x={1275} y={85} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- final_quo_u</text>
-          <text x={1275} y={105} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Quotient Negator</text>
+        {/* ════════════════════════════════════════════════════════════════════
+            STAGE 3: SIGN CORRECTION, EXCEPTION PRIORITY & HANDSHAKE (CYCLES 33–34)
+           ════════════════════════════════════════════════════════════════════ */}
+        <SubsystemGroup
+          x={1230}
+          y={15}
+          w={510}
+          h={725}
+          label="Stage 3 · Sign Correction, Exceptions &amp; Handshake (Cycles 33–34)"
+          sub="Two's Complement Correction · RISC-V Exception Priority · Output Latch"
+          isNew
+        />
 
-          <rect x={1210} y={150} width={130} height={70} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
-          <text x={1275} y={175} textAnchor="middle" style={{ font: '700 13px var(--mono)', fill: 'var(--ink)' }}>- final_rem_u</text>
-          <text x={1275} y={195} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Remainder Negator</text>
+        {/* Sign Negators */}
+        <g>
+          <rect x={1250} y={55} width={115} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
+          <text x={1307} y={80} textAnchor="middle" style={{ font: '700 12px var(--mono)', fill: 'var(--ink)' }}>- final_quo_u</text>
+          <text x={1307} y={97} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Quotient Negator</text>
+
+          <rect x={1250} y={125} width={115} height={54} rx={3} fill="#ffffff" stroke="#16181d" strokeWidth={1.5} />
+          <text x={1307} y={150} textAnchor="middle" style={{ font: '700 12px var(--mono)', fill: 'var(--ink)' }}>- final_rem_u</text>
+          <text x={1307} y={167} textAnchor="middle" style={{ font: '500 10px var(--mono)', fill: '#6e727e' }}>Remainder Negator</text>
         </g>
 
         {/* Sign Correction MUXes */}
-        <Mux2to1 x={1380} y={65} w={28} h={60} label="MUX" selLabel="neg_quo" />
-        <text x={1415} y={85} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: quo_u</text>
-        <text x={1415} y={110} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -quo_u</text>
+        <Mux2to1 x={1395} y={55} w={28} h={54} label="MUX" selLabel="neg_quo" />
+        <text x={1430} y={73} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -quo_u</text>
+        <text x={1430} y={97} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: quo_u</text>
 
-        <Mux2to1 x={1380} y={155} w={28} h={60} label="MUX" selLabel="neg_rem" />
-        <text x={1415} y={175} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: rem_u</text>
-        <text x={1415} y={200} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -rem_u</text>
+        <Mux2to1 x={1395} y={125} w={28} h={54} label="MUX" selLabel="neg_rem" />
+        <text x={1430} y={143} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>1: -rem_u</text>
+        <text x={1430} y={167} style={{ font: '500 10px var(--mono)', fill: '#4a4e57' }}>0: rem_u</text>
 
-        {/* Priority Exception & Operation Multiplexer */}
+        <SignalWire d="M1365,82 H1393" />
+        <SignalWire d="M1365,152 H1393" />
+
+        {/* Sign Selection Note Box */}
         <ModuleBox
-          x={1210}
-          y={250}
-          w={510}
-          h={190}
-          title="Exception Priority &amp; Operation Select MUX"
-          subtitle="final_div_result[31:0] Multiplexer"
-          detail="1. if (div_zero):&#10;     DIV / DIVU → 32'hFFFF_FFFF (-1 / max)&#10;     REM / REMU → orig_op1 (Preserves dividend)&#10;2. else if (overflow) [INT_MIN / -1]:&#10;     DIV → 32'h8000_0000 (INT_MIN)&#10;     REM → 32'h0000_0000&#10;3. else:&#10;     DIV  → final_quo   |  DIVU → final_quo_u&#10;     REM  → final_rem   |  REMU → final_rem_u"
-          isNew
+          x={1455}
+          y={55}
+          w={265}
+          h={124}
+          title="Signed / Unsigned Select"
+          subtitle="final_quo &amp; final_rem"
+          detail="DIV / REM uses signed corrected outputs&#10;DIVU / REMU bypasses negation directly&#10;Full compliance with RISC-V 2's complement"
+          tag="CORRECTION"
+        />
+
+        {/* Forward wire from Stage 2 into Stage 3 */}
+        <SignalWire d="M1090,430 H1240 V82 H1248" color="navy" label="final_quo_u" lx={1170} ly={240} width={2.2} />
+
+        {/* RISC-V Priority Exception Multiplexer */}
+        <ModuleBox
+          x={1250}
+          y={205}
+          w={470}
+          h={255}
+          title="RISC-V Priority Exception Multiplexer"
+          subtitle="final_div_result[31:0] MUX (Priority Order)"
+          detail="1. if (div_zero): [Division by zero rule]&#10;     DIV / DIVU → 32'hFFFF_FFFF (-1 signed / 2^32 - 1 unsigned)&#10;     REM / REMU → orig_op1 (Preserves dividend unaltered)&#10;&#10;2. else if (overflow): [Signed overflow rule: INT_MIN / -1]&#10;     DIV → 32'h8000_0000 (INT_MIN unaltered)&#10;     REM → 32'h0000_0000 (Zero remainder)&#10;&#10;3. else: [Normal Arithmetic]&#10;     DIV → final_quo   |  DIVU → final_quo_u&#10;     REM → final_rem   |  REMU → final_rem_u"
           tag="PRIORITY MUX"
+          isNew
         />
 
-        {/* Architectural Output Register */}
+        <SignalWire d="M1423,82 H1485 V203" />
+        <SignalWire d="M1423,152 H1520 V203" />
+
+        {/* Architectural Result Register */}
         <ModuleBox
-          x={1210}
-          y={470}
-          w={510}
-          h={110}
-          title="Architectural Result Register (Clock 39 ▲)"
-          subtitle="result_reg[31:0] Latch"
-          detail="result_reg <= final_div_result&#10;Latched on Clock 39 ▲ · Held stable for CPU pipeline&#10;Connects directly to EX Stage ex_result MUX"
+          x={1250}
+          y={485}
+          w={470}
+          h={105}
+          title="Architectural Result Register (Cycle 33 ▲)"
+          subtitle="result_reg[31:0] <= final_div_result"
+          detail="Latched on Clock 33 ▲ (div_cnt == 31) when moving to STATE_DONE&#10;Held stable throughout pipeline acceptance&#10;Directly drives output result[31:0] into EX Stage ex_result MUX"
+          tag="RESULT REG"
           isNew
-          tag="FINAL REG"
         />
 
-        {/* Handshake Signals */}
+        <SignalWire d="M1485,460 V483" color="navy" label="final_div_result[31:0]" lx={1485} ly={472} width={2.4} />
+
+        {/* Pipeline Handshake & Done Strobe */}
         <ModuleBox
-          x={1210}
-          y={600}
-          w={510}
-          h={80}
-          title="Pipeline Handshake &amp; Stall Release (Clock 39)"
-          subtitle="Handshake Ports"
-          detail="done = 1'b1 (Asserted on Clock 39) · busy = 1'b0 (Released)&#10;Deasserts m_stalling → stall_pipeline = 0 · CPU captures word into EX/WB"
-          isNew
+          x={1250}
+          y={615}
+          w={470}
+          h={105}
+          title="Pipeline Handshake &amp; Stall Release (Cycle 34)"
+          subtitle="Handshake Status Signals"
+          detail="done = 1'b1 · busy = 1'b0 (Released)&#10;Deasserts m_stalling → stall_pipeline = 0&#10;CPU pipeline captures result_reg into EX/WB register on posedge clk&#10;Unit returns to STATE_IDLE when !stall_pipeline"
           tag="HANDSHAKE"
+          isNew
         />
 
-        <SignalWire d="M1140,490 H1208" color="navy" label="final_iters" lx={1174} ly={476} width={2.2} />
-        <SignalWire d="M1408,95 H1480 V248" />
-        <SignalWire d="M1408,185 H1520 V248" />
-        <SignalWire d="M1465,440 V468" color="navy" label="final_div_result[31:0]" lx={1465} ly={454} width={2.4} />
+        <SignalWire d="M1485,590 V613" color="ok" label="done strobe" lx={1485} ly={602} width={2.2} />
       </svg>
     </div>
   )
