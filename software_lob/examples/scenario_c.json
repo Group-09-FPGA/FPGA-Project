@@ -1,0 +1,18 @@
+[
+  {
+    "type": "AddOrder",
+    "order_id": 301,
+    "side": "BUY",
+    "price": 1000000,
+    "quantity": 50
+  },
+  {
+    "type": "CancelOrder",
+    "order_id": 301,
+    "canceled_qty": 15
+  },
+  {
+    "type": "DeleteOrder",
+    "order_id": 301
+  }
+]

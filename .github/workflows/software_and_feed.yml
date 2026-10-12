@@ -9,7 +9,7 @@ on:
 
 jobs:
   python-test-suite:
-    name: Python Golden Model & Packet Tests
+    name: Python Golden Model & Software LOB Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -20,13 +20,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install pytest hypothesis rich sortedcontainers
+          pip install -e ./software_lob
+
       - name: Run Syntax and Compilation Checks
         run: |
           python3 -m py_compile tools/hardware_test_helper.py sim/golden/lob_golden_adapter.py
 
-      - name: Run Python Unit Test Suite
+      - name: Run Hardware Adapter & Feed Unit Tests
         run: |
           python3 -m unittest discover -s tests -v
+
+      - name: Run Software LOB Reference Model Tests
+        run: |
+          pytest software_lob/tests/unit software_lob/tests/scenarios -v
 
       - name: Publish Python Test Summary
         if: always()
@@ -37,3 +47,5 @@ jobs:
           echo "| MoldUDP64 / ITCH 5.0 Packet Encoder | Validated NASDAQ ITCH Type 'A' Add Order packet layout | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| 256-bit Canonical Event Packer | Validated bit-level packing matching \`lob_pkg.sv\` | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Golden Vector Schema & Validation | 32 pre-computed market vectors verified | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Software LOB Core Engine | 30 unit tests covering BBO tracking, price levels, recovery | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Market Feed Scenarios | 8 end-to-end NASDAQ ITCH trading scenarios | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY

@@ -73,6 +73,11 @@ Detailed execution trace demonstrating EX-to-EX operand forwarding, branch hazar
 * **NASDAQ ITCH 5.0 Parser:** Hardware unpacking of Type `'A'` Add Order messages with division-free price-to-index mapping (`Price Index = (Price - Base) × 274877907 >> 38`).
 * **Asynchronous CDC FIFO:** Gray-code pointer synchronizers bridging the 50 MHz Ethernet domain to the 100 MHz Core domain.
 
+### 4. Software LOB Reference Model (`software_lob/`)
+* **Python Golden Model:** Full architectural software reference simulator implementing NASDAQ ITCH 5.0 decapsulation, MoldUDP64 sequence gap recovery, and price-time priority queues.
+* **Verification Suite:** 38 automated unit and end-to-end scenario tests (`software_lob/tests/unit`, `software_lob/tests/scenarios`) continuously verified in CI.
+* **Differential Verification:** Acts as the executable functional oracle against which RTL testbenches and canonical event streams are validated.
+
 ---
 
 ## 🤖 Continuous Integration Pipelines
