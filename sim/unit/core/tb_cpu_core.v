@@ -104,7 +104,39 @@ sys_bus_interconnect interconnect_u (
     .dmem_req_wdata(dmem_req_wdata),
     .dmem_req_wstrb(dmem_req_wstrb),
     .dmem_rsp_valid(dmem_rsp_valid),
-    .dmem_rsp_rdata(dmem_rsp_rdata)
+    .dmem_rsp_rdata(dmem_rsp_rdata),
+
+    .lob_req_valid(),
+    .lob_req_write(),
+    .lob_req_addr(),
+    .lob_req_wdata(),
+    .lob_req_wstrb(),
+    .lob_rsp_valid(1'b0),
+    .lob_rsp_rdata(32'h0),
+
+    .net_req_valid(),
+    .net_req_write(),
+    .net_req_addr(),
+    .net_req_wdata(),
+    .net_req_wstrb(),
+    .net_rsp_valid(1'b0),
+    .net_rsp_rdata(32'h0),
+
+    .uart_req_valid(),
+    .uart_req_write(),
+    .uart_req_addr(),
+    .uart_req_wdata(),
+    .uart_req_wstrb(),
+    .uart_rsp_valid(1'b0),
+    .uart_rsp_rdata(32'h0),
+
+    .sys_req_valid(),
+    .sys_req_write(),
+    .sys_req_addr(),
+    .sys_req_wdata(),
+    .sys_req_wstrb(),
+    .sys_rsp_valid(1'b0),
+    .sys_rsp_rdata(32'h0)
 );
 
 
