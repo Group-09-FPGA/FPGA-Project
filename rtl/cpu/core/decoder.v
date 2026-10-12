@@ -14,7 +14,6 @@ module decoder(
     output            immediate_sel,
     output            alu,
     output            lui,
-    output            auipc,
     output            jal,
     output            jalr,
     output            branch,
@@ -38,7 +37,6 @@ module decoder(
     assign immediate_sel = (opcode == JALR) || (opcode == LOAD) || (opcode == ARITHI) || (opcode == STORE);
     assign alu           = (opcode == ARITHI) || ((opcode == ARITHR) && !m_op);
     assign lui           = (opcode == LUI);
-    assign auipc         = (opcode == AUIPC);
     assign jal           = (opcode == JAL);
     assign jalr          = (opcode == JALR);
     assign branch        = (opcode == BRANCH);
@@ -65,7 +63,6 @@ module decoder(
                 end
             end
             LUI   : immediate = {instruction[31:12], 12'b0};
-            AUIPC : immediate = {instruction[31:12], 12'b0};
             JAL   : immediate = {{11{instruction[31]}}, instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
             default: illegal_inst = 1'b1;
         endcase

@@ -67,18 +67,20 @@ module lob_bbo (
         end
     end
 
-    // -------------------------------------------------------------------------
-    // BBO Tracking Registers
-    // -------------------------------------------------------------------------
+    // Raw Price calculation: price = cfg_price_base + pidx * cfg_tick
+    // On 100 MHz clock, this DSP / multiplier is purely combinatorial or registered.
+    assign best_bid_valid = bid_valid_r;
+    assign best_bid_pidx  = bid_pidx_r;
+    assign best_bid_qty   = bid_qty_r;
+    assign best_bid_price = bid_valid_r ? (cfg_price_base + (32'(bid_pidx_r) * cfg_tick)) : 32'd0;
+
+    assign best_ask_valid = ask_valid_r;
+    assign best_ask_pidx  = ask_pidx_r;
+    assign best_ask_qty   = ask_qty_r;
+    assign best_ask_price = ask_valid_r ? (cfg_price_base + (32'(ask_pidx_r) * cfg_tick)) : 32'd0;
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            bid_valid_r    <= 1'b0;
-            bid_pidx_r     <= '0;
-            bid_qty_r      <= 32'd0;
-            ask_valid_r    <= 1'b0;
-            ask_pidx_r     <= '0;
-            ask_qty_r      <= 32'd0;
-        end else if (clear_en) begin
             bid_valid_r <= 1'b0;
             bid_pidx_r  <= '0;
             bid_qty_r   <= 32'd0;
@@ -86,6 +88,14 @@ module lob_bbo (
             ask_pidx_r  <= '0;
             ask_qty_r   <= 32'd0;
         end else begin
+            if (clear_en) begin
+                bid_valid_r <= 1'b0;
+                bid_pidx_r  <= '0;
+                bid_qty_r   <= 32'd0;
+                ask_valid_r <= 1'b0;
+                ask_pidx_r  <= '0;
+                ask_qty_r   <= 32'd0;
+            end else begin
                 // 1. Direct Commit Update (Fast Path)
                 if (bbo_direct_upd_en) begin
                     if (bbo_direct_side == 1'b0) begin
@@ -137,109 +147,6 @@ module lob_bbo (
                     end
                 end
             end
-        end
-
-    // -------------------------------------------------------------------------
-    // 2-Stage Pipelined Price DSP Multiplier & Adder for 100 MHz Timing Closure
-    // -------------------------------------------------------------------------
-    logic        s1_bid_valid;
-    logic [12:0] s1_bid_pidx;
-    logic [31:0] s1_bid_qty;
-    logic [31:0] s1_bid_prod;
-    logic [31:0] s1_bid_base;
-
-    logic        s1_ask_valid;
-    logic [12:0] s1_ask_pidx;
-    logic [31:0] s1_ask_qty;
-    logic [31:0] s1_ask_prod;
-    logic [31:0] s1_ask_base;
-
-    logic [31:0] tick_pipe;
-    logic [31:0] base_pipe;
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            tick_pipe <= 32'd1000;
-            base_pipe <= 32'd900000;
-        end else begin
-            tick_pipe <= cfg_tick;
-            base_pipe <= cfg_price_base;
-        end
-    end
-
-    // Stage 1: DSP Multiplication (pidx * tick) & pipeline registers
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            s1_bid_valid <= 1'b0;
-            s1_bid_pidx  <= '0;
-            s1_bid_qty   <= 32'd0;
-            s1_bid_prod  <= 32'd0;
-            s1_bid_base  <= 32'd0;
-
-            s1_ask_valid <= 1'b0;
-            s1_ask_pidx  <= '0;
-            s1_ask_qty   <= 32'd0;
-            s1_ask_prod  <= 32'd0;
-            s1_ask_base  <= 32'd0;
-        end else if (clear_en) begin
-            s1_bid_valid <= 1'b0;
-            s1_bid_pidx  <= '0;
-            s1_bid_qty   <= 32'd0;
-            s1_bid_prod  <= 32'd0;
-            s1_bid_base  <= 32'd0;
-
-            s1_ask_valid <= 1'b0;
-            s1_ask_pidx  <= '0;
-            s1_ask_qty   <= 32'd0;
-            s1_ask_prod  <= 32'd0;
-            s1_ask_base  <= 32'd0;
-        end else begin
-            s1_bid_valid <= bid_valid_r;
-            s1_bid_pidx  <= bid_pidx_r;
-            s1_bid_qty   <= bid_qty_r;
-            s1_bid_prod  <= 32'(bid_pidx_r) * tick_pipe;
-            s1_bid_base  <= base_pipe;
-
-            s1_ask_valid <= ask_valid_r;
-            s1_ask_pidx  <= ask_pidx_r;
-            s1_ask_qty   <= ask_qty_r;
-            s1_ask_prod  <= 32'(ask_pidx_r) * tick_pipe;
-            s1_ask_base  <= base_pipe;
-        end
-    end
-
-    // Stage 2: Final Addition (base + prod) & Output Registers
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            best_bid_valid <= 1'b0;
-            best_bid_pidx  <= '0;
-            best_bid_price <= 32'd0;
-            best_bid_qty   <= 32'd0;
-
-            best_ask_valid <= 1'b0;
-            best_ask_pidx  <= '0;
-            best_ask_price <= 32'd0;
-            best_ask_qty   <= 32'd0;
-        end else if (clear_en) begin
-            best_bid_valid <= 1'b0;
-            best_bid_pidx  <= '0;
-            best_bid_price <= 32'd0;
-            best_bid_qty   <= 32'd0;
-
-            best_ask_valid <= 1'b0;
-            best_ask_pidx  <= '0;
-            best_ask_price <= 32'd0;
-            best_ask_qty   <= 32'd0;
-        end else begin
-            best_bid_valid <= s1_bid_valid;
-            best_bid_pidx  <= s1_bid_pidx;
-            best_bid_price <= s1_bid_valid ? (s1_bid_base + s1_bid_prod) : 32'd0;
-            best_bid_qty   <= s1_bid_qty;
-
-            best_ask_valid <= s1_ask_valid;
-            best_ask_pidx  <= s1_ask_pidx;
-            best_ask_price <= s1_ask_valid ? (s1_ask_base + s1_ask_prod) : 32'd0;
-            best_ask_qty   <= s1_ask_qty;
         end
     end
 

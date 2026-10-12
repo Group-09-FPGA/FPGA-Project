@@ -2,189 +2,40 @@
 code.elf:     file format elf32-littleriscv
 
 
-Disassembly of section .text:
+Disassembly of section .text.main:
 
 00000000 <main>:
-   0:	200007b7          	lui	a5,0x20000
-   4:	00600093          	li	ra,6
-   8:	00700113          	li	sp,7
-   c:	022081b3          	mul	gp,ra,sp
-  10:	0037a023          	sw	gp,0(a5) # 20000000 <fail_loop14+0x1ffffe10>
-  14:	ffb00213          	li	tp,-5
-  18:	00200293          	li	t0,2
-  1c:	02521333          	mulh	t1,tp,t0
-  20:	0067a223          	sw	t1,4(a5)
-  24:	025233b3          	mulhu	t2,tp,t0
-  28:	0077a423          	sw	t2,8(a5)
-  2c:	02522433          	mulhsu	s0,tp,t0
-  30:	0087a623          	sw	s0,12(a5)
-  34:	06400493          	li	s1,100
-  38:	00700513          	li	a0,7
-  3c:	02a4c5b3          	div	a1,s1,a0
-  40:	00b7a823          	sw	a1,16(a5)
-  44:	02525633          	divu	a2,tp,t0
-  48:	00c7aa23          	sw	a2,20(a5)
-  4c:	02a4e6b3          	rem	a3,s1,a0
-  50:	00d7ac23          	sw	a3,24(a5)
-  54:	02527733          	remu	a4,tp,t0
-  58:	00e7ae23          	sw	a4,28(a5)
-  5c:	0204c833          	div	a6,s1,zero
-  60:	0307a023          	sw	a6,32(a5)
-  64:	0204d8b3          	divu	a7,s1,zero
-  68:	0317a223          	sw	a7,36(a5)
-  6c:	0204e933          	rem	s2,s1,zero
-  70:	0327a423          	sw	s2,40(a5)
-  74:	0204f9b3          	remu	s3,s1,zero
-  78:	0337a623          	sw	s3,44(a5)
-  7c:	80000cb7          	lui	s9,0x80000
-  80:	fff00d13          	li	s10,-1
-  84:	03acca33          	div	s4,s9,s10
-  88:	0347a823          	sw	s4,48(a5)
-  8c:	03aceab3          	rem	s5,s9,s10
-  90:	0357aa23          	sw	s5,52(a5)
-  94:	02a00d93          	li	s11,42
-  98:	07b19e63          	bne	gp,s11,114 <fail_mul>
-  9c:	fff00d93          	li	s11,-1
-  a0:	09b31263          	bne	t1,s11,124 <fail_mulh>
-  a4:	00100d93          	li	s11,1
-  a8:	09b39663          	bne	t2,s11,134 <fail_mulhu>
-  ac:	fff00d93          	li	s11,-1
-  b0:	09b41a63          	bne	s0,s11,144 <fail_mulhsu>
-  b4:	00e00d93          	li	s11,14
-  b8:	09b59e63          	bne	a1,s11,154 <fail_div>
-  bc:	80000db7          	lui	s11,0x80000
-  c0:	ffdd8d93          	addi	s11,s11,-3 # 7ffffffd <fail_loop14+0x7ffffe0d>
-  c4:	0bb61063          	bne	a2,s11,164 <fail_divu>
-  c8:	00200d93          	li	s11,2
-  cc:	0bb69463          	bne	a3,s11,174 <fail_rem>
-  d0:	00100d93          	li	s11,1
-  d4:	0bb71863          	bne	a4,s11,184 <fail_remu>
-  d8:	fff00d93          	li	s11,-1
-  dc:	0bb81c63          	bne	a6,s11,194 <fail_divzero>
-  e0:	fff00d93          	li	s11,-1
-  e4:	0db89063          	bne	a7,s11,1a4 <fail_divuzero>
-  e8:	06400d93          	li	s11,100
-  ec:	0db91463          	bne	s2,s11,1b4 <fail_remzero>
-  f0:	06400d93          	li	s11,100
-  f4:	0db99863          	bne	s3,s11,1c4 <fail_remuzero>
-  f8:	80000db7          	lui	s11,0x80000
-  fc:	0dba1c63          	bne	s4,s11,1d4 <fail_divovf>
- 100:	0e0a9263          	bnez	s5,1e4 <fail_removf>
- 104:	0000db37          	lui	s6,0xd
- 108:	afeb0b13          	addi	s6,s6,-1282 # cafe <fail_loop14+0xc90e>
- 10c:	0367ac23          	sw	s6,56(a5)
+   0:	fd010113          	addi	sp,sp,-48
+   4:	02812623          	sw	s0,44(sp)
+   8:	03010413          	addi	s0,sp,48
+   c:	00a00793          	li	a5,10
+  10:	fef42023          	sw	a5,-32(s0)
+  14:	fe042623          	sw	zero,-20(s0)
+  18:	00100793          	li	a5,1
+  1c:	fef42423          	sw	a5,-24(s0)
+  20:	00200793          	li	a5,2
+  24:	fef42223          	sw	a5,-28(s0)
+  28:	0300006f          	j	58 <.L2>
 
-00000110 <pass_loop>:
- 110:	0000006f          	j	110 <pass_loop>
+0000002c <.L3>:
+  2c:	fec42703          	lw	a4,-20(s0)
+  30:	fe842783          	lw	a5,-24(s0)
+  34:	00f707b3          	add	a5,a4,a5
+  38:	fcf42e23          	sw	a5,-36(s0)
+  3c:	fe842783          	lw	a5,-24(s0)
+  40:	fef42623          	sw	a5,-20(s0)
+  44:	fdc42783          	lw	a5,-36(s0)
+  48:	fef42423          	sw	a5,-24(s0)
+  4c:	fe442783          	lw	a5,-28(s0)
+  50:	00178793          	addi	a5,a5,1
+  54:	fef42223          	sw	a5,-28(s0)
 
-00000114 <fail_mul>:
- 114:	0000fbb7          	lui	s7,0xf
- 118:	e01b8b93          	addi	s7,s7,-511 # ee01 <fail_loop14+0xec11>
- 11c:	0377ae23          	sw	s7,60(a5)
-
-00000120 <fail_loop1>:
- 120:	0000006f          	j	120 <fail_loop1>
-
-00000124 <fail_mulh>:
- 124:	0000fbb7          	lui	s7,0xf
- 128:	e02b8b93          	addi	s7,s7,-510 # ee02 <fail_loop14+0xec12>
- 12c:	0377ae23          	sw	s7,60(a5)
-
-00000130 <fail_loop2>:
- 130:	0000006f          	j	130 <fail_loop2>
-
-00000134 <fail_mulhu>:
- 134:	0000fbb7          	lui	s7,0xf
- 138:	e03b8b93          	addi	s7,s7,-509 # ee03 <fail_loop14+0xec13>
- 13c:	0377ae23          	sw	s7,60(a5)
-
-00000140 <fail_loop3>:
- 140:	0000006f          	j	140 <fail_loop3>
-
-00000144 <fail_mulhsu>:
- 144:	0000fbb7          	lui	s7,0xf
- 148:	e04b8b93          	addi	s7,s7,-508 # ee04 <fail_loop14+0xec14>
- 14c:	0377ae23          	sw	s7,60(a5)
-
-00000150 <fail_loop4>:
- 150:	0000006f          	j	150 <fail_loop4>
-
-00000154 <fail_div>:
- 154:	0000fbb7          	lui	s7,0xf
- 158:	e05b8b93          	addi	s7,s7,-507 # ee05 <fail_loop14+0xec15>
- 15c:	0377ae23          	sw	s7,60(a5)
-
-00000160 <fail_loop5>:
- 160:	0000006f          	j	160 <fail_loop5>
-
-00000164 <fail_divu>:
- 164:	0000fbb7          	lui	s7,0xf
- 168:	e06b8b93          	addi	s7,s7,-506 # ee06 <fail_loop14+0xec16>
- 16c:	0377ae23          	sw	s7,60(a5)
-
-00000170 <fail_loop6>:
- 170:	0000006f          	j	170 <fail_loop6>
-
-00000174 <fail_rem>:
- 174:	0000fbb7          	lui	s7,0xf
- 178:	e07b8b93          	addi	s7,s7,-505 # ee07 <fail_loop14+0xec17>
- 17c:	0377ae23          	sw	s7,60(a5)
-
-00000180 <fail_loop7>:
- 180:	0000006f          	j	180 <fail_loop7>
-
-00000184 <fail_remu>:
- 184:	0000fbb7          	lui	s7,0xf
- 188:	e08b8b93          	addi	s7,s7,-504 # ee08 <fail_loop14+0xec18>
- 18c:	0377ae23          	sw	s7,60(a5)
-
-00000190 <fail_loop8>:
- 190:	0000006f          	j	190 <fail_loop8>
-
-00000194 <fail_divzero>:
- 194:	0000fbb7          	lui	s7,0xf
- 198:	e09b8b93          	addi	s7,s7,-503 # ee09 <fail_loop14+0xec19>
- 19c:	0377ae23          	sw	s7,60(a5)
-
-000001a0 <fail_loop9>:
- 1a0:	0000006f          	j	1a0 <fail_loop9>
-
-000001a4 <fail_divuzero>:
- 1a4:	0000fbb7          	lui	s7,0xf
- 1a8:	e0ab8b93          	addi	s7,s7,-502 # ee0a <fail_loop14+0xec1a>
- 1ac:	0377ae23          	sw	s7,60(a5)
-
-000001b0 <fail_loop10>:
- 1b0:	0000006f          	j	1b0 <fail_loop10>
-
-000001b4 <fail_remzero>:
- 1b4:	0000fbb7          	lui	s7,0xf
- 1b8:	e0bb8b93          	addi	s7,s7,-501 # ee0b <fail_loop14+0xec1b>
- 1bc:	0377ae23          	sw	s7,60(a5)
-
-000001c0 <fail_loop11>:
- 1c0:	0000006f          	j	1c0 <fail_loop11>
-
-000001c4 <fail_remuzero>:
- 1c4:	0000fbb7          	lui	s7,0xf
- 1c8:	e0cb8b93          	addi	s7,s7,-500 # ee0c <fail_loop14+0xec1c>
- 1cc:	0377ae23          	sw	s7,60(a5)
-
-000001d0 <fail_loop12>:
- 1d0:	0000006f          	j	1d0 <fail_loop12>
-
-000001d4 <fail_divovf>:
- 1d4:	0000fbb7          	lui	s7,0xf
- 1d8:	e0db8b93          	addi	s7,s7,-499 # ee0d <fail_loop14+0xec1d>
- 1dc:	0377ae23          	sw	s7,60(a5)
-
-000001e0 <fail_loop13>:
- 1e0:	0000006f          	j	1e0 <fail_loop13>
-
-000001e4 <fail_removf>:
- 1e4:	0000fbb7          	lui	s7,0xf
- 1e8:	e0eb8b93          	addi	s7,s7,-498 # ee0e <fail_loop14+0xec1e>
- 1ec:	0377ae23          	sw	s7,60(a5)
-
-000001f0 <fail_loop14>:
- 1f0:	0000006f          	j	1f0 <fail_loop14>
+00000058 <.L2>:
+  58:	fe442703          	lw	a4,-28(s0)
+  5c:	fe042783          	lw	a5,-32(s0)
+  60:	fcf746e3          	blt	a4,a5,2c <.L3>
+  64:	fe842783          	lw	a5,-24(s0)
+  68:	00078513          	mv	a0,a5
+  6c:	02c12403          	lw	s0,44(sp)
+  70:	03010113          	addi	sp,sp,48
+  74:	00008067          	ret

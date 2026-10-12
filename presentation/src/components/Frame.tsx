@@ -8,13 +8,14 @@ interface FrameProps {
   kicker: string
   title: string
   children: ReactNode
+  compactHeader?: boolean
 }
 
-export function Frame({ n, kicker, title, children }: FrameProps) {
+export function Frame({ n, kicker, title, children, compactHeader }: FrameProps) {
   return (
-    <section className="slide">
-      <div className="kicker rise">{kicker}</div>
-      <h1 className="title rise" style={delay(0.08)}>{title}</h1>
+    <section className={`slide${compactHeader ? ' compact' : ''}`}>
+      <div className={`kicker rise${compactHeader ? ' compact' : ''}`}>{kicker}</div>
+      <h1 className={`title rise${compactHeader ? ' compact' : ''}`} style={delay(0.08)}>{title}</h1>
       {children}
       <div className="foot">
         <span>{String(n).padStart(3, '0')} · GROUP 09 · FPGA LOB</span>

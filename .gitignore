@@ -1,14 +1,9 @@
 # Vivado build outputs & checkpoints
 build/
-build_system/
-sim/build_*/
 .Xil/
 *.bit
 *.dcp
 *.rpt
-node_modules/
-dist/
-*.tsbuildinfo
 
 # Vivado journals, logs & backups
 vivado*.jou

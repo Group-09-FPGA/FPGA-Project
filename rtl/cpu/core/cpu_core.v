@@ -87,7 +87,7 @@ module cpu_core
     wire [4:0] id_rs1, id_rs2, id_rd;
     wire [2:0] id_funct3;
     wire [31:0] id_imm;
-    wire id_imm_sel, id_alu, id_lui, id_auipc, id_jal, id_jalr;
+    wire id_imm_sel, id_alu, id_lui, id_jal, id_jalr;
     wire id_branch, id_mem_write, id_mem_to_reg, id_arithsubtype;
     wire id_m;
 
@@ -95,7 +95,7 @@ module cpu_core
         .instruction(instruction),
         .rs1(id_rs1), .rs2(id_rs2), .rd(id_rd), .funct3(id_funct3),
         .immediate(id_imm), .immediate_sel(id_imm_sel),
-        .alu(id_alu), .lui(id_lui), .auipc(id_auipc), .jal(id_jal), .jalr(id_jalr),
+        .alu(id_alu), .lui(id_lui), .jal(id_jal), .jalr(id_jalr),
         .branch(id_branch), .mem_write(id_mem_write),
         .mem_to_reg(id_mem_to_reg), .arithsubtype(id_arithsubtype),
         .m_op(id_m),
@@ -108,20 +108,20 @@ module cpu_core
     reg [31:0] ex_pc, ex_imm;
     reg [4:0] ex_rd, ex_rs1, ex_rs2;
     reg [2:0] ex_alu_op;
-    reg ex_imm_sel, ex_alu, ex_lui, ex_auipc, ex_jal, ex_jalr, ex_branch;
+    reg ex_imm_sel, ex_alu, ex_lui, ex_jal, ex_jalr, ex_branch;
     reg ex_mem_write, ex_mem_to_reg, ex_arithsubtype, ex_m;
 
     always @(posedge clk or negedge reset) begin
         if (!reset) begin
             ex_pc <= 32'h0; ex_imm <= 32'h0;
             ex_rd <= 5'h0; ex_rs1 <= 5'h0; ex_rs2 <= 5'h0; ex_alu_op <= 3'h0;
-            ex_imm_sel <= 1'b0; ex_alu <= 1'b0; ex_lui <= 1'b0; ex_auipc <= 1'b0; ex_jal <= 1'b0; ex_jalr <= 1'b0;
+            ex_imm_sel <= 1'b0; ex_alu <= 1'b0; ex_lui <= 1'b0; ex_jal <= 1'b0; ex_jalr <= 1'b0;
             ex_branch <= 1'b0; ex_mem_write <= 1'b0; ex_mem_to_reg <= 1'b0; ex_arithsubtype <= 1'b0;
             ex_m <= 1'b0;
         end else if (!stall_pipeline) begin
             ex_pc <= id_pc; ex_imm <= id_imm;
             ex_rd <= id_rd; ex_rs1 <= id_rs1; ex_rs2 <= id_rs2; ex_alu_op <= id_funct3;
-            ex_imm_sel <= id_imm_sel; ex_alu <= id_alu; ex_lui <= id_lui; ex_auipc <= id_auipc; ex_jal <= id_jal;
+            ex_imm_sel <= id_imm_sel; ex_alu <= id_alu; ex_lui <= id_lui; ex_jal <= id_jal;
             ex_jalr <= id_jalr; ex_branch <= id_branch; ex_mem_write <= id_mem_write;
             ex_mem_to_reg <= id_mem_to_reg; ex_arithsubtype <= id_arithsubtype;
             ex_m <= id_m;
@@ -216,7 +216,6 @@ module cpu_core
         if (ex_mem_write) ex_result = alu_operand2;
         else if (ex_jal || ex_jalr) ex_result = ex_pc + 4;
         else if (ex_lui) ex_result = ex_imm;
-        else if (ex_auipc) ex_result = ex_pc + ex_imm;
         else if (ex_alu) ex_result = alu_out;
         else if (ex_m)   ex_result = m_result;
         else ex_result = 32'h0;
@@ -253,7 +252,7 @@ module cpu_core
         end else if (!stall_pipeline) begin
             wb_result <= ex_result;
             wb_mem_write <= ex_mem_write && !branch_stall;
-            wb_reg_write_en <= ex_alu || ex_lui || ex_auipc || ex_jal || ex_jalr || ex_mem_to_reg || ex_m;
+            wb_reg_write_en <= ex_alu || ex_lui || ex_jal || ex_jalr || ex_mem_to_reg || ex_m;
             wb_dest_reg_sel <= ex_rd;
             wb_branch <= branch_taken;
             wb_branch_nxt <= wb_branch; // 2nd cycle of branch stall

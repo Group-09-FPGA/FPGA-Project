@@ -29,14 +29,16 @@ export const NOTES: Notes[] = [
   {
     time: '2:00',
     points: [
-      'This trace comes from RTL simulation of the real CPU, not a drawing.',
-      'MUL: 3 stall cycles. Point at the forwarding on add (x3) and mul x6 (x5).',
-      'DIV: 32-iteration divider, 33 stall cycles. Skid buffer holds the fetched instruction.',
-      'Use Play, or step with the Left and Right keys while the cursor is on this slide.',
+      'This trace comes from cycle-accurate RTL simulation of cpu_core + interconnect + slaves.',
+      'EX-to-EX Forwarding: T2, T8, T13, and T55 bypass RAW stalls directly into the ALU.',
+      'Hazards: Load-ALU bubble at T12 (1 stall cycle) and branch squash at T15 (FLUSH).',
+      'Multi-Cycle RV32M: MUL completes in 4 cycles; Radix-2 DIV computes over 34 cycles (33 stall cycles).',
+      'Cycle-by-cycle hardware control signals match sim: stall_pipeline, m_busy, fwd selects, bus handshakes.',
     ],
     qa: [
-      'Why a bubble after each M-op? Front end refills after the stall releases.',
-      'Why no forwarding stall on load? BRAM data reaches WB while the user is in EX.',
+      'Why a 1-cycle bubble on load-use? Data from DMEM arrives in MEM/WB at T12, forwarded to EX at T13 for add x7.',
+      'How does branch squashing work? beq evaluates in EX at T14; wrong +4 fetch (addi x8) is flushed at T15 as target (div x9) is fetched.',
+      'Why does DIV take 34 cycles? 32-iteration restoring/radix-2 divider computes while frontend is held in skid buffer.',
     ],
   },
   {
@@ -58,14 +60,8 @@ export const NOTES: Notes[] = [
   },
   {
     time: '1:00',
-    points: [
-      'Five owners matched directly to our Project Abstract: Ronit (Bus/VGA), Akshit (RV32M), Aditya K (LOB Datapath), Aditya M (BRAM Queues/BBO), Aditeya G (C Drivers/Telemetry).',
-      'The right side shows the strict sequential execution order: Aditeya G (Workload) -> Aditya K (Parsing/LOB) -> Aditya M (BBO) -> Ronit (Bus Arbiter) -> Akshit/Ronit (CPU & VGA).',
-    ],
-    qa: [
-      'Why is bus access collision-free? 4-state non-preemptive arbiter with wait-states and dual-port BRAM controllers.',
-      'Who verifies? Each member owns standalone Verilog testbenches before main bus integration.',
-    ],
+    points: ['Four owners, four non-overlapping deliverables. Each can be tested alone.'],
+    qa: ['Who integrates? D owns the FPGA top and the demo, B and C hand over tested modules.'],
   },
   {
     time: '1:00 - 1:30',

@@ -48,21 +48,13 @@ module lob_core #(
 );
 
     // -------------------------------------------------------------------------
-    // Configuration Multiplexing (Registered for Timing Closure)
+    // Configuration Multiplexing
     // -------------------------------------------------------------------------
     logic [31:0] eff_price_base;
     logic [31:0] eff_tick;
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            eff_price_base <= DEFAULT_PRICE_BASE;
-            eff_tick       <= DEFAULT_TICK;
-        end else begin
-            eff_price_base <= (cfg_price_base != 32'd0) ? cfg_price_base : DEFAULT_PRICE_BASE;
-            eff_tick       <= (cfg_tick != 32'd0) ? cfg_tick : DEFAULT_TICK;
-        end
-    end
-
+    assign eff_price_base = (cfg_price_base != 32'd0) ? cfg_price_base : DEFAULT_PRICE_BASE;
+    assign eff_tick       = (cfg_tick != 32'd0) ? cfg_tick : DEFAULT_TICK;
     logic eff_fail_stop;
     assign eff_fail_stop  = cfg_fail_stop_en;
 
