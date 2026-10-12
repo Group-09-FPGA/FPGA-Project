@@ -7,7 +7,31 @@
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+// -----------------------------------------------------------------------------
+// Helper Module: 1,024 x 76-bit Simple Dual-Port Block RAM for one Hash Way
+// Infers dedicated RAMB18E1 primitives cleanly without registers
+// -----------------------------------------------------------------------------
+module lob_hash_way_ram (
+    input  logic        clk,
+    input  logic        wr_en,
+    input  logic [9:0]  wr_set,
+    input  logic [75:0] wr_data,
+    input  logic        rd_en,
+    input  logic [9:0]  rd_set,
+    output logic [75:0] rd_data
+);
+    (* ram_style = "block" *)
+    logic [75:0] mem [0:1023];
+
+    always_ff @(posedge clk) begin
+        if (wr_en) begin
+            mem[wr_set] <= wr_data;
+        end
+        if (rd_en) begin
+            rd_data <= mem[rd_set];
+        end
+    end
+endmodule
 
 module lob_hash_table #(
     parameter int unsigned HASH_SETS     = lob_pkg::HASH_SETS,
@@ -66,10 +90,6 @@ module lob_hash_table #(
     // -------------------------------------------------------------------------
     // 8 Ways of 1,024 Sets (each 76 bits: valid, slot[10:0], key[63:0])
     // -------------------------------------------------------------------------
-    // Each way synthesizes cleanly into RAMB18E1 primitives (5 x RAMB18 1Kx18)
-    (* ram_style = "block" *)
-    logic [75:0] way_mem [0:HASH_WAYS-1][0:HASH_SETS-1];
-
     // 8-entry CAM Stash (Registers/FFs)
     hash_entry_t stash [0:STASH_ENTRIES-1];
 
@@ -82,9 +102,9 @@ module lob_hash_table #(
     // -------------------------------------------------------------------------
     // Synchronous Read Pipeline
     // -------------------------------------------------------------------------
-    hash_entry_t way_rd_data [0:HASH_WAYS-1];
-    logic [63:0] key_q;
-    logic        rd_en_q;
+    hash_entry_t           way_rd_data [0:HASH_WAYS-1];
+    logic [63:0]           key_q;
+    logic                  rd_en_q;
     logic [HASH_SET_W-1:0] rd_set_q;
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -101,14 +121,45 @@ module lob_hash_table #(
         end
     end
 
-    // Memory read from all 8 ways (1 cycle latency)
+    // Memory storage and ports for all 8 ways (1 cycle latency)
+    logic [75:0]           way_wr_data [0:HASH_WAYS-1];
+    logic                  way_wr_en   [0:HASH_WAYS-1];
+    logic [HASH_SET_W-1:0] way_wr_addr [0:HASH_WAYS-1];
+    logic [75:0]           way_rd_raw  [0:HASH_WAYS-1];
+
     generate
-        for (genvar w = 0; w < HASH_WAYS; w++) begin : gen_way_read
-            always_ff @(posedge clk) begin
-                if (rd_en) begin
-                    way_rd_data[w] <= hash_entry_t'(way_mem[w][rd_set]);
+        for (genvar w = 0; w < HASH_WAYS; w++) begin : gen_way_bram
+            always_comb begin
+                if (initializing) begin
+                    way_wr_en[w]   = 1'b1;
+                    way_wr_addr[w] = init_cnt[HASH_SET_W-1:0];
+                    way_wr_data[w] = '0;
+                end else if (wr_way_en && (wr_way_idx == w)) begin
+                    way_wr_en[w]   = 1'b1;
+                    way_wr_addr[w] = wr_set;
+                    way_wr_data[w] = {1'b1, wr_slot, wr_key};
+                end else if (inv_way_en && (inv_way_idx == w)) begin
+                    way_wr_en[w]   = 1'b1;
+                    way_wr_addr[w] = inv_set;
+                    way_wr_data[w] = '0;
+                end else begin
+                    way_wr_en[w]   = 1'b0;
+                    way_wr_addr[w] = '0;
+                    way_wr_data[w] = '0;
                 end
             end
+
+            lob_hash_way_ram u_way_bram (
+                .clk     (clk),
+                .wr_en   (way_wr_en[w]),
+                .wr_set  (way_wr_addr[w]),
+                .wr_data (way_wr_data[w]),
+                .rd_en   (rd_en),
+                .rd_set  (rd_set),
+                .rd_data (way_rd_raw[w])
+            );
+
+            assign way_rd_data[w] = hash_entry_t'(way_rd_raw[w]);
         end
     endgenerate
 
@@ -200,23 +251,6 @@ module lob_hash_table #(
     assign free_stash_avail = found_free_stash;
     assign free_stash_idx   = first_free_stash;
     assign bucket_full      = (!found_free_way && !found_free_stash);
-
-    // -------------------------------------------------------------------------
-    // Memory Write & Invalidation
-    // -------------------------------------------------------------------------
-    generate
-        for (genvar w = 0; w < HASH_WAYS; w++) begin : gen_way_write
-            always_ff @(posedge clk) begin
-                if (initializing) begin
-                    way_mem[w][init_cnt[HASH_SET_W-1:0]] <= '0;
-                end else if (wr_way_en && (wr_way_idx == w)) begin
-                    way_mem[w][wr_set] <= {1'b1, wr_slot, wr_key};
-                end else if (inv_way_en && (inv_way_idx == w)) begin
-                    way_mem[w][inv_set] <= '0;
-                end
-            end
-        end
-    endgenerate
 
     // Stash Write & Invalidation
     always_ff @(posedge clk or negedge rst_n) begin
