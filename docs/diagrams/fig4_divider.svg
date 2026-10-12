@@ -1,0 +1,266 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 960" width="1760" height="960" font-family="Liberation Sans, Helvetica, Arial, sans-serif"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/></marker></defs><rect width="1760" height="960" fill="white"/><text x="40" y="40" font-size="22" text-anchor="start" fill="#1a1a1a" font-weight="bold">Figure 4 - RV32M 32-Iteration Restoring Divider: RTL Hardware Datapath</text>
+<text x="40" y="62" font-size="12" text-anchor="start" fill="#444">rv32m_unit.v  |  32-iteration serial restoring recurrence  |  33 compute clocks / 34 pipeline clocks  |  RISC-V M-Extension (DIV, DIVU, REM, REMU) 1-to-1 Verilog correspondence</text>
+<rect x="40" y="70" width="1680" height="3" fill="#004870"/>
+<rect x="35" y="86" width="440" height="844" fill="none" stroke="#004870" stroke-width="1.1" stroke-dasharray="7 4"/>
+<text x="43" y="101" font-size="11" text-anchor="start" fill="#004870" font-weight="bold">STAGE 1: INPUT CONDITIONING &amp; CORNER-CASE LATCH (CYCLE 1)</text>
+<text x="45" y="118" font-size="9.5" text-anchor="start" fill="#555" font-style="italic">Absolute Value MUXes · Div-by-Zero &amp; Overflow Detectors · Init Latches</text>
+<rect x="59" y="140" width="140" height="48" fill="#6b6b6b"/>
+<rect x="55" y="136" width="140" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="125.0" y="151.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">op1[31:0]</text>
+<text x="125.0" y="163.0" font-size="9" text-anchor="middle" fill="#1a1a1a">rs1 · Dividend</text>
+<text x="125.0" y="175.0" font-size="9" text-anchor="middle" fill="#1a1a1a">Signed / Unsigned</text>
+<rect x="59" y="222" width="140" height="48" fill="#6b6b6b"/>
+<rect x="55" y="218" width="140" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="125.0" y="233.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">op2[31:0]</text>
+<text x="125.0" y="245.0" font-size="9" text-anchor="middle" fill="#1a1a1a">rs2 · Divisor</text>
+<text x="125.0" y="257.0" font-size="9" text-anchor="middle" fill="#1a1a1a">Signed / Unsigned</text>
+<rect x="59" y="304" width="140" height="48" fill="#6b6b6b"/>
+<rect x="55" y="300" width="140" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="125.0" y="315.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">funct3[2:0]</text>
+<text x="125.0" y="327.0" font-size="9" text-anchor="middle" fill="#1a1a1a">DIV / DIVU / REM / REMU</text>
+<text x="125.0" y="339.0" font-size="9" text-anchor="middle" fill="#1a1a1a">funct3[2] == 1'b1</text>
+<rect x="234" y="140" width="85" height="48" fill="#6b6b6b"/>
+<rect x="230" y="136" width="85" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="272.5" y="151.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">- op1</text>
+<text x="272.5" y="163.0" font-size="9" text-anchor="middle" fill="#1a1a1a">~op1 + 1</text>
+<text x="272.5" y="175.0" font-size="9" text-anchor="middle" fill="#1a1a1a">32-bit negator</text>
+<rect x="234" y="222" width="85" height="48" fill="#6b6b6b"/>
+<rect x="230" y="218" width="85" height="48" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="272.5" y="233.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">- op2</text>
+<text x="272.5" y="245.0" font-size="9" text-anchor="middle" fill="#1a1a1a">~op2 + 1</text>
+<text x="272.5" y="257.0" font-size="9" text-anchor="middle" fill="#1a1a1a">32-bit negator</text>
+<polygon points="345,132 373,142 373,178 345,188" fill="white" stroke="#1a1a1a" stroke-width="1.3"/>
+<text x="359.0" y="164.0" font-size="9.5" text-anchor="middle" fill="#444" font-weight="bold">MUX</text>
+<text x="359.0" y="126" font-size="9.5" text-anchor="middle" fill="#004870" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">op1_neg</text>
+<text x="350" y="174" font-size="8" text-anchor="start" fill="#666">0: op1</text>
+<text x="350" y="148" font-size="8" text-anchor="start" fill="#666">1: -op1</text>
+<polygon points="345,214 373,224 373,260 345,270" fill="white" stroke="#1a1a1a" stroke-width="1.3"/>
+<text x="359.0" y="246.0" font-size="9.5" text-anchor="middle" fill="#444" font-weight="bold">MUX</text>
+<text x="359.0" y="208" font-size="9.5" text-anchor="middle" fill="#004870" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">op2_neg</text>
+<text x="350" y="256" font-size="8" text-anchor="start" fill="#666">0: op2</text>
+<text x="350" y="230" font-size="8" text-anchor="start" fill="#666">1: -op2</text>
+<polyline points="195,160 230,160" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="210,160 210,178 345,178" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="210" cy="160" r="2.6" fill="#1a1a1a"/>
+<polyline points="315,160 345,160" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="195,242 230,242" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="210,242 210,260 345,260" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="210" cy="242" r="2.6" fill="#1a1a1a"/>
+<polyline points="315,242 345,242" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="59" y="379" width="330" height="160" fill="#6b6b6b"/>
+<rect x="55" y="375" width="330" height="160" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="63" y="428.0" font-size="9" text-anchor="start" fill="#1a1a1a" font-weight="bold">Corner-Case &amp; Predicate Detectors (Combinational)</text>
+<text x="63" y="440.0" font-size="9" text-anchor="start" fill="#1a1a1a">div_zero = (op2 == 32'd0)</text>
+<text x="63" y="452.0" font-size="9" text-anchor="start" fill="#1a1a1a">overflow = op1_is_signed &amp;&amp; (op1 == 0x80000000) &amp;&amp; (op2 == 0xFFFFFFFF)</text>
+<text x="63" y="464.0" font-size="9" text-anchor="start" fill="#1a1a1a">neg_quo  = op1_is_signed &amp;&amp; (op1[31] ^ op2[31]) &amp;&amp; (op2 != 32'd0)</text>
+<text x="63" y="476.0" font-size="9" text-anchor="start" fill="#1a1a1a">neg_rem  = op1_is_signed &amp;&amp; op1[31] &amp;&amp; (op2 != 32'd0)</text>
+<text x="63" y="488.0" font-size="9" text-anchor="start" fill="#1a1a1a">orig_op1 = op1 (Preserved for Remainder-by-Zero rule)</text>
+<polyline points="125,348 125,375" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="59" y="564" width="400" height="230" fill="#7f9fb3"/>
+<rect x="55" y="560" width="400" height="230" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="63" y="624.0" font-size="9" text-anchor="start" fill="white" font-weight="bold">Cycle 1 Init Registers (▲ posedge clk on start)</text>
+<text x="63" y="636.0" font-size="9" text-anchor="start" fill="white">rem_reg[31:0]  &lt;= 32'd0 (Initial remainder cleared)</text>
+<text x="63" y="648.0" font-size="9" text-anchor="start" fill="white">quo_reg[31:0]  &lt;= abs_op1 (Dividend loaded into quotient)</text>
+<text x="63" y="660.0" font-size="9" text-anchor="start" fill="white">div_reg[31:0]  &lt;= abs_op2 (Divisor held constant)</text>
+<text x="63" y="672.0" font-size="9" text-anchor="start" fill="white">orig_op1[31:0] &lt;= op1 (Preserved for div-by-zero remainder)</text>
+<text x="63" y="684.0" font-size="9" text-anchor="start" fill="white">div_cnt[4:0]   &lt;= 5'd0 (5-bit counter: resets 32-iteration loop)</text>
+<text x="63" y="696.0" font-size="9" text-anchor="start" fill="white">div_op_r[2:0]  &lt;= funct3 (Latched instruction encoding)</text>
+<text x="63" y="708.0" font-size="9" text-anchor="start" fill="white">Latches: div_zero, overflow, neg_quo, neg_rem</text>
+<text x="63" y="720.0" font-size="9" text-anchor="start" fill="white">busy &lt;= 1'b1 · asserts m_stalling to freeze CPU pipeline</text>
+<text x="63" y="732.0" font-size="9" text-anchor="start" fill="white">state &lt;= STATE_DIV (Advances to iterative recurrence)</text>
+<polyline points="373,160 410,160 410,560" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="410" y="200" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">abs_op1[31:0]</text>
+<polyline points="373,242 430,242 430,560" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="430" y="280" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">abs_op2[31:0]</text>
+<polyline points="220,535 220,560" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="495" y="86" width="725" height="844" fill="none" stroke="#004870" stroke-width="1.1" stroke-dasharray="7 4"/>
+<text x="503" y="101" font-size="11" text-anchor="start" fill="#004870" font-weight="bold">STAGE 2: 32-ITERATION RESTORING RECURRENCE LOOP (CYCLES 2–32)</text>
+<text x="505" y="118" font-size="9.5" text-anchor="start" fill="#555" font-style="italic">1-Bit Left Shift · 34-Bit Trial Subtraction · Remainder Restoration MUX · div_cnt[4:0]</text>
+<rect x="519" y="140" width="210" height="68" fill="#7f9fb3"/>
+<rect x="515" y="136" width="210" height="68" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="620.0" y="161.0" font-size="9" text-anchor="middle" fill="white" font-weight="bold">rem_reg[31:0] (DFF)</text>
+<text x="620.0" y="173.0" font-size="9" text-anchor="middle" fill="white">32-bit Remainder Accumulator</text>
+<text x="620.0" y="185.0" font-size="9" text-anchor="middle" fill="white">Init: 32'd0  |  Loop: next_rem</text>
+<rect x="754" y="140" width="210" height="68" fill="#7f9fb3"/>
+<rect x="750" y="136" width="210" height="68" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="855.0" y="161.0" font-size="9" text-anchor="middle" fill="white" font-weight="bold">quo_reg[31:0] (DFF)</text>
+<text x="855.0" y="173.0" font-size="9" text-anchor="middle" fill="white">32-bit Quotient Shift Register</text>
+<text x="855.0" y="185.0" font-size="9" text-anchor="middle" fill="white">Init: abs_op1  |  Loop: next_quo</text>
+<rect x="989" y="140" width="210" height="68" fill="#7f9fb3"/>
+<rect x="985" y="136" width="210" height="68" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1090.0" y="161.0" font-size="9" text-anchor="middle" fill="white" font-weight="bold">div_reg[31:0] (DFF)</text>
+<text x="1090.0" y="173.0" font-size="9" text-anchor="middle" fill="white">32-bit Divisor Constant</text>
+<text x="1090.0" y="185.0" font-size="9" text-anchor="middle" fill="white">Init: abs_op2  |  Held constant</text>
+<rect x="539" y="242" width="330" height="64" fill="#6b6b6b"/>
+<rect x="535" y="238" width="330" height="64" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="700.0" y="261.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">1-Bit Left Shifter &amp; Concat</text>
+<text x="700.0" y="273.0" font-size="9" text-anchor="middle" fill="#1a1a1a">shifted_rem[32:0] = {rem_reg[31:0], quo_reg[31]}</text>
+<text x="700.0" y="285.0" font-size="9" text-anchor="middle" fill="#1a1a1a">Shifts remainder left by 1 bit; inserts MSB of quotient</text>
+<rect x="934" y="242" width="245" height="64" fill="#6b6b6b"/>
+<rect x="930" y="238" width="245" height="64" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1052.5" y="261.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">Divisor Zero-Extension</text>
+<text x="1052.5" y="273.0" font-size="9" text-anchor="middle" fill="#1a1a1a">{2'b00, div_reg[31:0]}  [33:0]</text>
+<text x="1052.5" y="285.0" font-size="9" text-anchor="middle" fill="#1a1a1a">Zero-extends 32-bit divisor to 34-bit subtrahend</text>
+<polyline points="620,204 620,238" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="620" y="222" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">rem_reg[31:0]</text>
+<polyline points="820,204 820,220 770,220 770,238" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="800" y="213" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">quo_reg[31] (MSB)</text>
+<polyline points="1090,204 1090,238" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1090" y="222" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">div_reg[31:0]</text>
+<rect x="559" y="340" width="445" height="68" fill="#7f9fb3"/>
+<rect x="555" y="336" width="445" height="68" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="777.5" y="361.0" font-size="9" text-anchor="middle" fill="white" font-weight="bold">34-Bit Trial Subtractor</text>
+<text x="777.5" y="373.0" font-size="9" text-anchor="middle" fill="white">trial_sub[33:0] = {1'b0, shifted_rem[32:0]} - {2'b00, div_reg[31:0]}</text>
+<text x="777.5" y="385.0" font-size="9" text-anchor="middle" fill="white">Tentative subtraction for current quotient bit position</text>
+<rect x="1039" y="340" width="150" height="68" fill="#6b6b6b"/>
+<rect x="1035" y="336" width="150" height="68" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1110.0" y="355.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">Borrow Flag</text>
+<text x="1110.0" y="367.0" font-size="9" text-anchor="middle" fill="#1a1a1a">borrow = trial_sub[33]</text>
+<text x="1110.0" y="379.0" font-size="9" text-anchor="middle" fill="#1a1a1a">1 = Underflow (Subtract failed)</text>
+<text x="1110.0" y="391.0" font-size="9" text-anchor="middle" fill="#1a1a1a">0 = Success (Subtract passed)</text>
+<polyline points="700,302 700,336" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="700" y="320" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">{1'b0, shifted_rem}</text>
+<polyline points="1050,302 1050,320 890,320 890,336" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="970" y="313" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">{2'b00, div_reg}</text>
+<polyline points="1000,370 1035,370" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1018" y="362" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">trial[33]</text>
+<polygon points="615,438 650,448 650,504 615,514" fill="white" stroke="#1a1a1a" stroke-width="1.3"/>
+<text x="632.5" y="480.0" font-size="9.5" text-anchor="middle" fill="#444" font-weight="bold">RESTORE</text>
+<text x="632.5" y="432" font-size="9.5" text-anchor="middle" fill="#004870" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">borrow</text>
+<text x="620" y="500" font-size="8" text-anchor="start" fill="#666">0: trial_sub</text>
+<text x="620" y="454" font-size="8" text-anchor="start" fill="#666">1: shifted_rem</text>
+<text x="665" y="460" font-size="8.5" text-anchor="start" fill="#1f7a4d" font-weight="bold">0: trial_sub[31:0] (Subtracted)</text>
+<text x="665" y="495" font-size="8.5" text-anchor="start" fill="#b4451f" font-weight="bold">1: shifted_rem[31:0] (RESTORED)</text>
+<rect x="824" y="442" width="310" height="76" fill="#7f9fb3"/>
+<rect x="820" y="438" width="310" height="76" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="975.0" y="461.0" font-size="9" text-anchor="middle" fill="white" font-weight="bold">Quotient Shift &amp; Bit Insert</text>
+<text x="975.0" y="473.0" font-size="9" text-anchor="middle" fill="white">next_quo[31:0] = {quo_reg[30:0], ~borrow}</text>
+<text x="975.0" y="485.0" font-size="9" text-anchor="middle" fill="white">Shifts quotient register left by 1 bit and</text>
+<text x="975.0" y="497.0" font-size="9" text-anchor="middle" fill="white">inserts inverted borrow bit (~borrow) at LSB</text>
+<polyline points="680,404 680,420 615,455" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="660" y="412" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">trial_sub[31:0]</text>
+<polyline points="540,302 540,500 615,500" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="540" y="410" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">shifted_rem[31:0]</text>
+<polyline points="1110,404 1110,430 632,430" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="1110" cy="430" r="2.6" fill="#1a1a1a"/>
+<text x="910" y="423" font-size="8.5" text-anchor="start" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">borrow select</text>
+<polyline points="1110,430 1110,475 1130,475" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1120" y="450" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">borrow</text>
+<rect x="1130" y="460" width="28" height="30" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1144.0" y="479.0" font-size="11" text-anchor="middle" fill="#1a1a1a">~</text>
+<polyline points="1158,475 1175,475 1175,525 975,525 975,514" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1075" y="535" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">~borrow (quotient bit)</text>
+<rect x="519" y="559" width="425" height="95" fill="#6b6b6b"/>
+<rect x="515" y="555" width="425" height="95" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="523" y="581.5" font-size="9" text-anchor="start" fill="#1a1a1a" font-weight="bold">Recurrence Loop State Update (Cycles 2–32 ▲)</text>
+<text x="523" y="593.5" font-size="9" text-anchor="start" fill="#1a1a1a">rem_reg &lt;= next_rem (Restored remainder or trial subtraction)</text>
+<text x="523" y="605.5" font-size="9" text-anchor="start" fill="#1a1a1a">quo_reg &lt;= next_quo (Quotient shifts left, appends ~borrow at bit 0)</text>
+<text x="523" y="617.5" font-size="9" text-anchor="start" fill="#1a1a1a">Feedback loop iterates exactly once per cycle across 32 clocks</text>
+<text x="523" y="629.5" font-size="9" text-anchor="start" fill="#1a1a1a">Generates exactly 1 quotient bit per cycle (bits 31 downto 0)</text>
+<rect x="964" y="559" width="235" height="95" fill="#6b6b6b"/>
+<rect x="960" y="555" width="235" height="95" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="968" y="581.5" font-size="9" text-anchor="start" fill="#1a1a1a" font-weight="bold">Iteration Counter (div_cnt[4:0])</text>
+<text x="968" y="593.5" font-size="9" text-anchor="start" fill="#1a1a1a">Counts 32 iterations (div_cnt: 0 → 31)</text>
+<text x="968" y="605.5" font-size="9" text-anchor="start" fill="#1a1a1a">while (div_cnt &lt; 5'd31): loop continues</text>
+<text x="968" y="617.5" font-size="9" text-anchor="start" fill="#1a1a1a">div_cnt == 5'd31: evaluates final 32nd step,</text>
+<text x="968" y="629.5" font-size="9" text-anchor="start" fill="#1a1a1a">latches result_reg and moves to STATE_DONE</text>
+<polyline points="650,476 700,476 700,555" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="700" y="520" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">next_rem[31:0]</text>
+<polyline points="920,514 920,555" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="920" y="535" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">next_quo[31:0]</text>
+<polyline points="515,600 498,600 498,170 515,170" fill="none" stroke="#004870" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ah)"/>
+<text x="498" y="380" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 498 380)">32-Cycle Loop Remainder Feedback</text>
+<polyline points="735,600 735,170 750,170" fill="none" stroke="#004870" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ah)"/>
+<text x="735" y="380" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 735 380)">32-Cycle Loop Quotient Feedback</text>
+<rect x="515" y="680" width="680" height="110" fill="white" stroke="#1a1a1a" stroke-width="1"/>
+<text x="523" y="714.75" font-size="8.5" text-anchor="start" fill="#1a1a1a" font-weight="bold">Hardware Timing Breakdown: 32 Restoring Iterations · 33 Compute Clocks · 34 Pipeline Clocks</text>
+<text x="523" y="726.25" font-size="8.5" text-anchor="start" fill="#1a1a1a">Cycle 1: STATE_IDLE -&gt; STATE_DIV operand conditioning, abs(op1), abs(op2), predicate latches, reg init (div_cnt &lt;= 0)</text>
+<text x="523" y="737.75" font-size="8.5" text-anchor="start" fill="#1a1a1a">Cycles 2–32: 31 clocked restoring iterations (div_cnt: 0 -&gt; 30) generating bits 31 downto 1 while pipeline stalls (m_stalling=1)</text>
+<text x="523" y="749.25" font-size="8.5" text-anchor="start" fill="#1a1a1a">Cycle 33: div_cnt == 31 evaluates combinational 32nd step (bit 0) + RISC-V exception MUX -&gt; result_reg &lt;= final_div_result; state &lt;= STATE_DONE</text>
+<text x="523" y="760.75" font-size="8.5" text-anchor="start" fill="#1a1a1a">Cycle 34: STATE_DONE asserts done=1, busy=0 -&gt; releases m_stalling -&gt; CPU captures result into EX/WB register on posedge clk</text>
+<rect x="1245" y="86" width="480" height="844" fill="none" stroke="#004870" stroke-width="1.1" stroke-dasharray="7 4"/>
+<text x="1253" y="101" font-size="11" text-anchor="start" fill="#004870" font-weight="bold">STAGE 3: POST-PROCESS, SIGN CORRECTION &amp; EXCEPTIONS (CYCLES 33–34)</text>
+<text x="1255" y="118" font-size="9.5" text-anchor="start" fill="#555" font-style="italic">Two's Complement Correction · RISC-V Exception Priority MUX · Output Handshake</text>
+<rect x="1269" y="140" width="120" height="50" fill="#6b6b6b"/>
+<rect x="1265" y="136" width="120" height="50" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1325.0" y="152.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">- final_quo_u</text>
+<text x="1325.0" y="164.0" font-size="9" text-anchor="middle" fill="#1a1a1a">~final_quo_u + 1</text>
+<text x="1325.0" y="176.0" font-size="9" text-anchor="middle" fill="#1a1a1a">32-bit negator</text>
+<rect x="1269" y="222" width="120" height="50" fill="#6b6b6b"/>
+<rect x="1265" y="218" width="120" height="50" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1325.0" y="234.0" font-size="9" text-anchor="middle" fill="#1a1a1a" font-weight="bold">- final_rem_u</text>
+<text x="1325.0" y="246.0" font-size="9" text-anchor="middle" fill="#1a1a1a">~final_rem_u + 1</text>
+<text x="1325.0" y="258.0" font-size="9" text-anchor="middle" fill="#1a1a1a">32-bit negator</text>
+<polygon points="1420,132 1448,142 1448,178 1420,188" fill="white" stroke="#1a1a1a" stroke-width="1.3"/>
+<text x="1434.0" y="164.0" font-size="9.5" text-anchor="middle" fill="#444" font-weight="bold">MUX</text>
+<text x="1434.0" y="126" font-size="9.5" text-anchor="middle" fill="#004870" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">neg_quo</text>
+<text x="1425" y="174" font-size="8" text-anchor="start" fill="#666">0: quo_u</text>
+<text x="1425" y="148" font-size="8" text-anchor="start" fill="#666">1: -quo_u</text>
+<polygon points="1420,214 1448,224 1448,260 1420,270" fill="white" stroke="#1a1a1a" stroke-width="1.3"/>
+<text x="1434.0" y="246.0" font-size="9.5" text-anchor="middle" fill="#444" font-weight="bold">MUX</text>
+<text x="1434.0" y="208" font-size="9.5" text-anchor="middle" fill="#004870" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">neg_rem</text>
+<text x="1425" y="256" font-size="8" text-anchor="start" fill="#666">0: rem_u</text>
+<text x="1425" y="230" font-size="8" text-anchor="start" fill="#666">1: -rem_u</text>
+<polyline points="1130,455 1225,455 1225,160 1265,160" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1225" y="300" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 1225 300)">final_quo_u = next_quo</text>
+<polyline points="1225,160 1245,160 1245,178 1420,178" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="1225" cy="160" r="2.6" fill="#1a1a1a"/>
+<polyline points="1385,160 1420,160" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<polyline points="700,476 700,485 1235,485 1235,242 1265,242" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1235" y="360" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke" transform="rotate(-90 1235 360)">final_rem_u = next_rem</text>
+<polyline points="1235,242 1245,242 1245,260 1420,260" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<circle cx="1235" cy="242" r="2.6" fill="#1a1a1a"/>
+<polyline points="1385,242 1420,242" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<rect x="1484" y="140" width="225" height="132" fill="#6b6b6b"/>
+<rect x="1480" y="136" width="225" height="132" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1488" y="164.5" font-size="8.5" text-anchor="start" fill="#1a1a1a" font-weight="bold">Signed / Unsigned Select</text>
+<text x="1488" y="176.0" font-size="8.5" text-anchor="start" fill="#1a1a1a">DIV / REM: Uses 2's complement</text>
+<text x="1488" y="187.5" font-size="8.5" text-anchor="start" fill="#1a1a1a">negated values (final_quo / final_rem)</text>
+<text x="1488" y="199.0" font-size="8.5" text-anchor="start" fill="#1a1a1a">DIVU / REMU: Bypasses negation directly</text>
+<text x="1488" y="210.5" font-size="8.5" text-anchor="start" fill="#1a1a1a">(final_quo_u / final_rem_u)</text>
+<text x="1488" y="222.0" font-size="8.5" text-anchor="start" fill="#1a1a1a">Strict IEEE &amp; RISC-V signed quotient rule:</text>
+<text x="1488" y="233.5" font-size="8.5" text-anchor="start" fill="#1a1a1a">sign(Q) = sign(op1) XOR sign(op2)</text>
+<text x="1488" y="245.0" font-size="8.5" text-anchor="start" fill="#1a1a1a">sign(R) = sign(op1)</text>
+<rect x="1269" y="309" width="440" height="250" fill="#7f9fb3"/>
+<rect x="1265" y="305" width="440" height="250" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1273" y="367.0" font-size="9" text-anchor="start" fill="white" font-weight="bold">RISC-V Priority Exception Multiplexer (final_div_result)</text>
+<text x="1273" y="379.0" font-size="9" text-anchor="start" fill="white">1. if (div_zero): [Division by zero rule]</text>
+<text x="1273" y="391.0" font-size="9" text-anchor="start" fill="white">     DIV / DIVU → 32'hFFFF_FFFF (-1 signed / 2^32 - 1 unsigned)</text>
+<text x="1273" y="403.0" font-size="9" text-anchor="start" fill="white">     REM / REMU → orig_op1 (Preserves dividend unaltered)</text>
+<text x="1273" y="415.0" font-size="9" text-anchor="start" fill="white"></text>
+<text x="1273" y="427.0" font-size="9" text-anchor="start" fill="white">2. else if (overflow): [Signed overflow rule: INT_MIN / -1]</text>
+<text x="1273" y="439.0" font-size="9" text-anchor="start" fill="white">     DIV        → 32'h8000_0000 (INT_MIN unaltered)</text>
+<text x="1273" y="451.0" font-size="9" text-anchor="start" fill="white">     REM        → 32'h0000_0000 (Zero remainder)</text>
+<text x="1273" y="463.0" font-size="9" text-anchor="start" fill="white"></text>
+<text x="1273" y="475.0" font-size="9" text-anchor="start" fill="white">3. else: [Normal Arithmetic]</text>
+<text x="1273" y="487.0" font-size="9" text-anchor="start" fill="white">     DIV  → final_quo   |  DIVU → final_quo_u</text>
+<text x="1273" y="499.0" font-size="9" text-anchor="start" fill="white">     REM  → final_rem   |  REMU → final_rem_u</text>
+<polyline points="1448,160 1465,160 1465,305" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1465" y="230" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">final_quo</text>
+<polyline points="1448,242 1475,242 1475,305" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1475" y="275" font-size="8" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">final_rem</text>
+<rect x="1269" y="589" width="440" height="95" fill="#7f9fb3"/>
+<rect x="1265" y="585" width="440" height="95" fill="#004870" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1273" y="611.5" font-size="9" text-anchor="start" fill="white" font-weight="bold">Architectural Result Register (Cycle 33 ▲)</text>
+<text x="1273" y="623.5" font-size="9" text-anchor="start" fill="white">result_reg &lt;= final_div_result</text>
+<text x="1273" y="635.5" font-size="9" text-anchor="start" fill="white">Latched on posedge clk at div_cnt == 5'd31 when transitioning to STATE_DONE</text>
+<text x="1273" y="647.5" font-size="9" text-anchor="start" fill="white">Held stable throughout pipeline handshake while state == STATE_DONE</text>
+<text x="1273" y="659.5" font-size="9" text-anchor="start" fill="white">Directly drives architectural output: assign result = result_reg</text>
+<polyline points="1485,555 1485,585" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1485" y="570" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">final_div_result[31:0]</text>
+<rect x="1269" y="714" width="440" height="100" fill="#6b6b6b"/>
+<rect x="1265" y="710" width="440" height="100" fill="#e3e3e3" stroke="#1a1a1a" stroke-width="1"/>
+<text x="1273" y="733.0" font-size="9" text-anchor="start" fill="#1a1a1a" font-weight="bold">Pipeline Handshake &amp; Stall Release (Cycle 34)</text>
+<text x="1273" y="745.0" font-size="9" text-anchor="start" fill="#1a1a1a">done = (state == STATE_DONE) [Asserted on Cycle 34]</text>
+<text x="1273" y="757.0" font-size="9" text-anchor="start" fill="#1a1a1a">busy = (state == STATE_MULT) || (state == STATE_DIV) [Deasserted 1'b0]</text>
+<text x="1273" y="769.0" font-size="9" text-anchor="start" fill="#1a1a1a">Deasserts m_stalling in cpu_core.v -&gt; stall_pipeline deasserts (0)</text>
+<text x="1273" y="781.0" font-size="9" text-anchor="start" fill="#1a1a1a">CPU pipeline captures result_reg into EX/WB register on posedge clk</text>
+<text x="1273" y="793.0" font-size="9" text-anchor="start" fill="#1a1a1a">Unit returns to STATE_IDLE when !stall_pipeline</text>
+<polyline points="1485,680 1485,710" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1485" y="695" font-size="8.5" text-anchor="middle" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">Moves to STATE_DONE</text>
+<polyline points="1705,632 1735,632" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1720" y="620" font-size="8" text-anchor="end" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">result[31:0] (to EX Stage ex_result MUX)</text>
+<polyline points="1705,745 1735,745" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1720" y="735" font-size="8" text-anchor="end" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">done (to Hazard Unit)</text>
+<polyline points="1705,775 1735,775" fill="none" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#ah)"/>
+<text x="1720" y="765" font-size="8" text-anchor="end" fill="#1a1a1a" stroke="white" stroke-width="3" paint-order="stroke">busy (to Stall Logic)</text></svg>
