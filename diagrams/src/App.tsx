@@ -63,14 +63,36 @@ const SLIDES: SlideConfig[] = [
   },
 ]
 
+function getInitialIndex(): number {
+  const hash = window.location.hash.replace('#', '')
+  const hashIdx = SLIDES.findIndex((s) => s.id === hash)
+  if (hashIdx !== -1) return hashIdx
+  const param = new URLSearchParams(window.location.search).get('slide')
+  if (param !== null) {
+    const num = parseInt(param, 10)
+    if (!isNaN(num) && num >= 0 && num < SLIDES.length) return num
+    const byId = SLIDES.findIndex((s) => s.id === param)
+    if (byId !== -1) return byId
+  }
+  return 0
+}
+
 export default function App() {
-  const [currentIdx, setCurrentIdx] = useState(0)
+  const [currentIdx, setCurrentIdx] = useState(getInitialIndex)
   const [scale, setScale] = useState(1)
 
   const goTo = useCallback((idx: number) => {
     const valid = Math.min(Math.max(idx, 0), SLIDES.length - 1)
     setCurrentIdx(valid)
     window.history.replaceState(null, '', `#${SLIDES[valid].id}`)
+  }, [])
+
+  useEffect(() => {
+    const handleHash = () => {
+      setCurrentIdx(getInitialIndex())
+    }
+    window.addEventListener('hashchange', handleHash)
+    return () => window.removeEventListener('hashchange', handleHash)
   }, [])
 
   useEffect(() => {

@@ -39,21 +39,53 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
   const strokeWidth = isNew ? 2.4 : 1.5
   const fill = isNew ? '#e4e6f8' : 'rgba(255, 255, 255, 0.88)'
   const textColor = isNew ? '#101234' : 'var(--ink)'
-  const cy = y + h / 2
 
   const hasSub = Boolean(subtitle)
-  const hasDetail = Boolean(detail)
-
   const detailLines = detail ? detail.split('\n') : []
   const numDetailLines = detailLines.length
+  const hasDetail = numDetailLines > 0
 
-  let titleY = cy + 6
-  if (hasSub && hasDetail) {
-    const totalH = 22 + 18 + (numDetailLines > 0 ? 16 + (numDetailLines - 1) * 15 : 0)
-    titleY = cy - totalH / 2 + 10
-  } else if (hasSub) {
-    titleY = cy - 6
+  // ── Dynamic Font Sizing to Prevent Overflow ──
+  const titleLen = title.length
+  let titleFontSize = 17
+  if (w < 180 || h < 75) {
+    titleFontSize = 13.5
+  } else if (titleLen > 32 || (tag && titleLen > 24)) {
+    titleFontSize = 14
+  } else if (titleLen > 24) {
+    titleFontSize = 15.5
   }
+
+  const subLen = subtitle ? subtitle.length : 0
+  let subFontSize = 12
+  if (w < 180 || h < 75) {
+    subFontSize = 10.5
+  } else if (subLen > 35) {
+    subFontSize = 11
+  }
+
+  const maxDetailLen = Math.max(...detailLines.map((l) => l.length), 0)
+  let detailFontSize = 11
+  let lineSpacing = 14.5
+  if (maxDetailLen > 44 || w < 320 || numDetailLines >= 6) {
+    detailFontSize = 9.8
+    lineSpacing = 13
+  } else if (maxDetailLen > 34 || w < 380 || numDetailLines >= 5) {
+    detailFontSize = 10.5
+    lineSpacing = 13.8
+  }
+
+  // ── Proportional Vertical Stacking ──
+  const titleBlockH = titleFontSize
+  const subBlockH = hasSub ? subFontSize + 3 : 0
+  const detailBlockH = hasDetail ? (numDetailLines - 1) * lineSpacing + detailFontSize : 0
+
+  const totalContentH = titleBlockH + (hasSub ? 4 + subBlockH : 0) + (hasDetail ? 5 + detailBlockH : 0)
+  const startTop = y + Math.max(tag ? 16 : 8, (h - totalContentH) / 2)
+
+  const titleY = startTop + titleFontSize * 0.85
+  const subY = titleY + (hasSub ? subFontSize + 3.5 : 0)
+  const detailStartY = (hasSub ? subY + 4 : titleY + 4) + detailFontSize * 0.9
 
   return (
     <g style={style}>
@@ -70,18 +102,18 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
       {tag && (
         <g>
           <rect
-            x={x + w - tag.length * 8 - 14}
+            x={x + w - tag.length * 7 - 12}
             y={y + 4}
-            width={tag.length * 8 + 10}
-            height={16}
+            width={tag.length * 7 + 8}
+            height={15}
             rx={2}
             fill={isNew ? 'var(--navy)' : '#8b8f98'}
           />
           <text
-            x={x + w - (tag.length * 8 + 10) / 2 - 9}
-            y={y + 16}
+            x={x + w - (tag.length * 7 + 8) / 2 - 8}
+            y={y + 15}
             textAnchor="middle"
-            style={{ font: '700 10px var(--mono)', fill: '#ffffff', letterSpacing: '.06em' }}
+            style={{ font: '700 9px var(--mono)', fill: '#ffffff', letterSpacing: '.05em' }}
           >
             {tag}
           </text>
@@ -92,7 +124,7 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
         y={titleY}
         textAnchor="middle"
         style={{
-          font: isNew ? '600 19px var(--font)' : '600 18px var(--font)',
+          font: `600 ${titleFontSize}px var(--font)`,
           fill: textColor,
           letterSpacing: '-.01em',
         }}
@@ -102,9 +134,9 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
       {subtitle && (
         <text
           x={x + w / 2}
-          y={titleY + 22}
+          y={subY}
           textAnchor="middle"
-          style={{ font: '500 13px var(--mono)', fill: 'var(--ink-2)' }}
+          style={{ font: `500 ${subFontSize}px var(--mono)`, fill: 'var(--ink-2)' }}
         >
           {subtitle}
         </text>
@@ -112,12 +144,12 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
       {hasDetail && (
         <text
           x={x + w / 2}
-          y={titleY + 38}
+          y={detailStartY}
           textAnchor="middle"
-          style={{ font: '400 11.5px var(--mono)', fill: '#6e727e' }}
+          style={{ font: `400 ${detailFontSize}px var(--mono)`, fill: '#5a5e68' }}
         >
           {detailLines.map((line, idx) => (
-            <tspan key={idx} x={x + w / 2} dy={idx === 0 ? 0 : 15}>
+            <tspan key={idx} x={x + w / 2} dy={idx === 0 ? 0 : lineSpacing}>
               {line}
             </tspan>
           ))}
