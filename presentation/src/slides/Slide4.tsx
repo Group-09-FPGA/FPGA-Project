@@ -17,7 +17,7 @@ const checks = [
 
 export default function Slide4() {
   return (
-    <Frame n={4} kicker="How we build it and prove it" title="Design + verification plan">
+    <Frame n={9} kicker="How we build it and prove it" title="Design + verification plan">
       <Gear cx={1790} cy={100} r={44} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, marginTop: 36 }}>
         <div>

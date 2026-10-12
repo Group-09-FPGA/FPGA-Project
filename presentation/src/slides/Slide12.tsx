@@ -56,7 +56,7 @@ export default function Slide12() {
   const isDone = iter >= TOTAL_ITERS - 1
 
   return (
-    <Frame n={12} kicker="RV32M Extension · Radix-2 Serial Divider" title="Divider: div x9, x4, x1 — 33 iteration cycles">
+    <Frame n={8} kicker="RV32M Extension · Radix-2 Serial Divider" title="Divider: div x9, x4, x1 — 33 iteration cycles">
       <svg width={1728} height={660} viewBox="0 -10 1728 660" overflow="visible"
         style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>

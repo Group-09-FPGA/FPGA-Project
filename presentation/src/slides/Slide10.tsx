@@ -25,7 +25,7 @@ const CELL = 28
 
 export default function Slide10() {
   return (
-    <Frame n={10} kicker="O(1) Priority Encoding · BBO Hierarchy" title="Hardware priority tree: best bid in 1–2 cycles">
+    <Frame n={5} kicker="O(1) Priority Encoding · BBO Hierarchy" title="Hardware priority tree: best bid in 1–2 cycles">
       <svg width={1728} height={660} viewBox="0 -10 1728 660" overflow="visible"
         style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>

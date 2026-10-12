@@ -14,7 +14,7 @@ const items: Item[] = [
 export default function Slide5() {
   const y = 400
   return (
-    <Frame n={5} kicker="Milestones" title="Timeline">
+    <Frame n={10} kicker="Milestones" title="Timeline">
       <svg width="1728" height="640" viewBox="0 0 1728 640" style={{ position: 'absolute', left: 96, top: 210 }}>
         <line x1={0} y1={y} x2={1728} y2={y} stroke="var(--ink)" strokeWidth={2} className="draw" pathLength={1} style={delay(0.1)} />
         {items.map((it, i) => (

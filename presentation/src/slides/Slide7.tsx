@@ -17,7 +17,7 @@ const challenges = [
 
 export default function Slide7() {
   return (
-    <Frame n={7} kicker="Visible on the FPGA" title="Demo plan + challenges">
+    <Frame n={12} kicker="Visible on the FPGA" title="Demo plan + challenges">
       <Chip style={{ left: 1330, top: 120 }} label="FPGA" />
       <div style={{ display: 'grid', gridTemplateColumns: '1000px 1fr', gap: 70, marginTop: 40 }}>
         <div>

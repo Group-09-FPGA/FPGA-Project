@@ -52,7 +52,7 @@ export default function Slide11() {
   const BW = 260, BH = 100, BY = 56
 
   return (
-    <Frame n={11} kicker="RV32M Extension · DSP48E1 Hardware" title="Multiplier: 3-cycle pipeline · mul x3, x1, x2">
+    <Frame n={7} kicker="RV32M Extension · DSP48E1 Hardware" title="Multiplier: 3-cycle pipeline · mul x3, x1, x2">
       <svg width={1728} height={660} viewBox="0 -20 1728 660" overflow="visible"
         style={{ position:'absolute', left:96, top:205 }}>
         <defs>

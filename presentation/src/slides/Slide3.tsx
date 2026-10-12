@@ -71,7 +71,7 @@ export default function Slide3({ active }: { active: boolean }) {
 
   return (
     <Frame
-      n={3}
+      n={6}
       compactHeader
       kicker="Figure 3 · Cycle-Accurate RTL Simulation Trace (100 MHz)"
       title="Figure 3 · Pipeline Timing: EX-to-EX Forwarding, Hazards & RV32M Multi-Cycle Ops"
