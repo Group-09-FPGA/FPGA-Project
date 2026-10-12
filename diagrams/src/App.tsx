@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import Slide1_SystemOverview from './diagrams/Slide1_SystemOverview'
 import Slide2_CPUPipeline from './diagrams/Slide2_CPUPipeline'
-import Slide3_RV32M from './diagrams/Slide3_RV32M'
-import Slide4_LOBCore from './diagrams/Slide4_LOBCore'
-import Slide5_TimingDiagram from './diagrams/Slide5_TimingDiagram'
-import Slide6_ModuleTable from './diagrams/Slide6_ModuleTable'
+import Slide3_Multiplier from './diagrams/Slide3_Multiplier'
+import Slide4_Divider from './diagrams/Slide4_Divider'
+import Slide5_LOBCore from './diagrams/Slide5_LOBCore'
+import Slide6_TimingDiagram from './diagrams/Slide6_TimingDiagram'
+import Slide7_ModuleTable from './diagrams/Slide7_ModuleTable'
 
 interface SlideConfig {
   id: string
@@ -28,30 +29,37 @@ const SLIDES: SlideConfig[] = [
     component: <Slide2_CPUPipeline />,
   },
   {
-    id: 'rv32m',
-    title: 'RV32M Multiplier & Restoring Divider',
-    kicker: '★ NEW HARDWARE EXTENSION · 3-CYCLE MUL · 33-CYCLE DIV',
-    component: <Slide3_RV32M />,
+    id: 'mul',
+    title: '4-Cycle Pipelined Multiplier (RTL Datapath)',
+    kicker: '★ PURE HARDWARE BLOCK DIAGRAM · 33x33 MULTIPLIER · 1-TO-1 VERILOG MATCH',
+    component: <Slide3_Multiplier />,
+    isNew: true,
+  },
+  {
+    id: 'div',
+    title: '39-Cycle Restoring Divider (RTL Datapath)',
+    kicker: '★ PURE HARDWARE BLOCK DIAGRAM · 36 RECURRENCE ITERS · CORNER CASES',
+    component: <Slide4_Divider />,
     isNew: true,
   },
   {
     id: 'lob',
     title: 'Pure-Hardware Limit Order Book Accelerator',
     kicker: '10-CYCLE ADD SCHEDULE · 107 BRAM MEMORY STRUCTURES · BBO ENGINE',
-    component: <Slide4_LOBCore />,
+    component: <Slide5_LOBCore />,
     isNew: true,
   },
   {
     id: 'timing',
     title: 'Pipeline Execution Timing Diagram',
     kicker: 'REAL 25-CYCLE RTL TRACE · MULTI-CYCLE STALLS · HAZARDS & FORWARDING',
-    component: <Slide5_TimingDiagram />,
+    component: <Slide6_TimingDiagram />,
   },
   {
     id: 'modules',
     title: 'Module Summary & FPGA Resource Estimates',
     kicker: 'ALL 27 PROJECT MODULES · ARTIX-7 XC7A100T UTILIZATION · VERIFICATION',
-    component: <Slide6_ModuleTable />,
+    component: <Slide7_ModuleTable />,
   },
 ]
 
@@ -84,7 +92,7 @@ export default function App() {
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault()
         goTo(currentIdx - 1)
-      } else if (e.key >= '1' && e.key <= '6') {
+      } else if (e.key >= '1' && e.key <= '7') {
         goTo(parseInt(e.key, 10) - 1)
       } else if (e.key === 'f' || e.key === 'F') {
         if (document.fullscreenElement) {
@@ -124,7 +132,7 @@ export default function App() {
               </div>
               <div className="pill">
                 <span className="pill-swatch" style={{ background: '#e4e6f8', borderColor: 'var(--navy)', borderWidth: 2.5 }} />
-                <span style={{ color: 'var(--navy)', fontWeight: 700 }}>★ NEW Hardware (RV32M / LOB)</span>
+                <span style={{ color: 'var(--navy)', fontWeight: 700 }}>★ NEW Hardware (MUL / DIV / LOB)</span>
               </div>
               <div className="pill">
                 <span className="pill-swatch" style={{ borderStyle: 'dashed', borderColor: '#8b8f98' }} />
@@ -171,7 +179,7 @@ export default function App() {
       </div>
 
       <div className="hint">
-        ← → / Space navigate · 1–6 Jump · F Fullscreen
+        ← → / Space navigate · 1–7 Jump · F Fullscreen
       </div>
     </>
   )
