@@ -43,7 +43,7 @@ export default function App() {
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(n - 1) }
       else if (e.key === 'Home') go(1)
       else if (e.key === 'End') go(TOTAL)
-      else if (e.key === 'n' || e.key === 'N') setNotes((v) => !v)
+      else if (e.key === 'n' || e.key === 'N') setNotes(v => !v)
       else if (e.key === 'f' || e.key === 'F') {
         if (document.fullscreenElement) void document.exitFullscreen()
         else void document.documentElement.requestFullscreen()
@@ -53,9 +53,32 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [n, go])
 
+  // SLIDE ORDER:
+  // 1  Overview
+  // 2  System Architecture (block diagram)
+  // 3  ITCH Parsing deep-dive      ← NEW (between arch & timing)
+  // 4  LOB Engine internals        ← NEW (between arch & timing)
+  // 5  BBO Priority Tree           ← NEW (between arch & timing)
+  // 6  Timing Diagram (pipeline)
+  // 7  MUL Unit                    ← NEW (after timing)
+  // 8  DIV Unit                    ← NEW (after timing)
+  // 9  Design + Verification Plan
+  // 10 Timeline
+  // 11 Team / Work Distribution
+  // 12 Demo Plan
   const slides = [
-    <Slide1 />, <Slide2 />, <Slide3 active />, <Slide4 />, <Slide5 />, <Slide6 />, <Slide7 />,
-    <Slide8 />, <Slide9 />, <Slide10 />, <Slide11 />, <Slide12 />,
+    <Slide1 />,
+    <Slide2 />,
+    <Slide8 />,   // ITCH parsing
+    <Slide9 />,   // LOB datapath
+    <Slide10 />,  // BBO priority tree
+    <Slide3 active />,
+    <Slide11 />,  // MUL unit
+    <Slide12 />,  // DIV unit
+    <Slide4 />,
+    <Slide5 />,
+    <Slide6 />,
+    <Slide7 />,
   ]
   const note = NOTES[n - 1] ?? NOTES[0]
 
@@ -68,9 +91,9 @@ export default function App() {
       {notes && (
         <div className="notes">
           <h5>Slide {n} · target {note.time}</h5>
-          <ul>{note.points.map((p) => <li key={p}>{p}</li>)}</ul>
+          <ul>{note.points.map(p => <li key={p}>{p}</li>)}</ul>
           <h5>Likely questions</h5>
-          <ul>{note.qa.map((p) => <li key={p}>{p}</li>)}</ul>
+          <ul>{note.qa.map(p => <li key={p}>{p}</li>)}</ul>
         </div>
       )}
     </>

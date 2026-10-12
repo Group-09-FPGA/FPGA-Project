@@ -1,223 +1,194 @@
-import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Frame } from '../components/Frame'
 import { delay } from '../components/util'
 
-const STAGES = [
-  { id: 0, label: 'RMII RX', file: 'rmii_rx.sv', sub: '2-bit dibits + CRC-32', col: '#dbeafe', stroke: '#93c5fd', text: '#1e40af' },
-  { id: 1, label: 'Net Parser', file: 'net_parser.sv', sub: 'IPv4 · UDP:10443', col: '#dcfce7', stroke: '#86efac', text: '#15803d' },
-  { id: 2, label: 'MoldUDP64', file: 'moldudp64_decoder.sv', sub: 'Session · Seq# · Frames', col: '#fef9c3', stroke: '#fde047', text: '#854d0e' },
-  { id: 3, label: 'ITCH 5.0', file: 'itch_decoder.sv', sub: "Type 'A' Add Order", col: '#ede9fe', stroke: '#c4b5fd', text: '#5b21b6' },
-  { id: 4, label: '256-bit Event', file: 'Canonical Event', sub: 'OP·OID·QTY·PIDX', col: '#e3e4f4', stroke: '#2a2e86', text: '#101234' },
-]
+// ── reuse the same mini-components as Slide 2 ──────────────────────────────
+interface BoxProps { x: number; y: number; w: number; h: number; t: string; s?: string; isNew?: boolean; d?: number }
+function Box({ x, y, w, h, t, s, isNew, d = 0 }: BoxProps) {
+  const stroke = isNew ? 'var(--navy)' : '#8b8f98'
+  const cy = y + h / 2
+  return (
+    <g className="rise" style={delay(d)}>
+      <rect x={x} y={y} width={w} height={h}
+        fill={isNew ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
+        stroke={stroke} strokeWidth={isNew ? 2.6 : 1.6} />
+      <text x={x + w / 2} y={s ? cy - 4 : cy + 8} textAnchor="middle"
+        style={{ font: '600 25px var(--font)', fill: isNew ? '#101234' : 'var(--ink-2)' }}>{t}</text>
+      {s && <text x={x + w / 2} y={cy + 26} textAnchor="middle"
+        style={{ font: '400 20px var(--font)', fill: 'var(--ink-2)' }}>{s}</text>}
+    </g>
+  )
+}
 
+function Group({ x, y, w, h, label, isNew, d = 0 }: { x: number; y: number; w: number; h: number; label: string; isNew?: boolean; d?: number }) {
+  const c = isNew ? 'var(--navy)' : '#8b8f98'
+  return (
+    <g className="rise" style={delay(d)}>
+      <rect x={x} y={y} width={w} height={h} fill="none" stroke={c} strokeWidth={1.5} strokeDasharray="9 7" />
+      {label && <text x={x + 14} y={y - 12} style={{ font: '600 20px var(--mono)', fill: c, letterSpacing: '.08em' }}>{label}</text>}
+    </g>
+  )
+}
+
+function Arrow({ d, isNew }: { d: string; isNew?: boolean }) {
+  const c = isNew ? 'var(--navy)' : '#6b6f78'
+  return <path d={d} fill="none" stroke={c} strokeWidth={2.4} markerEnd={`url(#aho8${isNew ? 'n' : 'g'})`} />
+}
+
+function Note({ label, children, d }: { label: string; children: ReactNode; d: number }) {
+  return (
+    <div className="rise" style={delay(d)}>
+      <div className="label">{label}</div>
+      <p style={{ font: '400 25px/1.3 var(--font)', marginTop: 4 }}>{children}</p>
+    </div>
+  )
+}
+
+// Byte field data
 const BYTE_FIELDS = [
-  { label: 'Type', bytes: '[0]', example: "'A'", col: '#1e40af', bg: '#dbeafe' },
-  { label: 'Stock Loc', bytes: '[1-2]', example: '0x0001', col: '#15803d', bg: '#dcfce7' },
-  { label: 'Track#', bytes: '[3-4]', example: '0x0000', col: '#6b7280', bg: '#f3f4f6' },
-  { label: 'Timestamp', bytes: '[5-10]', example: '48-bit ns', col: '#7c3aed', bg: '#ede9fe' },
-  { label: 'Order ID', bytes: '[11-18]', example: '0xABCD1234', col: '#ea580c', bg: '#ffedd5' },
-  { label: 'Shares', bytes: '[19-22]', example: '500', col: '#dc2626', bg: '#fee2e2' },
-  { label: 'Side', bytes: '[23]', example: "'B'=BID", col: '#0891b2', bg: '#cffafe' },
-  { label: 'Price', bytes: '[24-27]', example: '$149.50', col: '#059669', bg: '#d1fae5' },
+  { label: "Type 'A'", bytes: '[0]',     w: 80 },
+  { label: 'Locate',   bytes: '[1-2]',   w: 96 },
+  { label: 'Track#',   bytes: '[3-4]',   w: 96 },
+  { label: 'Timestamp (48-bit ns)', bytes: '[5-10]', w: 220 },
+  { label: 'Order ID (OID)',         bytes: '[11-18]', w: 200 },
+  { label: 'Shares',  bytes: '[19-22]',  w: 120 },
+  { label: 'Side',    bytes: '[23]',     w: 80 },
+  { label: 'Price',   bytes: '[24-27]',  w: 120 },
 ]
 
 const EVT_FIELDS = [
-  { bits: '[255:252]', label: 'VER=1', col: '#7c3aed', w: 68 },
-  { bits: '[251:248]', label: 'OP=ADD', col: '#2a2e86', w: 78 },
-  { bits: '[247]', label: 'BID', col: '#15803d', w: 46 },
-  { bits: '[246:240]', label: 'rsvd', col: '#94a3b8', w: 58 },
-  { bits: '[239:176]', label: 'OID=0xABCD1234EFAB...', col: '#ea580c', w: 240 },
-  { bits: '[175:112]', label: 'NEW_OID=0 (ADD)', col: '#6b7280', w: 165 },
-  { bits: '[95:64]', label: 'QTY=500', col: '#dc2626', w: 110 },
-  { bits: '[44:32]', label: 'PIDX=142', col: '#0891b2', w: 105 },
-  { bits: '[31:0]', label: 'TIMESTAMP_ns', col: '#6b7280', w: 140 },
+  { label: 'VER', bits: '[255:252]', w: 70 },
+  { label: 'OP=ADD', bits: '[251:248]', w: 88 },
+  { label: 'SIDE', bits: '[247]', w: 60 },
+  { label: '—', bits: '[246:240]', w: 70 },
+  { label: 'OID  (64 b)', bits: '[239:176]', w: 200 },
+  { label: 'NEW_OID (64 b)', bits: '[175:112]', w: 200 },
+  { label: '—', bits: '[111:96]', w: 70 },
+  { label: 'QTY (32 b)', bits: '[95:64]', w: 160 },
+  { label: '—', bits: '[63:45]', w: 70 },
+  { label: 'PIDX', bits: '[44:32]', w: 100 },
+  { label: 'TIMESTAMP', bits: '[31:0]', w: 140 },
 ]
 
-const BOX_W = 230
-const BOX_H = 108
-const GAP = 84
-const START_X = 30
-const STAGE_Y = 50
-
-const stageX = (i: number) => START_X + i * (BOX_W + GAP)
-const stageCX = (i: number) => stageX(i) + BOX_W / 2
-
 export default function Slide8() {
-  const [step, setStep] = useState(0)
-  const [playing, setPlaying] = useState(true)
-
-  useEffect(() => {
-    if (!playing) return
-    const id = setInterval(() => setStep(s => (s + 1) % STAGES.length), 1900)
-    return () => clearInterval(id)
-  }, [playing])
-
-  const tokenPath = STAGES.map((_, i) => `${i === 0 ? 'M' : 'L'}${stageCX(i)},${STAGE_Y + BOX_H / 2}`).join(' ')
-
   return (
-    <Frame n={8} kicker="Network Ingestion Pipeline · Input Parsing" title="ITCH 5.0 Parsing: Raw Bytes → 256-bit Hardware Event">
-      <svg width={1728} height={480} viewBox="0 0 1728 480" style={{ position: 'absolute', left: 96, top: 185 }}>
+    <Frame n={8} kicker="ITCH 5.0 Protocol · Parsing Pipeline" title="Network ingestion: raw Ethernet → 256-bit event">
+      <svg width={1728} height={660} viewBox="0 -20 1728 660" overflow="visible"
+        style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>
-          <marker id="ah8n" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a2e86" /></marker>
-          <marker id="ah8g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1" /></marker>
-          <filter id="glow8"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          <marker id="aho8g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6b6f78" />
+          </marker>
+          <marker id="aho8n" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2a2e86" />
+          </marker>
         </defs>
 
-        {/* Input arrow */}
-        <line x1={0} y1={STAGE_Y + BOX_H / 2} x2={START_X - 2} y2={STAGE_Y + BOX_H / 2} stroke="#2a2e86" strokeWidth={2.5} markerEnd="url(#ah8n)" />
-        <text x={2} y={STAGE_Y + BOX_H / 2 - 14} style={{ font: '500 15px var(--mono)', fill: '#2a2e86' }}>LAN8720A PHY</text>
+        {/* ── Stage 1: Ethernet PHY layer (existing) ──────────────── */}
+        <Group x={0} y={30} w={560} h={130} label="ETHERNET PHY · 50 MHz" d={0.1} />
+        <Box x={24}  y={56} w={220} h={80} t="RMII RX"    s="2-bit dibits + CRC" d={0.15} />
+        <Box x={304} y={56} w={220} h={80} t="Net parser" s="Eth · IPv4 · UDP:10443" d={0.2} />
 
-        {/* Stage boxes */}
-        {STAGES.map((s, i) => {
-          const x = stageX(i)
-          const isActive = step === i
-          return (
-            <g key={s.id}>
-              <rect x={x} y={STAGE_Y} width={BOX_W} height={BOX_H}
-                fill={isActive ? s.col : 'rgba(255,255,255,0.8)'}
-                stroke={isActive ? s.stroke : '#e2e8f0'}
-                strokeWidth={isActive ? 3 : 1.5}
-                rx={8}
-              />
-              {/* Active pulse ring */}
-              {isActive && (
-                <rect x={x - 3} y={STAGE_Y - 3} width={BOX_W + 6} height={BOX_H + 6}
-                  fill="none" stroke={s.stroke} strokeWidth={1.5} strokeDasharray="4 3" rx={10} opacity={0.6} />
-              )}
-              <text x={x + BOX_W / 2} y={STAGE_Y + 26} textAnchor="middle"
-                style={{ font: '700 20px var(--font)', fill: isActive ? s.text : '#16181d' }}>
-                {s.label}
-              </text>
-              <text x={x + BOX_W / 2} y={STAGE_Y + 48} textAnchor="middle"
-                style={{ font: '600 13px var(--mono)', fill: '#6b7280' }}>
-                {s.file}
-              </text>
-              <text x={x + BOX_W / 2} y={STAGE_Y + 68} textAnchor="middle"
-                style={{ font: '400 14px var(--font)', fill: '#4a4e57' }}>
-                {s.sub}
-              </text>
-              {/* Clock badge */}
-              <rect x={x + BOX_W / 2 - 34} y={STAGE_Y + BOX_H - 22} width={68} height={18} rx={9} fill={isActive ? s.stroke : '#f1f5f9'} />
-              <text x={x + BOX_W / 2} y={STAGE_Y + BOX_H - 9} textAnchor="middle"
-                style={{ font: '600 11px var(--mono)', fill: isActive ? 'white' : '#64748b' }}>
-                {i < 4 ? '50 MHz' : '→ 100 MHz'}
-              </text>
-              {/* Arrow to next */}
-              {i < STAGES.length - 1 && (
-                <path d={`M${x + BOX_W},${STAGE_Y + BOX_H / 2} H${x + BOX_W + GAP - 8}`}
-                  stroke={step > i ? '#2a2e86' : '#cbd5e1'} strokeWidth={2.5}
-                  markerEnd={step > i ? 'url(#ah8n)' : 'url(#ah8g)'}
-                  fill="none" />
-              )}
-              {/* CDC bridge annotation */}
-              {i === 3 && (
-                <>
-                  <rect x={x + BOX_W + 5} y={STAGE_Y + BOX_H / 2 - 28} width={GAP - 10} height={56}
-                    fill="none" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 4" rx={5} />
-                  <text x={x + BOX_W + GAP / 2} y={STAGE_Y + BOX_H / 2 - 36} textAnchor="middle"
-                    style={{ font: '700 11px var(--mono)', fill: '#f59e0b' }}>ASYNC FIFO</text>
-                  <text x={x + BOX_W + GAP / 2} y={STAGE_Y + BOX_H / 2 + 44} textAnchor="middle"
-                    style={{ font: '600 11px var(--mono)', fill: '#f59e0b' }}>50→100 MHz CDC</text>
-                </>
-              )}
-            </g>
-          )
-        })}
+        {/* ── Stage 2: MoldUDP64 (existing infrastructure) ───────── */}
+        <Box x={640} y={56} w={240} h={80} t="MoldUDP64" s="session · seq# · frames" d={0.3} />
 
-        {/* Animated data tokens */}
-        <circle r={9} fill="#2a2e86" filter="url(#glow8)">
-          <animateMotion dur="2.6s" begin="0s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
-        <circle r={7} fill="#2a2e86" opacity={0.55}>
-          <animateMotion dur="2.6s" begin="0.85s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
-        <circle r={5} fill="#2a2e86" opacity={0.3}>
-          <animateMotion dur="2.6s" begin="1.7s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
+        {/* ── Stage 3: ITCH decoder (new) ─────────────────────────── */}
+        <Box x={960} y={56} w={240} h={80} t="ITCH decoder" s="Type 'A' Add Order" isNew d={0.4} />
 
-        {/* === Byte field breakdown (below ITCH decoder) === */}
-        {(() => {
-          const byY = STAGE_Y + BOX_H + 46
-          const byBaseX = stageX(3) - 60
-          const byTotalW = 560
-          const fw = (byTotalW - (BYTE_FIELDS.length - 1) * 2) / BYTE_FIELDS.length
-          return (
-            <g>
-              <text x={byBaseX} y={byY - 12} style={{ font: '600 12px var(--mono)', fill: '#5b21b6', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Add Order 'A' — Byte Fields:
-              </text>
-              {BYTE_FIELDS.map((f, i) => (
+        {/* ── Stage 4: Canonical event (new) ──────────────────────── */}
+        <Box x={1290} y={56} w={300} h={80} t="256-bit event" s="OP · OID · QTY · PIDX · TS" isNew d={0.5} />
+        {/* CDC note */}
+        <g className="rise" style={delay(0.5)}>
+          <text x={1292} y={160} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.06em' }}>
+            ASYNC FIFO · 50→100 MHz CDC
+          </text>
+        </g>
+
+        {/* ── Arrows ──────────────────────────────────────────────── */}
+        <Arrow d="M244,96 H302" />
+        <Arrow d="M524,96 H638" />
+        <Arrow d="M880,96 H958" />
+        <Arrow isNew d="M1200,96 H1288" />
+        <Arrow isNew d="M1590,96 H1660" />
+
+        {/* ── Animated token ──────────────────────────────────────── */}
+        {[168, 432, 712, 1040, 1370].map((x, i) => (
+          <circle key={x} r={7} cy={96} fill={i >= 3 ? 'var(--navy)' : 'var(--ink-2)'}>
+            <animate attributeName="cx" from={x} to={x + 60} dur="1.3s" begin={`${1.4 + i * 0.26}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+
+        {/* ── Byte field breakdown ─────────────────────────────────── */}
+        <g className="rise" style={delay(0.65)}>
+          <text x={0} y={218} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            TYPE 'A' ADD ORDER — BYTE LAYOUT
+          </text>
+          {(() => {
+            let cx = 0
+            return BYTE_FIELDS.map((f) => {
+              const el = (
                 <g key={f.label}>
-                  <rect x={byBaseX + i * (fw + 2)} y={byY} width={fw} height={54} fill={f.bg} stroke={f.col} strokeWidth={1.5} rx={3} />
-                  <text x={byBaseX + i * (fw + 2) + fw / 2} y={byY + 15} textAnchor="middle"
-                    style={{ font: '700 10px var(--mono)', fill: f.col }}>{f.label}</text>
-                  <text x={byBaseX + i * (fw + 2) + fw / 2} y={byY + 29} textAnchor="middle"
-                    style={{ font: '400 9px var(--mono)', fill: '#64748b' }}>{f.bytes}</text>
-                  <text x={byBaseX + i * (fw + 2) + fw / 2} y={byY + 46} textAnchor="middle"
-                    style={{ font: '600 10px var(--font)', fill: f.col }}>{f.example}</text>
+                  <rect x={cx} y={228} width={f.w - 2} height={54}
+                    fill="rgba(255,255,255,.7)" stroke="var(--ink-2)" strokeWidth={1.2} />
+                  <text x={cx + (f.w - 2) / 2} y={252} textAnchor="middle"
+                    style={{ font: '600 15px var(--font)', fill: 'var(--ink)' }}>{f.label}</text>
+                  <text x={cx + (f.w - 2) / 2} y={272} textAnchor="middle"
+                    style={{ font: '500 13px var(--mono)', fill: 'var(--ink-3)' }}>{f.bytes}</text>
                 </g>
-              ))}
-              {/* Arrow from ITCH box to byte fields */}
-              <line x1={stageX(3) + BOX_W / 2} y1={STAGE_Y + BOX_H} x2={stageX(3) + BOX_W / 2} y2={byY - 2}
-                stroke="#c4b5fd" strokeWidth={1.5} strokeDasharray="4 3" markerEnd="url(#ah8g)" />
-            </g>
-          )
-        })()}
+              )
+              cx += f.w
+              return el
+            })
+          })()}
+          {/* unused bytes indicator */}
+          <rect x={1094} y={228} width={634} height={54} fill="rgba(255,255,255,.3)" stroke="#8b8f98" strokeWidth={1} strokeDasharray="5 4" />
+          <text x={1411} y={258} textAnchor="middle"
+            style={{ font: '500 14px var(--mono)', fill: 'var(--ink-3)' }}>stock symbol · other fields</text>
+        </g>
 
-        {/* === 256-bit event output (bottom) === */}
-        {(() => {
-          const evtY = STAGE_Y + BOX_H + 160
-          const evtBaseX = 10
-          let curX = evtBaseX
-          return (
-            <g>
-              <text x={evtBaseX} y={evtY - 12} style={{ font: '600 12px var(--mono)', fill: '#2a2e86', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                256-bit Canonical Event (output of itch_decoder.sv):
-              </text>
-              {EVT_FIELDS.map((f) => {
-                const el = (
-                  <g key={f.bits}>
-                    <rect x={curX} y={evtY} width={f.w} height={58} fill={`${f.col}22`} stroke={f.col} strokeWidth={1.5} rx={3} />
-                    <text x={curX + f.w / 2} y={evtY + 17} textAnchor="middle"
-                      style={{ font: '700 10px var(--mono)', fill: f.col }}>{f.bits}</text>
-                    <text x={curX + f.w / 2} y={evtY + 35} textAnchor="middle"
-                      style={{ font: '600 11px var(--font)', fill: f.col }}>{f.label}</text>
-                  </g>
-                )
-                curX += f.w + 2
-                return el
-              })}
-              {/* Remaining bits */}
-              <rect x={curX} y={evtY} width={Math.max(1728 - curX - 20, 0)} height={58} fill="#f8fafc" stroke="#e2e8f0" strokeWidth={1} rx={3} />
-              <text x={curX + 60} y={evtY + 32} textAnchor="middle"
-                style={{ font: '400 11px var(--mono)', fill: '#94a3b8' }}>[reserved/zero]</text>
-              {/* Arrow from canonical event stage to output */}
-              <path d={`M${stageX(4) + BOX_W / 2},${STAGE_Y + BOX_H} V${evtY - 10}`}
-                stroke="#2a2e86" strokeWidth={1.5} strokeDasharray="5 4" markerEnd="url(#ah8n)" fill="none" />
-            </g>
-          )
-        })()}
+        {/* ── 256-bit event output strip ───────────────────────────── */}
+        <g className="rise" style={delay(0.8)}>
+          <text x={0} y={330} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            256-BIT CANONICAL EVENT (output of itch_decoder.sv)
+          </text>
+          {(() => {
+            let cx = 0
+            return EVT_FIELDS.map((f, i) => {
+              const isKey = i === 1 || i === 4 || i === 7 || i === 9
+              const el = (
+                <g key={f.bits}>
+                  <rect x={cx} y={340} width={f.w - 2} height={60}
+                    fill={isKey ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
+                    stroke={isKey ? 'var(--navy)' : '#8b8f98'}
+                    strokeWidth={isKey ? 2 : 1.2} />
+                  <text x={cx + (f.w - 2) / 2} y={367} textAnchor="middle"
+                    style={{ font: `${isKey ? '700' : '500'} ${isKey ? '16' : '14'}px var(--font)`, fill: isKey ? '#101234' : 'var(--ink-2)' }}>
+                    {f.label}
+                  </text>
+                  <text x={cx + (f.w - 2) / 2} y={388} textAnchor="middle"
+                    style={{ font: '500 12px var(--mono)', fill: 'var(--ink-3)' }}>
+                    {f.bits}
+                  </text>
+                </g>
+              )
+              cx += f.w
+              return el
+            })
+          })()}
+        </g>
       </svg>
 
-      {/* Play/Pause toggle */}
-      <button
-        onClick={() => setPlaying(p => !p)}
-        style={{
-          position: 'absolute', right: 110, top: 195,
-          font: '700 13px var(--mono)', background: playing ? 'var(--navy)' : 'white',
-          color: playing ? 'white' : 'var(--navy)', border: '2px solid var(--navy)',
-          padding: '6px 18px', borderRadius: 20, cursor: 'pointer', letterSpacing: '0.06em',
-        }}
-      >
-        {playing ? '⏸ PAUSE' : '▶ PLAY'}
-      </button>
-
-      {/* Stage callout footer */}
-      <div style={{ position: 'absolute', left: 96, bottom: 52, font: '500 20px var(--font)', color: '#4a4e57' }}>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: STAGES[step].text }}>
-          [{String(step + 1)}/{STAGES.length}]
-        </span>{' '}
-        Active:{' '}<strong>{STAGES[step].label}</strong>{' — '}{STAGES[step].sub}
+      {/* ── Bottom notes ─────────────────────────────────────────────── */}
+      <div style={{ position: 'absolute', left: 96, right: 96, top: 890, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48 }}>
+        <Note label="Protocol stack" d={1.0}>
+          Preamble + SFD stripped by RMII RX. Eth/IPv4/UDP validated by net_parser. MoldUDP64 extracts ITCH frame boundaries.
+        </Note>
+        <Note label="Division-free pidx" d={1.1}>
+          {'Price index = (price − base) × 274877907 >> 38. No divider needed in the 50 MHz domain.'}
+        </Note>
+        <Note label="Clock crossing" d={1.2}>
+          Async FIFO bridges the 50 MHz Ethernet side to the 100 MHz LOB core. No packet loss on back-pressure.
+        </Note>
       </div>
     </Frame>
   )

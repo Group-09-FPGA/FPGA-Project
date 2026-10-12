@@ -1,190 +1,179 @@
-import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Frame } from '../components/Frame'
 import { delay } from '../components/util'
 
-const BLOCKS = [
-  { label: 'Event In', file: '(256-bit canonical event)', col: '#6b7280', bg: 'rgba(255,255,255,0.7)', special: false },
-  { label: 'Hash Table', file: 'lob_hash_table.sv', sub: '1024 sets × 8 ways + 8 stash', sub2: 'O(1) OID → Slot# · single cycle', col: '#2a2e86', bg: '#e3e4f4', special: true },
-  { label: 'Slot Table', file: 'lob_slot_table.sv', sub: '2048 entries × {valid, side, pidx, qty}', sub2: 'Dual-Port BRAM (read & write simultaneously)', col: '#2a2e86', bg: '#e3e4f4', special: true },
-  { label: 'Free List', file: 'lob_free_list.sv', sub: 'LIFO stack — pre-initialized to 0..2047', sub2: 'Pop on ADD · Push on DELETE/FILL', col: '#059669', bg: '#d1fae5', special: true },
-  { label: 'Price Level RAM', file: 'lob_price_ram.sv', sub: 'Bid Bank: 8192 levels × {qty, count}', sub2: 'Ask Bank: 8192 levels × {qty, count}', col: '#0891b2', bg: '#cffafe', special: true },
-  { label: 'Occupancy Bitmaps', file: 'lob_occupancy.sv', sub: 'L2: 256×32b=8192 ticks · L1: 256b · L0: 8b', sub2: 'Hierarchical priority encoder → O(1) BBO', col: '#7c3aed', bg: '#ede9fe', special: true },
-  { label: 'BBO Engine', file: 'lob_bbo.sv', sub: '2-stage DSP48: Price = Base + pidx × Tick', sub2: 'Fully pipelined · atomic coherence', col: '#b45309', bg: '#fef3c7', special: true },
-  { label: 'MMIO Output', file: 'lob_mmio_slave.sv  0x4000_0000', sub: 'Best Bid: $149.50 qty=300', sub2: 'Best Ask: $149.60 qty=200 · Spread=0.10', col: '#15803d', bg: '#dcfce7', special: false },
-]
+interface BoxProps { x: number; y: number; w: number; h: number; t: string; s?: string; isNew?: boolean; d?: number }
+function Box({ x, y, w, h, t, s, isNew, d = 0 }: BoxProps) {
+  const stroke = isNew ? 'var(--navy)' : '#8b8f98'
+  const cy = y + h / 2
+  return (
+    <g className="rise" style={delay(d)}>
+      <rect x={x} y={y} width={w} height={h}
+        fill={isNew ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
+        stroke={stroke} strokeWidth={isNew ? 2.6 : 1.6} />
+      <text x={x + w / 2} y={s ? cy - 4 : cy + 8} textAnchor="middle"
+        style={{ font: '600 24px var(--font)', fill: isNew ? '#101234' : 'var(--ink-2)' }}>{t}</text>
+      {s && <text x={x + w / 2} y={cy + 22} textAnchor="middle"
+        style={{ font: '400 19px var(--font)', fill: 'var(--ink-2)' }}>{s}</text>}
+    </g>
+  )
+}
 
-const FLOW_CARDS = [
-  {
-    title: 'ADD Order Flow', color: '#2a2e86',
-    lines: ['1. Hash OID → 10-bit set → 8-way parallel lookup → Slot#', '2. Pop free slot from Free List stack', '3. Write slot: {side, pidx, shares}; Price RAM +qty'],
-  },
-  {
-    title: 'EXECUTE / CANCEL Flow', color: '#ea580c',
-    lines: ['1. Hash OID → slot → read {pidx, shares}', '2. Deduct executed/cancelled shares from Price RAM', '3. If qty=0: clear price level, push slot → Free List'],
-  },
-  {
-    title: 'BBO Search Trigger', color: '#7c3aed',
-    lines: ['Triggered when a price level depletes to zero qty', '1. L0 leading-1 → segment# (1 cycle)', '2. L1 leading-1 → word# (1 cycle) → final pidx'],
-  },
-  {
-    title: 'Fail-Stop Policy', color: '#dc2626',
-    lines: ['FAIL_DUP_OID · FAIL_MISSING_OID · FAIL_QTY_UF', 'Hardware locks ST_FAIL_STOP · REG_LOB_ERROR_CODE', 'CPU reads error code and resets via REG_LOB_CTRL'],
-  },
-]
+function Group({ x, y, w, h, label, isNew, d = 0 }: { x: number; y: number; w: number; h: number; label: string; isNew?: boolean; d?: number }) {
+  const c = isNew ? 'var(--navy)' : '#8b8f98'
+  return (
+    <g className="rise" style={delay(d)}>
+      <rect x={x} y={y} width={w} height={h} fill="none" stroke={c} strokeWidth={1.5} strokeDasharray="9 7" />
+      {label && <text x={x + 14} y={y - 12} style={{ font: '600 19px var(--mono)', fill: c, letterSpacing: '.08em' }}>{label}</text>}
+    </g>
+  )
+}
 
-const BW = 310
-const BH_SMALL = 54
-const BH_LARGE = 90
-const BLEFT = 60
-const BGAP = 10
+function Arrow({ d, isNew, vert }: { d: string; isNew?: boolean; vert?: boolean }) {
+  const c = isNew ? 'var(--navy)' : '#6b6f78'
+  const mid = vert ? 'url(#ah9v)' : `url(#ah9${isNew ? 'n' : 'g'})`
+  return <path d={d} fill="none" stroke={c} strokeWidth={2.4} markerEnd={mid} />
+}
 
-function blockH(i: number) { return i === 0 || i === 7 ? BH_SMALL : BH_LARGE }
-function blockY(i: number) {
-  let y = 0
-  for (let j = 0; j < i; j++) y += blockH(j) + BGAP
-  return y
+function Note({ label, children, d }: { label: string; children: ReactNode; d: number }) {
+  return (
+    <div className="rise" style={delay(d)}>
+      <div className="label">{label}</div>
+      <p style={{ font: '400 25px/1.3 var(--font)', marginTop: 4 }}>{children}</p>
+    </div>
+  )
 }
 
 export default function Slide9() {
-  const [activeCard, setActiveCard] = useState(0)
-
-  useEffect(() => {
-    const id = setInterval(() => setActiveCard(c => (c + 1) % FLOW_CARDS.length), 2800)
-    return () => clearInterval(id)
-  }, [])
-
-  const totalH = BLOCKS.reduce((s, _, i) => s + blockH(i) + BGAP, 0)
-  const tokenPath = BLOCKS.map((_, i) => `${i === 0 ? 'M' : 'L'}${BLEFT + BW / 2},${blockY(i) + blockH(i) / 2}`).join(' ')
+  // vertical chain positions
+  const BW = 240, BH = 90, BX = 60, GAP = 20
+  const BY = [30, 140, 250, 360, 470, 580, 690]
+  const LABELS = [
+    { t: 'Hash table',     s: '1024 × 8-way + 8 stash · O(1) OID→slot',   isNew: true },
+    { t: 'Slot table',     s: '2048 entries · {side, pidx, qty} BRAM',      isNew: true },
+    { t: 'Free list',      s: 'LIFO stack · 0..2047 pre-initialized',       isNew: true },
+    { t: 'Price RAM',      s: 'Bid + Ask banks · 8192 levels × {qty, cnt}', isNew: true },
+    { t: 'Occupancy',      s: 'L0/L1/L2 bitmaps · 8192 price ticks',        isNew: true },
+    { t: 'BBO engine',     s: 'DSP48 · price = base + pidx × tick',          isNew: true },
+    { t: 'MMIO regs',      s: '0x4000_0000 · snapshot on CPU read',          isNew: true },
+  ]
 
   return (
-    <Frame n={9} kicker="Hardware LOB Accelerator · RTL Internals" title="LOB Datapath: Hash → Slot → Price RAM → BBO">
-      {/* LEFT: Block chain SVG */}
-      <svg width={420} height={820} viewBox={`0 0 420 820`}
-        style={{ position: 'absolute', left: 80, top: 175 }}>
+    <Frame n={9} kicker="Hardware LOB Accelerator · RTL Internals" title="LOB engine: Hash → Slot → Price RAM → BBO">
+      <svg width={1728} height={830} viewBox="0 -10 1728 830" overflow="visible"
+        style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>
-          <marker id="ah9" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+          <marker id="ah9g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6b6f78" />
+          </marker>
+          <marker id="ah9n" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="#2a2e86" />
           </marker>
-          <filter id="glow9"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
-        {/* Vertical spine line */}
-        <line x1={BLEFT + BW / 2} y1={blockH(0)} x2={BLEFT + BW / 2} y2={totalH - blockH(7)}
-          stroke="#e2e8f0" strokeWidth={2} />
 
-        {BLOCKS.map((b, i) => {
-          const y = blockY(i)
-          const h = blockH(i)
-          return (
-            <g key={b.label}>
-              <rect x={BLEFT} y={y} width={BW} height={h}
-                fill={b.bg} stroke={b.col} strokeWidth={b.special ? 2.2 : 1.5} rx={6} />
-              <text x={BLEFT + BW / 2} y={y + (b.special ? 22 : 20)} textAnchor="middle"
-                style={{ font: `700 ${b.special ? '17px' : '15px'} var(--font)`, fill: b.col }}>
-                {b.label}
-              </text>
-              <text x={BLEFT + BW / 2} y={y + (b.special ? 40 : 36)} textAnchor="middle"
-                style={{ font: '500 11px var(--mono)', fill: '#6b7280' }}>
-                {b.file}
-              </text>
-              {b.sub && (
-                <text x={BLEFT + BW / 2} y={y + 57} textAnchor="middle"
-                  style={{ font: '400 11px var(--font)', fill: '#4a4e57' }}>{b.sub}</text>
-              )}
-              {b.sub2 && (
-                <text x={BLEFT + BW / 2} y={y + 73} textAnchor="middle"
-                  style={{ font: '400 11px var(--font)', fill: '#4a4e57' }}>{b.sub2}</text>
-              )}
-              {/* Arrow to next */}
-              {i < BLOCKS.length - 1 && (
-                <line x1={BLEFT + BW / 2} y1={y + h} x2={BLEFT + BW / 2} y2={y + h + BGAP - 2}
-                  stroke="#2a2e86" strokeWidth={1.8} markerEnd="url(#ah9)" />
-              )}
-            </g>
-          )
-        })}
+        {/* Event-in arrow at the top */}
+        <g className="rise" style={delay(0.1)}>
+          <line x1={BX + BW / 2} y1={0} x2={BX + BW / 2} y2={28} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
+          <text x={BX + BW / 2 + 12} y={18} style={{ font: '500 19px var(--mono)', fill: 'var(--ink-2)' }}>256-bit event in</text>
+        </g>
 
-        {/* Animated tokens flowing downward */}
-        <circle r={8} fill="#2a2e86" filter="url(#glow9)">
-          <animateMotion dur="3s" begin="0s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
-        <circle r={6} fill="#2a2e86" opacity={0.5}>
-          <animateMotion dur="3s" begin="1s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
-      </svg>
-
-      {/* RIGHT: Flow operation cards */}
-      <div style={{ position: 'absolute', left: 560, top: 175, width: 1060, right: 96 }}>
-        <div className="label rise" style={{ ...delay(0.15), marginBottom: 16 }}>
-          Hardware Execution Flows
-        </div>
-
-        {FLOW_CARDS.map((c, i) => (
-          <div
-            key={c.title}
-            className="rise"
-            style={{
-              ...delay(0.2 + i * 0.1),
-              background: i === activeCard ? `${c.color}08` : 'white',
-              border: `1.5px solid ${i === activeCard ? c.color : '#e2e8f0'}`,
-              borderLeft: `6px solid ${c.color}`,
-              padding: '16px 20px',
-              borderRadius: 6,
-              marginBottom: 12,
-              transition: 'all 0.4s ease',
-              boxShadow: i === activeCard ? `0 4px 16px ${c.color}22` : '0 2px 6px rgba(0,0,0,0.04)',
-            }}
-          >
-            <div style={{ font: '700 20px var(--font)', color: c.color, marginBottom: 8 }}>{c.title}</div>
-            {c.lines.map(l => (
-              <div key={l} style={{ font: '400 17px/1.4 var(--font)', color: '#334155', marginBottom: 3, paddingLeft: 12, borderLeft: '2px solid #e2e8f0' }}>
-                {l}
-              </div>
-            ))}
-          </div>
+        {/* Vertical chain */}
+        {LABELS.map((l, i) => (
+          <Box key={l.t} x={BX} y={BY[i]} w={BW} h={BH} t={l.t} s={l.s} isNew={l.isNew} d={0.15 + i * 0.1} />
         ))}
 
-        {/* Resource utilization table */}
-        <div className="rise" style={{ ...delay(0.7), marginTop: 20, background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 6, padding: '14px 20px' }}>
-          <div style={{ font: '600 13px var(--mono)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-            Artix-7 Resource Budget (LOB Core)
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-            {[
-              { r: 'BRAM (36Kb)', v: '37 / 135', pct: '27.4%', col: '#2a2e86' },
-              { r: 'DSP48E1', v: '18 / 240', pct: '7.5%', col: '#0891b2' },
-              { r: 'Slice LUTs', v: '20,604', pct: '32.5%', col: '#7c3aed' },
-              { r: 'Registers', v: '35,347', pct: '27.9%', col: '#059669' },
-            ].map(r => (
-              <div key={r.r} style={{ textAlign: 'center' }}>
-                <div style={{ font: '700 22px var(--mono)', color: r.col }}>{r.pct}</div>
-                <div style={{ font: '600 12px var(--mono)', color: '#4a4e57' }}>{r.r}</div>
-                <div style={{ font: '400 12px var(--mono)', color: '#94a3b8' }}>{r.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Connecting arrows */}
+        {LABELS.slice(0, -1).map((_, i) => (
+          <Arrow key={i} isNew d={`M${BX + BW / 2},${BY[i] + BH} V${BY[i + 1] - 2}`} />
+        ))}
+
+        {/* MMIO output arrow to CPU */}
+        <g className="rise" style={delay(1.1)}>
+          <line x1={BX + BW} y1={BY[6] + BH / 2} x2={BX + BW + 100} y2={BY[6] + BH / 2} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
+          <text x={BX + BW + 108} y={BY[6] + BH / 2 + 6} style={{ font: '500 19px var(--mono)', fill: 'var(--ink-2)' }}>CPU reads BBO via MMIO</text>
+        </g>
+
+        {/* Animated token flowing down the chain */}
+        <circle r={7} fill="var(--navy)">
+          <animateMotion dur="3.5s" begin="1.5s" repeatCount="indefinite"
+            path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
+        </circle>
+        <circle r={7} fill="var(--navy)" opacity={0.45}>
+          <animateMotion dur="3.5s" begin="3s" repeatCount="indefinite"
+            path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
+        </circle>
+
+        {/* ── RIGHT: FSM states and latency table ───────────────────── */}
+        <g className="rise" style={delay(0.6)}>
+          {/* ADD flow */}
+          <text x={420} y={50} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            ADD ORDER FLOW
+          </text>
+          {[
+            'C1: hash OID → set index → 8-way lookup → slot#',
+            'C2: pop slot# from free-list LIFO stack',
+            'C3: write slot BRAM {side, pidx, qty}',
+            'C4-C5: read Price RAM → add qty → writeback',
+            'C6: set occupancy bit → check BBO update',
+          ].map((l, i) => (
+            <text key={i} x={420} y={78 + i * 34} style={{ font: '400 22px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
+          ))}
+        </g>
+
+        <g className="rise" style={delay(0.75)}>
+          <text x={420} y={270} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            EXECUTE / CANCEL / REPLACE
+          </text>
+          {[
+            'Hash OID → slot → read {pidx, shares}',
+            'Deduct shares from Price RAM bank',
+            'If qty=0 → clear occupancy bit → push slot to free list',
+            'Trigger BBO re-search if depleted level was best price',
+          ].map((l, i) => (
+            <text key={i} x={420} y={298 + i * 34} style={{ font: '400 22px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
+          ))}
+        </g>
 
         {/* Latency table */}
-        <div className="rise" style={{ ...delay(0.85), marginTop: 12, background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 6, padding: '14px 20px' }}>
-          <div style={{ font: '600 13px var(--mono)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-            Deterministic Operation Latency
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {[
-              { op: 'ADD', lat: '6 cycles', ns: '60 ns', col: '#2a2e86' },
-              { op: 'EXECUTE', lat: '8-10 cycles', ns: '80-100 ns', col: '#ea580c' },
-              { op: 'CANCEL', lat: '8-10 cycles', ns: '80-100 ns', col: '#7c3aed' },
-              { op: 'REPLACE', lat: '12 cycles', ns: '120 ns', col: '#059669' },
-            ].map(r => (
-              <div key={r.op} style={{ textAlign: 'center', padding: '8px', borderLeft: `4px solid ${r.col}`, background: `${r.col}08` }}>
-                <div style={{ font: '700 18px var(--mono)', color: r.col }}>{r.op}</div>
-                <div style={{ font: '600 16px var(--font)', color: '#16181d' }}>{r.lat}</div>
-                <div style={{ font: '400 14px var(--mono)', color: '#6b7280' }}>{r.ns}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        <g className="rise" style={delay(0.9)}>
+          <text x={420} y={470} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            DETERMINISTIC LATENCY
+          </text>
+          <line x1={420} y1={480} x2={1720} y2={480} stroke="var(--line)" strokeWidth={1.5} />
+          {[
+            { op: 'ADD',       lat: '6 cycles',    ns: '60 ns  @ 100 MHz' },
+            { op: 'EXECUTE',   lat: '8–10 cycles',  ns: '80–100 ns' },
+            { op: 'CANCEL',    lat: '8–10 cycles',  ns: '80–100 ns' },
+            { op: 'REPLACE',   lat: '12 cycles',    ns: '120 ns' },
+          ].map((r, i) => (
+            <g key={r.op}>
+              <line x1={420} y1={544 + i * 56} x2={1720} y2={544 + i * 56} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={430} y={530 + i * 56} style={{ font: '700 24px var(--mono)', fill: 'var(--navy)' }}>{r.op}</text>
+              <text x={680} y={530 + i * 56} style={{ font: '400 24px var(--font)', fill: 'var(--ink)' }}>{r.lat}</text>
+              <text x={1000} y={530 + i * 56} style={{ font: '500 22px var(--mono)', fill: 'var(--ink-2)' }}>{r.ns}</text>
+            </g>
+          ))}
+        </g>
+
+        {/* Resource numbers */}
+        <g className="rise" style={delay(1.05)}>
+          <text x={420} y={726} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+            ARTIX-7 RESOURCES
+          </text>
+          <line x1={420} y1={736} x2={1720} y2={736} stroke="var(--line)" strokeWidth={1.5} />
+          {[
+            { r: '37 BRAM (36Kb)', p: '27.4%' },
+            { r: '18 DSP48E1', p: '7.5%' },
+            { r: '20,604 LUTs', p: '32.5%' },
+            { r: '35,347 Registers', p: '27.9%' },
+          ].map((r, i) => (
+            <g key={r.r}>
+              <text x={420 + i * 340} y={770} style={{ font: '700 28px var(--mono)', fill: 'var(--ink)' }}>{r.p}</text>
+              <text x={420 + i * 340} y={800} style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{r.r}</text>
+            </g>
+          ))}
+        </g>
+      </svg>
     </Frame>
   )
 }
