@@ -4,4 +4,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  server: {
+    host: true, // Listen on all network addresses (0.0.0.0) for LAN access
+    port: 5174,
+  },
 })
