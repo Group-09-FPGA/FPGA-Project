@@ -8,7 +8,6 @@ const COL_W = 46
 const LABEL_W = 348 // 48px PC + 300px Asm
 const ROW_H = 34
 const SIG_H = 29
-const TCQ = 3
 
 export default function Slide3({ active }: { active: boolean }) {
   const [cur, setCur] = useState(0)
@@ -375,7 +374,8 @@ export default function Slide3({ active }: { active: boolean }) {
 
                       const yPrev = prevVal ? yHigh : yLow
                       const yCur = curVal ? yHigh : yLow
-                      const xStep = x0 + TCQ
+                      // All displayed control signals change half a cycle into the column.
+                      const xStep = x0 + COL_W / 2
 
                       return (
                         <g key={cIdx} opacity={isOff ? 0.15 : 1}>
