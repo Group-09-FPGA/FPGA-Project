@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { delay } from './util'
 
-export const TOTAL = 7
+export const TOTAL = 12
 
 interface FrameProps {
   n: number
