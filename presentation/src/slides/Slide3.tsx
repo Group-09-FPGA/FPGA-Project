@@ -65,7 +65,7 @@ export default function Slide3({ active }: { active: boolean }) {
   }, [active, playing])
 
   const curCol = COLS[cur]
-  const curBadge = curCol.isFold ? 'T25–T52' : curCol.label
+  const curBadge = curCol.isFold ? 'T25–T46' : curCol.label
   const isEnded = cur >= CYCLES - 1
 
   return (
@@ -169,7 +169,7 @@ export default function Slide3({ active }: { active: boolean }) {
 
             {/* Rotated text for divider stall fold column */}
             <div className="td-fold-text-vertical">
-              T25 - T52: Radix-2 Divider (33 cyc stall)
+              T25 - T46: Divider iterations 10–31 (22 cycles)
             </div>
 
             {/* SVG overlay for Forwarding Arrows */}

@@ -56,7 +56,7 @@ export default function Slide12() {
   const isDone = iter >= TOTAL_ITERS - 1
 
   return (
-    <Frame n={8} kicker="RV32M Extension · Radix-2 Serial Divider" title="Divider: div x9, x4, x1 — 33 iteration cycles">
+    <Frame n={8} kicker="RV32M Extension · Radix-2 Serial Divider" title="Divider: div x9, x4, x1 — 32 iterations + init (33 cycles)">
       <svg width={1728} height={660} viewBox="0 -10 1728 660" overflow="visible"
         style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>
@@ -195,7 +195,7 @@ export default function Slide12() {
         {/* ── Stall pipeline timeline ───────────────────────────────── */}
         <g className="rise" style={delay(0.55)}>
           <text x={650} y={298} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
-            PIPELINE STALL TIMELINE  ({TOTAL_ITERS} cycles, m_busy HIGH)
+            DIVIDER EXECUTION TIMELINE  ({TOTAL_ITERS} cycles, m_busy HIGH)
           </text>
           <line x1={650} y1={308} x2={1720} y2={308} stroke="var(--line)" strokeWidth={1.5} />
 
@@ -227,7 +227,7 @@ export default function Slide12() {
             markerStart="url(#ah12)" markerEnd="url(#ah12)" />
           <text x={726 + TOTAL_ITERS * 14.5} y={386} textAnchor="middle"
             style={{ font: '600 17px var(--mono)', fill: 'var(--warn)' }}>
-            {TOTAL_ITERS} stall cycles · frontend frozen
+            {TOTAL_ITERS} divider cycles · frontend held during iterations
           </text>
         </g>
 
@@ -240,7 +240,7 @@ export default function Slide12() {
           {[
             '32-bit dividend → 32 bit-iterations',
             '+ 1 cycle for partial-remainder initialisation',
-            '= 33 total cycles with stall_pipeline HIGH',
+            '= 33 cycles from launch to completion',
             'Skid buffer preserves decoded addi x10 — no instruction lost',
           ].map((l, i) => (
             <text key={i} x={650} y={462 + i * 34}
@@ -275,7 +275,7 @@ export default function Slide12() {
       <div style={{ position:'absolute', left:96, right:96, top:874, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:36 }}>
         <Note label="Algorithm" d={1.0}>Radix-2 non-restoring: shift partial remainder, test against divisor, accumulate quotient bit. 32 iterations per 32-bit dividend.</Note>
         <Note label="Hardware" d={1.1}>32-bit shift register for partial remainder. State counter 0–32 drives FSM. Signed fixup via 2's-complement pre-negation.</Note>
-        <Note label="Pipeline cost" d={1.2}>33-cycle stall (m_busy HIGH). Skid buffer holds decoded next instruction — no fetch lost. All four DIV/REM opcodes share this unit.</Note>
+        <Note label="Pipeline cost" d={1.2}>33-cycle divider latency (m_busy HIGH). Skid buffer holds decoded next instruction — no fetch lost. All four DIV/REM opcodes share this unit.</Note>
       </div>
     </Frame>
   )

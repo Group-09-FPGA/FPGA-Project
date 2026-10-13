@@ -35,16 +35,16 @@ export interface SignalDef {
   badges?: Record<number, string>
 }
 
-// 30 display columns: T0..T24 (0..24), Fold T25-T52 (25), T53..T56 (26..29)
+// 30 display columns: T0..T24 (0..24), Fold T25-T46 (25), T47..T50 (26..29)
 export const CYCLES = 30
 
 export const COLS: CycleCol[] = [
   ...Array.from({ length: 25 }, (_, i) => ({ id: i, label: `T${i}` })),
-  { id: 25, label: '~', isFold: true, foldText: 'T25 - T52: Radix-2 Divider (33 cyc stall)' },
-  { id: 26, label: 'T53' },
-  { id: 27, label: 'T54' },
-  { id: 28, label: 'T55' },
-  { id: 29, label: 'T56' },
+  { id: 25, label: '~', isFold: true, foldText: 'T25 - T46: Divider iterations 10–31 (22 cycles)' },
+  { id: 26, label: 'T47' },
+  { id: 27, label: 'T48' },
+  { id: 28, label: 'T49' },
+  { id: 29, label: 'T50' },
 ]
 
 const span = (from: number, to: number, k: Kind): Record<number, Kind> =>
@@ -248,10 +248,10 @@ export const CAPTIONS: string[] = [
   'T21: DIV computing. Frontend held; skid buffer preserves decoded addi x10.',
   'T22: DIV computing. Quotient bit accumulation continues.',
   'T23: DIV computing. EX stage frozen by active M-unit division.',
-  'T24: DIV iteration 9 complete before the 33-cycle divider stall break fold.',
-  'T25–T52 (Fold): Radix-2 divider computes for 33 stall cycles. Frontend holds addi x10 frozen.',
-  'T53: DIV penultimate iteration. 32-bit quotient nearly resolved.',
-  'T54: DIV final compute cycle (34 cycles total). RV32M divider prepares complete result.',
-  'T55: DIV done: m_done pulses HIGH; div enters MEM/WB. EX-to-EX Forwarding feeds quotient x9 to addi x10 in EX!',
-  'T56: addi x10 enters MEM/WB. Final writeback completes the cycle-accurate trace execution.',
+  'T24: DIV iteration 9 completes before the folded divider interval.',
+  'T25–T46 (Fold): Divider iterations 10–31 complete over 22 cycles. Frontend holds addi x10 frozen.',
+  'T47: DIV iteration 32 completes. The quotient is ready for the completion edge.',
+  'T48: DIV completes 33 cycles after its T15 launch. m_done rises; m_busy and stall_pipeline fall.',
+  'T49: div enters MEM/WB. EX-to-EX forwarding feeds quotient x9 to addi x10 in EX.',
+  'T50: addi x10 enters MEM/WB. Final writeback completes the trace.',
 ]
