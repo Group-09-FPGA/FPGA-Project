@@ -44,9 +44,13 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
   const hasSub = Boolean(subtitle)
   const hasDetail = Boolean(detail)
 
+  const detailLines = detail ? detail.split('\n') : []
+  const numDetailLines = detailLines.length
+
   let titleY = cy + 6
   if (hasSub && hasDetail) {
-    titleY = cy - 14
+    const totalH = 22 + 18 + (numDetailLines > 0 ? 16 + (numDetailLines - 1) * 15 : 0)
+    titleY = cy - totalH / 2 + 10
   } else if (hasSub) {
     titleY = cy - 6
   }
@@ -105,14 +109,18 @@ export function ModuleBox({ x, y, w, h, title, subtitle, detail, isNew, tag, sty
           {subtitle}
         </text>
       )}
-      {detail && (
+      {hasDetail && (
         <text
           x={x + w / 2}
-          y={titleY + 40}
+          y={titleY + 38}
           textAnchor="middle"
-          style={{ font: '400 12px var(--mono)', fill: '#6e727e' }}
+          style={{ font: '400 11.5px var(--mono)', fill: '#6e727e' }}
         >
-          {detail}
+          {detailLines.map((line, idx) => (
+            <tspan key={idx} x={x + w / 2} dy={idx === 0 ? 0 : 15}>
+              {line}
+            </tspan>
+          ))}
         </text>
       )}
     </g>
