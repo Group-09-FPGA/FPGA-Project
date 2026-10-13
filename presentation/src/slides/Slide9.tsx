@@ -48,6 +48,9 @@ export default function Slide9() {
   // vertical chain positions: widened to 330px with ample margins
   const BW = 330, BH = 86, BX = 30
   const BY = [20, 118, 216, 314, 412, 510, 608]
+  const mmioCenterY = BY[6] + BH / 2
+  const cpuReadCenterX = BX + BW + 46 + 105
+  const tokenPath = `M${BX + BW / 2},${BY[0]} V${mmioCenterY} H${cpuReadCenterX}`
   const LABELS = [
     { t: 'Hash table',     s: '1024 × 8-way · 8 CAM stash',       isNew: true },
     { t: 'Slot table',     s: '2048 entries · {side, pidx, qty}', isNew: true },
@@ -99,13 +102,15 @@ export default function Slide9() {
         </g>
 
         {/* Animated token flowing down the chain */}
-        <circle r={6} fill="var(--navy)">
+        <circle r={6} fill="var(--navy)" opacity={0}>
           <animateMotion dur="3.5s" begin="1.5s" repeatCount="indefinite"
-            path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
+            path={tokenPath} />
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="3.5s" begin="1.5s" repeatCount="indefinite" />
         </circle>
-        <circle r={6} fill="var(--navy)" opacity={0.45}>
+        <circle r={6} fill="var(--navy)" opacity={0}>
           <animateMotion dur="3.5s" begin="3s" repeatCount="indefinite"
-            path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
+            path={tokenPath} />
+          <animate attributeName="opacity" values="0;0.45;0.45;0" keyTimes="0;0.08;0.92;1" dur="3.5s" begin="3s" repeatCount="indefinite" />
         </circle>
 
         {/* ── RIGHT: FSM states and latency table (comfortably placed at x=640) ──── */}

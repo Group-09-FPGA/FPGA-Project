@@ -119,7 +119,7 @@ export default function Slide8() {
           { from: 1202, to: 1286, isNew: true },
           { from: 1592, to: 1658, isNew: true },
         ].map((seg, i) => (
-          <circle key={seg.from} r={6} cy={96} fill={seg.isNew ? 'var(--navy)' : 'var(--ink-2)'}>
+          <circle key={seg.from} r={6} cx={seg.from} cy={96} fill={seg.isNew ? 'var(--navy)' : 'var(--ink-2)'} opacity={0}>
             <animate attributeName="cx" from={seg.from} to={seg.to} dur="1.1s" begin={`${1.0 + i * 0.22}s`} repeatCount="indefinite" />
             <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.1s" begin={`${1.0 + i * 0.22}s`} repeatCount="indefinite" />
           </circle>

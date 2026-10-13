@@ -161,14 +161,16 @@ export default function Slide11() {
 
         {/* Animated dots — each travels its own arrow span (right-edge → left-edge) */}
         {ARROWS.map((a, i) => (
-          <circle key={`dot-${i}`} r={5} cy={MY}
-            fill={a.isNew ? 'var(--navy)' : '#6b6f78'} opacity="0.85">
+          <circle key={`dot-${i}`} r={5} cx={a.x1 + 3} cy={MY}
+            fill={a.isNew ? 'var(--navy)' : '#6b6f78'} opacity={0}>
             <animate attributeName="cx"
               from={a.x1 + 3}
               to={a.x2 - 14}
               dur="0.72s"
               begin={`${1.3 + i * 0.36}s`}
               repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.15;0.85;1"
+              dur="0.72s" begin={`${1.3 + i * 0.36}s`} repeatCount="indefinite" />
           </circle>
         ))}
 
