@@ -1,261 +1,254 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Frame } from '../components/Frame'
 import { delay } from '../components/util'
 
-const EXAMPLES = [
-  { a: 7, b: 9, op: 'mul', desc: 'Trace example (mul x3,x1,x2)', result: 63, mulh: 0, signed: true },
-  { a: -2, b: 5, op: 'mul', desc: 'Signed multiplication', result: -10, mulh: -1, signed: true },
-  { a: 0xFFFF, b: 0xFFFF, op: 'mulhu', desc: 'Unsigned upper half (MULHU)', result: 0xFFFE0001, mulh: 0xFFFE, signed: false },
-]
-
-function hex32(n: number) {
-  return '0x' + (n >>> 0).toString(16).toUpperCase().padStart(8, '0')
+interface BoxProps { x:number; y:number; w:number; h:number; t:string; s?:string; isNew?:boolean; d?:number }
+function Box({ x, y, w, h, t, s, isNew, d=0 }: BoxProps) {
+  const cy = y + h / 2
+  return (
+    <g className="rise" style={delay(d)}>
+      <rect x={x} y={y} width={w} height={h}
+        fill={isNew ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
+        stroke={isNew ? 'var(--navy)' : '#8b8f98'} strokeWidth={isNew ? 2.6 : 1.6} />
+      <text x={x+w/2} y={s ? cy-4 : cy+8} textAnchor="middle"
+        style={{ font:'600 25px var(--font)', fill: isNew ? '#101234' : 'var(--ink-2)' }}>{t}</text>
+      {s && <text x={x+w/2} y={cy+22} textAnchor="middle"
+        style={{ font:'400 20px var(--font)', fill:'var(--ink-2)' }}>{s}</text>}
+    </g>
+  )
 }
 
-const STAGE_COLORS = ['#1e40af', '#7c3aed', '#15803d']
-const STAGE_BG = ['#dbeafe', '#ede9fe', '#dcfce7']
-const STAGES_DESC = [
-  { cycle: 'M1', title: 'Operand Latch', hw: 'DSP48E1 Pre-Adder + AREG/BREG', detail: 'Register A & B operands into DSP input registers. Pipeline stage 1 begins.' },
-  { cycle: 'M2', title: 'Core Multiply', hw: 'DSP48E1 25×18 Multiply Core + MREG', detail: '25-bit × 18-bit hardware multiplier computes 48-bit partial product in this cycle.' },
-  { cycle: 'M3', title: 'Result Accumulate', hw: 'DSP48E1 Post-Adder + PREG', detail: 'Post-accumulator assembles final 64-bit product. Lower/upper 32-bit extracted.' },
+function Arrow({ d, isNew }: { d:string; isNew?:boolean }) {
+  return <path d={d} fill="none" stroke={isNew ? 'var(--navy)' : '#6b6f78'} strokeWidth={2.4}
+    markerEnd={`url(#ah11${isNew ? 'n' : 'g'})`} />
+}
+
+function Note({ label, children, d }: { label:string; children:ReactNode; d:number }) {
+  return (
+    <div className="rise" style={delay(d)}>
+      <div className="label">{label}</div>
+      <p style={{ font:'400 25px/1.3 var(--font)', marginTop:4 }}>{children}</p>
+    </div>
+  )
+}
+
+const EXAMPLES = [
+  { label: '7 × 9', a: 7, b: 9, result: 63, hex: '0x0000003F' },
+  { label: '−2 × 5', a: -2, b: 5, result: -10, hex: '0xFFFFFFF6' },
+  { label: '0xFFFF × 0xFFFF', a: 0xFFFF, b: 0xFFFF, result: 0xFFFE0001, hex: '0xFFFE0001' },
 ]
 
-const BOX_W = 260
-const BOX_H = 150
-const BOX_GAP = 70
-const BOX_Y = 50
-const BOX_START_X = 20
-const stageCX = (i: number) => BOX_START_X + i * (BOX_W + BOX_GAP) + BOX_W / 2
+const STAGES = [
+  { cycle: 'M 1', title: 'Operand Latch', hw: 'DSP48E1 AREG / BREG', x: 24 },
+  { cycle: 'M 2', title: 'Core Multiply', hw: '25 × 18 MREG',         x: 314 },
+  { cycle: 'M 3', title: 'Post-Add + PREG', hw: 'result ready',       x: 604 },
+]
 
 export default function Slide11() {
   const [sel, setSel] = useState(0)
   const ex = EXAMPLES[sel]
-  const resultHex = hex32(ex.result)
-  const aHex = hex32(ex.a)
-  const bHex = hex32(ex.b)
-  const partialProduct = BigInt(ex.a) * BigInt(ex.b)
 
-  const tokenPath = [0, 1, 2].map(i => `${i === 0 ? 'M' : 'L'}${stageCX(i)},${BOX_Y + BOX_H / 2}`).join(' ')
+  const BW = 260, BH = 100, BY = 56
 
   return (
-    <Frame n={11} kicker="RV32M Extension · DSP48E1 Hardware" title="Multiplier: mul x3, x1, x2 — 3 Pipeline Cycles">
-      {/* LEFT: 3-stage pipeline SVG */}
-      <svg width={950} height={480} viewBox="0 0 950 480"
-        style={{ position: 'absolute', left: 86, top: 175 }}>
+    <Frame n={11} kicker="RV32M Extension · DSP48E1 Hardware" title="Multiplier: 3-cycle pipeline · mul x3, x1, x2">
+      <svg width={1728} height={660} viewBox="0 -20 1728 660" overflow="visible"
+        style={{ position:'absolute', left:96, top:205 }}>
         <defs>
-          <marker id="ah11" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+          <marker id="ah11g" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#6b6f78" />
+          </marker>
+          <marker id="ah11n" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="#2a2e86" />
           </marker>
-          <filter id="glow11"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
 
-        {/* Input arrow */}
-        <line x1={0} y1={BOX_Y + BOX_H / 2} x2={BOX_START_X - 2} y2={BOX_Y + BOX_H / 2}
-          stroke="#2a2e86" strokeWidth={2.5} markerEnd="url(#ah11)" />
-        <text x={0} y={BOX_Y + BOX_H / 2 - 14} style={{ font: '500 14px var(--mono)', fill: '#2a2e86' }}>
-          EX stage input
-        </text>
-        <text x={0} y={BOX_Y + BOX_H / 2 + 20} style={{ font: '700 15px var(--mono)', fill: '#ea580c' }}>
-          A={aHex}
-        </text>
-        <text x={0} y={BOX_Y + BOX_H / 2 + 38} style={{ font: '700 15px var(--mono)', fill: '#15803d' }}>
-          B={bHex}
-        </text>
+        {/* ── CPU pipeline context ──────────────────────────────────── */}
+        <g className="rise" style={delay(0.1)}>
+          <rect x={0} y={BY} width={180} height={BH} fill="rgba(255,255,255,.55)" stroke="#8b8f98" strokeWidth={1.6} />
+          <text x={90} y={BY+46} textAnchor="middle" style={{ font:'600 24px var(--font)', fill:'var(--ink-2)' }}>IF / ID</text>
+          <text x={90} y={BY+70} textAnchor="middle" style={{ font:'400 19px var(--font)', fill:'var(--ink-2)' }}>mul decoded</text>
+          <Arrow d="M182,106 H22" />
+        </g>
 
-        {/* 3 Stage boxes */}
-        {STAGES_DESC.map((s, i) => {
-          const x = BOX_START_X + i * (BOX_W + BOX_GAP)
-          return (
-            <g key={s.cycle}>
-              <rect x={x} y={BOX_Y} width={BOX_W} height={BOX_H} fill={STAGE_BG[i]} stroke={STAGE_COLORS[i]} strokeWidth={2.2} rx={8} />
-              {/* Cycle badge */}
-              <rect x={x + 8} y={BOX_Y + 8} width={44} height={28} rx={14} fill={STAGE_COLORS[i]} />
-              <text x={x + 30} y={BOX_Y + 28} textAnchor="middle"
-                style={{ font: '700 17px var(--mono)', fill: 'white' }}>{s.cycle}</text>
-              <text x={x + BOX_W / 2} y={BOX_Y + 48} textAnchor="middle"
-                style={{ font: '700 18px var(--font)', fill: STAGE_COLORS[i] }}>{s.title}</text>
-              <text x={x + BOX_W / 2} y={BOX_Y + 68} textAnchor="middle"
-                style={{ font: '600 12px var(--mono)', fill: '#6b7280' }}>{s.hw}</text>
-              {/* Stage-specific values */}
-              {i === 0 && (
-                <>
-                  <text x={x + BOX_W / 2} y={BOX_Y + 92} textAnchor="middle"
-                    style={{ font: '600 14px var(--mono)', fill: '#ea580c' }}>AREG={aHex}</text>
-                  <text x={x + BOX_W / 2} y={BOX_Y + 110} textAnchor="middle"
-                    style={{ font: '600 14px var(--mono)', fill: '#15803d' }}>BREG={bHex}</text>
-                </>
-              )}
-              {i === 1 && (
-                <text x={x + BOX_W / 2} y={BOX_Y + 98} textAnchor="middle"
-                  style={{ font: '600 13px var(--mono)', fill: '#5b21b6' }}>
-                  MREG = A × B (48-bit)
-                </text>
-              )}
-              {i === 2 && (
-                <>
-                  <text x={x + BOX_W / 2} y={BOX_Y + 90} textAnchor="middle"
-                    style={{ font: '700 17px var(--mono)', fill: '#15803d' }}>
-                    {ex.a} × {ex.b} = {ex.result}
-                  </text>
-                  <text x={x + BOX_W / 2} y={BOX_Y + 112} textAnchor="middle"
-                    style={{ font: '600 14px var(--mono)', fill: '#6b7280' }}>
-                    {resultHex}
-                  </text>
-                </>
-              )}
-              {/* Arrow to next */}
-              {i < 2 && (
-                <line x1={x + BOX_W} y1={BOX_Y + BOX_H / 2} x2={x + BOX_W + BOX_GAP - 2} y2={BOX_Y + BOX_H / 2}
-                  stroke="#2a2e86" strokeWidth={2.5} markerEnd="url(#ah11)" />
-              )}
+        {/* ── 3 DSP pipeline stages ─────────────────────────────────── */}
+        {STAGES.map((s, i) => (
+          <g key={s.cycle}>
+            <Box x={s.x + 200} y={BY} w={BW} h={BH} t={s.cycle} s={s.title} isNew d={0.15 + i * 0.1} />
+            <g className="rise" style={delay(0.25 + i * 0.1)}>
+              <text x={s.x + 200 + BW / 2} y={BY + BH + 22} textAnchor="middle"
+                style={{ font:'500 17px var(--mono)', fill:'var(--ink-3)' }}>{s.hw}</text>
             </g>
-          )
-        })}
+            {i < 2 && <Arrow isNew d={`M${s.x + 200 + BW},${BY + BH / 2} H${STAGES[i+1].x + 200 - 2}`} />}
+          </g>
+        ))}
 
-        {/* Result output arrow */}
-        <line x1={BOX_START_X + 2 * (BOX_W + BOX_GAP) + BOX_W} y1={BOX_Y + BOX_H / 2}
-          x2={BOX_START_X + 2 * (BOX_W + BOX_GAP) + BOX_W + 50} y2={BOX_Y + BOX_H / 2}
-          stroke="#15803d" strokeWidth={3} markerEnd="url(#ah11)" />
-        <text x={BOX_START_X + 2 * (BOX_W + BOX_GAP) + BOX_W + 55} y={BOX_Y + BOX_H / 2 - 8}
-          style={{ font: '700 16px var(--mono)', fill: '#15803d' }}>
-          x3 = {ex.result}
-        </text>
-        <text x={BOX_START_X + 2 * (BOX_W + BOX_GAP) + BOX_W + 55} y={BOX_Y + BOX_H / 2 + 16}
-          style={{ font: '500 13px var(--mono)', fill: '#6b7280' }}>
-          RegFile WB
-        </text>
+        {/* Result output */}
+        <g className="rise" style={delay(0.55)}>
+          <Arrow isNew d="M1064,106 H1128" />
+          <rect x={1132} y={BY} width={260} height={BH} fill="#e3e4f4" stroke="var(--navy)" strokeWidth={2.6} />
+          <text x={1262} y={BY + 46} textAnchor="middle"
+            style={{ font:'700 26px var(--mono)', fill:'#101234' }}>
+            x3 = {ex.result > 0 ? ex.result : ex.result}
+          </text>
+          <text x={1262} y={BY + 72} textAnchor="middle"
+            style={{ font:'500 18px var(--mono)', fill:'var(--ink-2)' }}>{ex.hex}</text>
+        </g>
 
-        {/* Animated tokens */}
-        <circle r={9} fill="#2a2e86" filter="url(#glow11)">
-          <animateMotion dur="1.8s" begin="0s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
-        <circle r={7} fill="#ea580c" opacity={0.7}>
-          <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite" path={tokenPath} />
-        </circle>
+        {/* MEM/WB */}
+        <g className="rise" style={delay(0.65)}>
+          <Arrow d="M1394,106 H1460" />
+          <rect x={1464} y={BY} width={200} height={BH} fill="rgba(255,255,255,.55)" stroke="#8b8f98" strokeWidth={1.6} />
+          <text x={1564} y={BY + 46} textAnchor="middle" style={{ font:'600 24px var(--font)', fill:'var(--ink-2)' }}>MEM / WB</text>
+          <text x={1564} y={BY + 70} textAnchor="middle" style={{ font:'400 18px var(--font)', fill:'var(--ink-2)' }}>regfile WB</text>
+        </g>
 
-        {/* ===== Pipeline timing table ===== */}
-        {(() => {
-          const tY = BOX_Y + BOX_H + 40
-          const cycles = ['T3', 'T4', 'T5', 'T6', 'T7', 'T8']
-          const events = [
-            ['IF/ID', '-', '-', '-', '-', '-'],
-            ['EX/mul', 'M1', 'M2', 'M3', '-', '-'],
-            ['-', 'HOLD', 'HOLD', 'HOLD', 'EX→fwd', 'MEM/WB'],
-          ]
-          const labels = ['IF/ID (fetch)', 'EX (mul)', 'add x4 (waiting)']
-          const CW = 82, CH = 36, LW = 130
-          return (
-            <g>
-              <text x={0} y={tY - 10} style={{ font: '700 15px var(--mono)', fill: '#2a2e86', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                Pipeline Timing — mul x3, x1, x2
-              </text>
-              {/* Header row */}
-              {cycles.map((c, i) => (
-                <g key={c}>
-                  <rect x={LW + i * CW} y={tY} width={CW - 2} height={CH} fill="#f1f5f9" stroke="#e2e8f0" strokeWidth={1} rx={2} />
-                  <text x={LW + i * CW + CW / 2 - 1} y={tY + 23} textAnchor="middle"
-                    style={{ font: '700 15px var(--mono)', fill: '#2a2e86' }}>{c}</text>
-                </g>
-              ))}
-              {/* Event rows */}
-              {events.map((row, ri) => (
-                <g key={ri}>
-                  <text x={0} y={tY + (ri + 1) * CH + 22} style={{ font: '500 13px var(--mono)', fill: '#6b7280' }}>{labels[ri]}</text>
-                  {row.map((cell, ci) => {
-                    const isM = cell.startsWith('M')
-                    const isHold = cell === 'HOLD'
-                    const isFwd = cell.includes('fwd')
-                    return (
-                      <g key={ci}>
-                        <rect x={LW + ci * CW} y={tY + (ri + 1) * CH} width={CW - 2} height={CH}
-                          fill={isM ? STAGE_BG[parseInt(cell[1]) - 1] : (isHold ? '#fef3c7' : (isFwd ? '#dcfce7' : 'rgba(255,255,255,0.7)'))}
-                          stroke={isM ? STAGE_COLORS[parseInt(cell[1]) - 1] : (isHold ? '#d97706' : (isFwd ? '#15803d' : '#e2e8f0'))}
-                          strokeWidth={isM ? 2 : 1} rx={2} />
-                        <text x={LW + ci * CW + CW / 2 - 1} y={tY + (ri + 1) * CH + 23} textAnchor="middle"
-                          style={{ font: `${isM ? '700' : '500'} 13px var(--mono)`, fill: isM ? STAGE_COLORS[parseInt(cell[1]) - 1] : (isHold ? '#b45309' : (isFwd ? '#15803d' : '#6b7280')) }}>
-                          {cell}
-                        </text>
-                      </g>
-                    )
-                  })}
-                </g>
-              ))}
-              <text x={LW} y={tY + 4 * CH + 22}
-                style={{ font: '600 14px var(--mono)', fill: '#b45309' }}>
-                {'stall_pipeline HIGH ──────────────── (4 cycles) ──────────────── m_done ✓'}
-              </text>
+        {/* Animated tokens through pipeline */}
+        {[180, 460, 750].map((x, i) => (
+          <circle key={x} r={7} cy={BY + BH / 2} fill="var(--navy)">
+            <animate attributeName="cx" from={x + 220} to={x + 280} dur="1.2s" begin={`${1.4 + i * 0.4}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+
+        {/* ── stall_pipeline annotation ────────────────────────────── */}
+        <g className="rise" style={delay(0.7)}>
+          <line x1={224} y1={200} x2={1130} y2={200} stroke="var(--warn)" strokeWidth={1.5} strokeDasharray="6 4" />
+          <text x={670} y={194} textAnchor="middle" style={{ font:'600 19px var(--mono)', fill:'var(--warn)', letterSpacing:'.05em' }}>
+            stall_pipeline HIGH · m_busy HIGH (cycles T4–T7)
+          </text>
+          <text x={1200} y={194} style={{ font:'600 19px var(--mono)', fill:'var(--ok)' }}>m_done ✓ T8</text>
+        </g>
+
+        {/* ── Pipeline timing table ─────────────────────────────────── */}
+        <g className="rise" style={delay(0.8)}>
+          <text x={0} y={254} style={{ font:'600 19px var(--mono)', fill:'var(--navy)', letterSpacing:'.08em' }}>
+            PIPELINE TIMING — mul x3, x1, x2 (x1={ex.a}, x2={ex.b})
+          </text>
+          <line x1={0} y1={264} x2={1200} y2={264} stroke="var(--line)" strokeWidth={1.5} />
+          {(() => {
+            const cols = ['T3','T4','T5','T6','T7','T8','T9']
+            const rows = [
+              { instr:'mul x3,x1,x2', cells:['IF/ID','M1','M2','M3','—','WB','—'] },
+              { instr:'add x4,x3,x1', cells:['—','HOLD','HOLD','HOLD','HOLD','EX→fwd','WB'] },
+            ]
+            const CW = 116, CH = 48, LW = 200
+            return (
+              <>
+                {cols.map((c, i) => (
+                  <g key={c}>
+                    <rect x={LW + i * CW} y={268} width={CW - 2} height={CH - 6}
+                      fill={c === 'T8' ? '#e3e4f4' : 'rgba(255,255,255,.6)'}
+                      stroke={c === 'T8' ? 'var(--navy)' : '#e2e8f0'} strokeWidth={1} />
+                    <text x={LW + i * CW + CW/2 - 1} y={299} textAnchor="middle"
+                      style={{ font:`${c === 'T8' ? '700' : '600'} 18px var(--mono)`, fill: c === 'T8' ? 'var(--navy)' : 'var(--ink-2)' }}>
+                      {c}
+                    </text>
+                  </g>
+                ))}
+                {rows.map((r, ri) => (
+                  <g key={ri}>
+                    <text x={0} y={336 + ri * CH} style={{ font:'500 18px var(--mono)', fill:'var(--ink-2)' }}>{r.instr}</text>
+                    {r.cells.map((cell, ci) => {
+                      const isM = cell.startsWith('M')
+                      const isHold = cell === 'HOLD'
+                      const isFwd = cell.includes('fwd')
+                      return (
+                        <g key={ci}>
+                          <rect x={LW + ci * CW} y={316 + ri * CH} width={CW - 2} height={CH - 6}
+                            fill={isM ? '#e3e4f4' : (isHold ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.6)')}
+                            stroke={isM ? 'var(--navy)' : (isFwd ? 'var(--ok)' : '#e2e8f0')}
+                            strokeWidth={isM ? 2 : (isFwd ? 1.8 : 1)} />
+                          <text x={LW + ci * CW + CW/2 - 1} y={340 + ri * CH} textAnchor="middle"
+                            style={{ font:`${isM ? '700' : '500'} ${cell.length > 4 ? '14' : '17'}px var(--mono)`,
+                              fill: isM ? '#101234' : (isFwd ? 'var(--ok)' : (isHold ? 'var(--ink-3)' : 'var(--ink-2)')) }}>
+                            {cell}
+                          </text>
+                        </g>
+                      )
+                    })}
+                  </g>
+                ))}
+              </>
+            )
+          })()}
+        </g>
+
+        {/* ── MUL opcodes ───────────────────────────────────────────── */}
+        <g className="rise" style={delay(0.9)}>
+          <text x={0} y={446} style={{ font:'600 19px var(--mono)', fill:'var(--navy)', letterSpacing:'.08em' }}>
+            ALL 4 RV32M MULTIPLY OPCODES
+          </text>
+          <line x1={0} y1={456} x2={1200} y2={456} stroke="var(--line)" strokeWidth={1.5} />
+          {[
+            { op:'MUL',    desc:'Lower 32 bits of signed × signed product' },
+            { op:'MULH',   desc:'Upper 32 bits of signed × signed (64-bit result)' },
+            { op:'MULHU',  desc:'Upper 32 bits of unsigned × unsigned' },
+            { op:'MULHSU', desc:'Upper 32 bits of signed × unsigned' },
+          ].map((r, i) => (
+            <g key={r.op}>
+              <line x1={0} y1={498 + i * 52} x2={1200} y2={498 + i * 52} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={0} y={484 + i * 52} style={{ font:'700 24px var(--mono)', fill:'var(--navy)' }}>{r.op}</text>
+              <text x={200} y={484 + i * 52} style={{ font:'400 24px var(--font)', fill:'var(--ink-2)' }}>{r.desc}</text>
             </g>
-          )
-        })()}
+          ))}
+        </g>
+
+        {/* ── Right panel: example selector + DSP note ──────────────── */}
+        <g className="rise" style={delay(0.6)}>
+          <text x={1400} y={22} style={{ font:'600 20px var(--mono)', fill:'var(--navy)', letterSpacing:'.08em' }}>
+            EXAMPLES
+          </text>
+          <line x1={1400} y1={32} x2={1720} y2={32} stroke="var(--line)" strokeWidth={1.5} />
+          {EXAMPLES.map((e, i) => (
+            <g key={e.label}>
+              <rect x={1400} y={44 + i * 78} width={320} height={62}
+                fill={sel === i ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
+                stroke={sel === i ? 'var(--navy)' : '#c4c4c0'}
+                strokeWidth={sel === i ? 2.4 : 1.2} rx={2} />
+              <text x={1560} y={76 + i * 78} textAnchor="middle"
+                style={{ font:`${sel === i ? '700' : '500'} 20px var(--mono)`, fill: sel === i ? '#101234' : 'var(--ink-2)' }}>
+                {e.label} = {e.result}
+              </text>
+              <text x={1560} y={98 + i * 78} textAnchor="middle"
+                style={{ font:'500 16px var(--mono)', fill:'var(--ink-3)' }}>{e.hex}</text>
+            </g>
+          ))}
+
+          <line x1={1400} y1={286} x2={1720} y2={286} stroke="var(--line)" strokeWidth={1.5} />
+          <text x={1400} y={322} style={{ font:'600 20px var(--mono)', fill:'var(--navy)', letterSpacing:'.08em' }}>
+            DSP48E1 vs SOFTWARE
+          </text>
+          {[
+            'Software shift-add: 32–64 cycles',
+            'DSP48E1 hardware: 3 cycles fixed',
+            '10–20× throughput improvement',
+            '236 unit tests + 31 pipeline checks',
+          ].map((l, i) => (
+            <text key={i} x={1400} y={356 + i * 36}
+              style={{ font:'400 21px var(--font)', fill:'var(--ink-2)' }}>{l}</text>
+          ))}
+        </g>
       </svg>
 
-      {/* RIGHT: Why DSP48 + opcodes + example selector */}
-      <div style={{ position: 'absolute', left: 1070, top: 175, width: 750, right: 96 }}>
-        {/* Example selector */}
-        <div className="rise" style={{ ...delay(0.15), marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {EXAMPLES.map((e, i) => (
-            <button key={i} onClick={() => setSel(i)} style={{
-              font: '600 13px var(--mono)', padding: '6px 14px', borderRadius: 4, cursor: 'pointer',
-              background: sel === i ? 'var(--navy)' : 'white',
-              color: sel === i ? 'white' : 'var(--navy)',
-              border: '1.5px solid var(--navy)', letterSpacing: '0.04em',
-            }}>
-              {e.op.toUpperCase()}: {e.a} × {e.b}
-            </button>
-          ))}
-        </div>
+      {/* Example selector buttons (HTML overlay) */}
+      <div style={{ position:'absolute', left:1496+96, top:290, display:'flex', flexDirection:'column', gap:0 }}>
+        {EXAMPLES.map((_, i) => (
+          <button key={i} onClick={() => setSel(i)} style={{ width:0, height:78, opacity:0, cursor:'pointer' }} />
+        ))}
+      </div>
+      {/* Clickable overlay on the SVG example boxes */}
+      <div style={{ position:'absolute', left:1496+96, top:249, display:'flex', flexDirection:'column', gap:16 }}>
+        {EXAMPLES.map((_, i) => (
+          <button key={i} onClick={() => setSel(i)}
+            style={{ width:320, height:62, opacity:0, cursor:'pointer', position:'absolute', top:i*78 }} />
+        ))}
+      </div>
 
-        {/* Why DSP48 */}
-        <div className="rise" style={{ ...delay(0.25), background: '#0f172a', border: '1.5px solid #1e293b', borderRadius: 8, padding: '16px 20px', marginBottom: 12 }}>
-          <div style={{ font: '700 14px var(--mono)', color: '#38bdf8', letterSpacing: '0.1em', marginBottom: 10 }}>
-            WHY DSP48E1 HARDWARE?
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <div style={{ font: '700 13px var(--mono)', color: '#f87171', marginBottom: 6 }}>❌ Software Shift-Add</div>
-              <div style={{ font: '400 13px var(--font)', color: '#94a3b8', lineHeight: 1.5 }}>
-                32-iteration loop using shift + add<br />
-                32–64 cycles latency<br />
-                Burns entire CPU pipeline
-              </div>
-            </div>
-            <div>
-              <div style={{ font: '700 13px var(--mono)', color: '#4ade80', marginBottom: 6 }}>✓ DSP48E1 Hardware</div>
-              <div style={{ font: '400 13px var(--font)', color: '#94a3b8', lineHeight: 1.5 }}>
-                Dedicated silicon multiply unit<br />
-                <strong style={{ color: '#4ade80' }}>Fixed 3 cycles latency</strong><br />
-                Pipelined: 1 result/cycle throughput
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* All 4 MUL opcodes */}
-        <div className="rise" style={{ ...delay(0.35), background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '14px 18px', marginBottom: 12 }}>
-          <div style={{ font: '700 13px var(--mono)', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-            All 4 RV32M Multiply Opcodes
-          </div>
-          {[
-            { op: 'MUL', desc: 'Lower 32 bits of signed×signed product', ex: `${ex.a}×${ex.b} = ${ex.result}` },
-            { op: 'MULH', desc: 'Upper 32 bits of signed×signed (64-bit)', ex: `${ex.a}×${ex.b} >> 32 = ${ex.mulh}` },
-            { op: 'MULHU', desc: 'Upper 32 bits of unsigned×unsigned', ex: '0xFFFF×0xFFFF >> 32 = 0xFFFE' },
-            { op: 'MULHSU', desc: 'Upper 32 bits of signed×unsigned', ex: 'rs1 signed × rs2 unsigned' },
-          ].map(r => (
-            <div key={r.op} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, borderTop: '1px solid #f1f5f9', paddingTop: 6, marginTop: 6 }}>
-              <div style={{ font: '700 17px var(--mono)', color: '#2a2e86' }}>{r.op}</div>
-              <div>
-                <div style={{ font: '400 14px var(--font)', color: '#334155' }}>{r.desc}</div>
-                <div style={{ font: '600 13px var(--mono)', color: '#6b7280', marginTop: 2 }}>{r.ex}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Edge case card */}
-        <div className="rise" style={{ ...delay(0.5), background: '#eff6ff', border: '1.5px solid #bfdbfe', borderLeft: '5px solid #2a2e86', borderRadius: 6, padding: '12px 18px' }}>
-          <div style={{ font: '700 13px var(--mono)', color: '#2a2e86', marginBottom: 6 }}>✓ Verification: 236 unit test vectors + 31 pipeline checks</div>
-          <div style={{ font: '400 14px var(--font)', color: '#1e40af' }}>All MUL variants verified against RISC-V ISA spec, including signed overflow corner cases and pipeline forwarding paths from M-unit writeback.</div>
-        </div>
+      <div style={{ position:'absolute', left:96, right:96, top:890, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:48 }}>
+        <Note label="DSP48E1 pipeline" d={1.1}>3 fixed cycles: operand latch → 25×18 core multiply → post-adder. Fully pipelined; one result per cycle once filled.</Note>
+        <Note label="Hazard handling" d={1.2}>stall_pipeline freezes IF/ID for 4 cycles (T4–T7). Skid buffer preserves add x4 state. EX-to-EX forwarding at T8.</Note>
+        <Note label="Verification" d={1.3}>236 unit test vectors across all four MUL variants. 31 pipeline integration checks. Signed overflow corner cases confirmed.</Note>
       </div>
     </Frame>
   )
