@@ -11,7 +11,7 @@ import Slide9 from './slides/Slide9'
 import Slide10 from './slides/Slide10'
 import Slide11 from './slides/Slide11'
 import Slide12 from './slides/Slide12'
-import { TOTAL } from './components/Frame'
+import { SlideContext, TOTAL } from './components/Frame'
 import { NOTES } from './data/notes'
 
 const readHash = () => {
@@ -54,36 +54,36 @@ export default function App() {
   }, [n, go])
 
   // SLIDE ORDER:
-  // 1  Overview
-  // 2  System Architecture (block diagram)
-  // 3  ITCH Parsing deep-dive      ← NEW (between arch & timing)
-  // 4  LOB Engine internals        ← NEW (between arch & timing)
-  // 5  BBO Priority Tree           ← NEW (between arch & timing)
-  // 6  Timing Diagram (pipeline)
-  // 7  MUL Unit                    ← NEW (after timing)
-  // 8  DIV Unit                    ← NEW (after timing)
-  // 9  Design + Verification Plan
-  // 10 Timeline
-  // 11 Team / Work Distribution
-  // 12 Demo Plan
+  // 1  Overview                -> Slide1
+  // 2  System Architecture     -> Slide2
+  // 3  ITCH Parsing            -> Slide8
+  // 4  LOB Engine              -> Slide9
+  // 5  BBO Priority Tree       -> Slide10
+  // 6  Timing Diagram          -> Slide3
+  // 7  MUL Unit                -> Slide11
+  // 8  DIV Unit                -> Slide12
+  // 9  Design + Verification   -> Slide4
+  // 10 Timeline                -> Slide5
+  // 11 Team Responsibilities   -> Slide6
+  // 12 Demo Plan + Challenges  -> Slide7
   const slides = [
     <Slide1 />,
     <Slide2 />,
-    <Slide8 />,   // ITCH parsing
-    <Slide9 />,   // LOB datapath
-    <Slide10 />,  // BBO priority tree
-    <Slide3 active />,
-    <Slide11 />,  // MUL unit
-    <Slide12 />,  // DIV unit
-    <Slide4 />,
-    <Slide5 />,
-    <Slide6 />,
-    <Slide7 />,
+    <Slide8 />,   // ITCH parsing (3)
+    <Slide9 />,   // LOB datapath (4)
+    <Slide10 />,  // BBO priority tree (5)
+    <Slide3 active />, // Timing diagram (6)
+    <Slide11 />,  // MUL unit (7)
+    <Slide12 />,  // DIV unit (8)
+    <Slide4 />,   // Design + verif (9)
+    <Slide5 />,   // Timeline (10)
+    <Slide6 />,   // Team (11)
+    <Slide7 />,   // Demo plan (12)
   ]
   const note = NOTES[n - 1] ?? NOTES[0]
 
   return (
-    <>
+    <SlideContext.Provider value={{ currentSlide: n, goTo: go }}>
       <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
         <div key={n} style={{ position: 'absolute', inset: 0 }}>{slides[n - 1]}</div>
       </div>
@@ -96,6 +96,6 @@ export default function App() {
           <ul>{note.qa.map(p => <li key={p}>{p}</li>)}</ul>
         </div>
       )}
-    </>
+    </SlideContext.Provider>
   )
 }
