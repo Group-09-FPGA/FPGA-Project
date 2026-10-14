@@ -59,7 +59,7 @@ export default function Slide9() {
   ]
 
   return (
-    <Frame n={9} kicker="Hardware LOB Accelerator · RTL Internals" title="LOB engine: Hash → Slot → Price RAM → BBO">
+    <Frame n={4} kicker="Hardware LOB Accelerator · RTL Internals" title="LOB engine: Hash → Slot → Price RAM → BBO">
       <svg width={1728} height={830} viewBox="0 -10 1728 830" overflow="visible"
         style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>

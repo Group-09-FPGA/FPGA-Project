@@ -72,7 +72,7 @@ const EVT_FIELDS = [
 
 export default function Slide8() {
   return (
-    <Frame n={8} kicker="ITCH 5.0 Protocol · Parsing Pipeline" title="Network ingestion: raw Ethernet → 256-bit event">
+    <Frame n={3} kicker="ITCH 5.0 Protocol · Parsing Pipeline" title="Network ingestion: raw Ethernet → 256-bit event">
       <svg width={1728} height={660} viewBox="0 -20 1728 660" overflow="visible"
         style={{ position: 'absolute', left: 96, top: 205 }}>
         <defs>
