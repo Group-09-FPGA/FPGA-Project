@@ -59,7 +59,7 @@ def create_moldudp64_add_order(seq_num, order_ref, side, shares, stock, price):
 
     itch_body = struct.pack(">HBHH", msg_len, msg_type, locate, tracking) + \
                 ts_bytes + \
-                struct.pack(">QBIsI", order_ref, side_byte, shares, stock_bytes, price)
+                struct.pack(">QBI8sI", order_ref, side_byte, shares, stock_bytes, price)
     
     return mold_hdr + itch_body
 
