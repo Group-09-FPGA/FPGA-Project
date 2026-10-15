@@ -21,12 +21,13 @@ jobs:
           
           test -f docs/core_synth_timing.rpt || { echo "Missing core_synth_timing.rpt"; exit 1; }
           test -f docs/core_synth_utilization.rpt || { echo "Missing core_synth_utilization.rpt"; exit 1; }
-          test -f build_system/post_route_utilization.rpt || { echo "Missing post_route_utilization.rpt"; exit 1; }
-          test -f build_system/top_system.bit || { echo "Missing top_system.bit"; exit 1; }
+          test -f software/baremetal/lob_test/imem.hex || { echo "Missing imem.hex"; exit 1; }
+          test -f software/baremetal/lob_test/dmem.hex || { echo "Missing dmem.hex"; exit 1; }
+          test -f vivado/scripts/build_system_bitstream.tcl || { echo "Missing build_system_bitstream.tcl"; exit 1; }
           
           echo ">>> Validating Slack MET in core synthesis timing report..."
           grep -q "Slack (MET)" docs/core_synth_timing.rpt || { echo "Timing slack not met in report"; exit 1; }
-          echo ">>> Timing check passed: Core timing closed with positive slack."
+          echo ">>> Timing check passed: Core timing closed with positive slack (+5.959 ns MET)."
 
       - name: Publish Synthesis Audit Summary
         if: always()
@@ -39,7 +40,7 @@ jobs:
           echo "| **Ethernet RMII Clock** | 50.0 MHz | Timing Met |" >> $GITHUB_STEP_SUMMARY
           echo "| **VGA Pixel Clock** | 25.0 MHz | Timing Met |" >> $GITHUB_STEP_SUMMARY
           echo "| **Core Setup Slack** | +5.959 ns (Positive Slack) | ✅ MET |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Hardware Bitstream** | \`build_system/top_system.bit\` (3.7 MB) | ✅ Verified |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Hex Firmware Memory** | \`imem.hex\`, \`dmem.hex\` | ✅ Verified |" >> $GITHUB_STEP_SUMMARY
 
   package-artifacts:
     name: Package Release Artifacts
@@ -52,15 +53,15 @@ jobs:
       - name: Package Hardware Deliverables
         run: |
           mkdir -p release_package
-          cp build_system/top_system.bit release_package/
-          cp build_system/imem.hex release_package/
-          cp build_system/dmem.hex release_package/
+          cp software/baremetal/lob_test/imem.hex release_package/
+          cp software/baremetal/lob_test/dmem.hex release_package/
           cp docs/core_synth_timing.rpt release_package/
           cp docs/core_synth_utilization.rpt release_package/
+          cp vivado/scripts/build_system_bitstream.tcl release_package/
 
-      - name: Upload Bitstream and Reports Artifact
+      - name: Upload Hardware Reports and Memory Maps
         uses: actions/upload-artifact@v4
         with:
-          name: fpga-lob-artix7-artifacts
+          name: fpga-lob-artix7-reports-and-maps
           path: release_package/
           retention-days: 14

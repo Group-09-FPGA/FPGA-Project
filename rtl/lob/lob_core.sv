@@ -24,7 +24,7 @@ module lob_core #(
 
     // Runtime Control & Configuration
     input  logic         cfg_clear,
-    input  logic         cfg_fail_stop_en = DEFAULT_FAIL_STOP_EN,
+    input  logic         cfg_fail_stop_en,
     input  logic [31:0]  cfg_price_base,
     input  logic [31:0]  cfg_tick,
 
