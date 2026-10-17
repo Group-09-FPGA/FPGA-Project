@@ -1,0 +1,30 @@
+[
+  {
+    "type": "AddOrder",
+    "order_id": 101,
+    "side": "BUY",
+    "price": 1000000,
+    "quantity": 50
+  },
+  {
+    "type": "AddOrder",
+    "order_id": 102,
+    "side": "BUY",
+    "price": 990000,
+    "quantity": 30
+  },
+  {
+    "type": "AddOrder",
+    "order_id": 201,
+    "side": "SELL",
+    "price": 1030000,
+    "quantity": 20
+  },
+  {
+    "type": "AddOrder",
+    "order_id": 202,
+    "side": "SELL",
+    "price": 1020000,
+    "quantity": 15
+  }
+]
