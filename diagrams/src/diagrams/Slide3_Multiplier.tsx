@@ -20,50 +20,50 @@ export default function Slide3_Multiplier() {
         />
 
         {/* Inputs */}
-        <ModuleBox x={40} y={60} w={150} h={64} title="Operand 1" subtitle="op1[31:0] (rs1)" detail="From EX Forwarding MUX" tag="32-BIT" />
-        <ModuleBox x={40} y={150} w={150} h={64} title="Operand 2" subtitle="op2[31:0] (rs2)" detail="From EX Forwarding MUX" tag="32-BIT" />
-        <ModuleBox x={40} y={240} w={150} h={64} title="Funct3" subtitle="funct3[2:0]" detail="Operation Encoding" tag="3-BIT" />
+        <ModuleBox x={40} y={55} w={150} h={70} title="Operand 1" subtitle="op1[31:0] (rs1)" detail="From EX Forwarding" tag="32-BIT" />
+        <ModuleBox x={40} y={145} w={150} h={70} title="Operand 2" subtitle="op2[31:0] (rs2)" detail="From EX Forwarding" tag="32-BIT" />
+        <ModuleBox x={40} y={235} w={150} h={70} title="Funct3" subtitle="funct3[2:0]" detail="Operation Encoding" tag="3-BIT" />
 
         {/* Sign Decode Logic */}
         <ModuleBox
           x={40}
-          y={340}
+          y={330}
           w={350}
-          h={110}
+          h={115}
           title="Sign Detection Decoder"
           subtitle="Signed vs Unsigned Logic"
-          detail="sign_a = (funct3 == F3_MULH) || (funct3 == F3_MULHSU)&#10;sign_b = (funct3 == F3_MULH)&#10;Controls bit 32 sign-extension"
+          detail="sign_a = (funct3 == MULH || MULHSU)&#10;sign_b = (funct3 == MULH)&#10;Controls bit 32 sign-extension"
           tag="COMBINATIONAL"
         />
 
         {/* Sign Extension MUX A */}
-        <Mux2to1 x={240} y={65} w={28} h={70} label="MUX" selLabel="sign_a" />
-        <text x={275} y={85} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>0: {`{1'b0, op1}`}</text>
-        <text x={275} y={115} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>1: {`{op1[31], op1}`}</text>
+        <Mux2to1 x={235} y={62} w={28} h={68} label="MUX" selLabel="sign_a" />
+        <text x={272} y={82} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>0: {`{1'b0, op1}`}</text>
+        <text x={272} y={112} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>1: {`{op1[31], op1}`}</text>
 
         {/* Sign Extension MUX B */}
-        <Mux2to1 x={240} y={155} w={28} h={70} label="MUX" selLabel="sign_b" />
-        <text x={275} y={175} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>0: {`{1'b0, op2}`}</text>
-        <text x={275} y={205} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>1: {`{op2[31], op2}`}</text>
+        <Mux2to1 x={235} y={152} w={28} h={68} label="MUX" selLabel="sign_b" />
+        <text x={272} y={172} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>0: {`{1'b0, op2}`}</text>
+        <text x={272} y={202} style={{ font: '500 11px var(--mono)', fill: '#4a4e57' }}>1: {`{op2[31], op2}`}</text>
 
         {/* Stage 1 Pipeline Registers */}
         <ModuleBox
           x={40}
-          y={480}
+          y={470}
           w={350}
-          h={190}
-          title="Stage 1 Pipeline Registers (Clock 1 ▲)"
-          subtitle="Latched on (start &amp;&amp; !funct3[2])"
-          detail="mult_reg_a[32:0]  <= $signed(ext_a)&#10;mult_reg_b[32:0]  <= $signed(ext_b)&#10;mult_op_r1[2:0]   <= funct3&#10;mult_cnt[1:0]     <= 2'd0&#10;Initiates multi-cycle pipeline stall"
+          h={205}
+          title="Stage 1 Pipeline Registers"
+          subtitle="Latched on Clock 1 ▲ (start &amp;&amp; !funct3[2])"
+          detail="mult_reg_a[32:0]  <= $signed(ext_a)&#10;mult_reg_b[32:0]  <= $signed(ext_b)&#10;mult_op_r1[2:0]   <= funct3&#10;mult_cnt[1:0]     <= 2'd0&#10;Initiates multi-cycle pipeline stall (m_stalling)"
           isNew
           tag="REGISTERS"
         />
 
-        <SignalWire d="M190,92 H238" label="op1[31:0]" lx={214} ly={80} />
-        <SignalWire d="M190,182 H238" label="op2[31:0]" lx={214} ly={170} />
-        <SignalWire d="M115,304 V338" />
-        <SignalWire d="M254,135 V478" label="ext_a[32:0]" lx={254} ly={460} width={2.2} />
-        <SignalWire d="M254,225 V478" label="ext_b[32:0]" lx={254} ly={240} width={2.2} />
+        <SignalWire d="M190,90 H233" label="op1[31:0]" lx={212} ly={78} />
+        <SignalWire d="M190,180 H233" label="op2[31:0]" lx={212} ly={168} />
+        <SignalWire d="M115,305 V328" />
+        <SignalWire d="M263,96 H295 V468" label="ext_a[32:0]" lx={295} ly={285} width={2.2} />
+        <SignalWire d="M263,186 H345 V468" label="ext_b[32:0]" lx={345} ly={285} width={2.2} />
 
         {/* ════════════════════════════════════════════════════════════════════
             CYCLE 2: 33×33 PARTIAL PRODUCT MULTIPLICATION (CYCLE 2)
@@ -83,7 +83,7 @@ export default function Slide3_Multiplier() {
           y={60}
           w={410}
           h={180}
-          title="33-bit × 33-bit Signed Multiplier Array"
+          title="33×33 Signed Multiplier Array"
           subtitle="Dedicated Hardware DSP48E1 / Logic Multiplier"
           detail="Inputs: mult_reg_a[32:0] × mult_reg_b[32:0]&#10;Signed multiplication yielding 66-bit signed result&#10;Decomposed into partial products:&#10;PP0[49:0] = reg_a[16:0] × reg_b[16:0]&#10;PP1[49:0] = reg_a[32:17] × reg_b[16:0]&#10;PP2[49:0] = reg_a[16:0] × reg_b[32:17]"
           isNew
@@ -93,29 +93,29 @@ export default function Slide3_Multiplier() {
         {/* Multiplier Partial Product Slice Registers */}
         <ModuleBox
           x={450}
-          y={270}
+          y={265}
           w={410}
-          h={160}
-          title="Partial Product Accumulator (Clock 2 ▲)"
-          subtitle="mult_cnt == 0"
-          detail="Pipelined intermediate partial product registers&#10;mult_prod_r2[65:0] <= mult_reg_a * mult_reg_b&#10;mult_op_r2[2:0]   <= mult_op_r1&#10;mult_cnt          <= 2'd1&#10;Preserves critical path slack (+0.420 ns @ 100 MHz)"
+          h={165}
+          title="Partial Product Accumulator"
+          subtitle="mult_cnt == 0 (Clock 2 ▲)"
+          detail="Pipelined intermediate partial product registers&#10;mult_prod_r2[65:0] <= mult_reg_a * mult_reg_b&#10;mult_op_r2[2:0]   <= mult_op_r1&#10;mult_cnt          <= 2'd1&#10;Positive timing slack: +0.420 ns @ 100 MHz"
           isNew
           tag="CYCLE 2 REG"
         />
 
         <ModuleBox
           x={450}
-          y={460}
+          y={455}
           w={410}
-          h={210}
+          h={220}
           title="Multiplier Cycle Counter &amp; Control"
           subtitle="mult_cnt[1:0] FSM-Free Sequencer"
-          detail="mult_cnt == 0: Capture 66-bit product&#10;mult_cnt == 1: Latch result into result_reg&#10;mult_cnt == 2: Assert done strobe&#10;busy = (state == STATE_MULT)&#10;Generates m_stalling to freeze IF and EX stages"
+          detail="mult_cnt == 0: Capture 66-bit product&#10;mult_cnt == 1: Latch result into result_reg&#10;mult_cnt == 2: Assert done strobe&#10;busy = (state == STATE_MULT)&#10;Asserts m_stalling to freeze IF and EX stages"
           tag="TIMING LOGIC"
         />
 
         <SignalWire d="M390,540 H448" color="navy" label="reg_a, reg_b [32:0]" lx={420} ly={526} width={2.4} />
-        <SignalWire d="M655,240 V268" color="navy" label="66-bit partial sum" lx={655} ly={254} width={2.4} />
+        <SignalWire d="M655,240 V263" color="navy" label="66-bit partial sum" lx={655} ly={252} width={2.4} />
 
         {/* ════════════════════════════════════════════════════════════════════
             CYCLE 3: 66-BIT PRODUCT LATCH & RESULT SELECTION (CYCLE 3)
@@ -161,12 +161,12 @@ export default function Slide3_Multiplier() {
         {/* Selection Decode */}
         <ModuleBox
           x={920}
-          y={460}
+          y={455}
           w={390}
-          h={210}
+          h={220}
           title="Operation Formatter Selector"
           subtitle="mult_op_r2 Encoding (Clock 3 ▲)"
-          detail="F3_MUL    (3'b000) → mult_prod_r2[31:0]&#10;F3_MULH   (3'b001) → mult_prod_r2[63:32]&#10;F3_MULHSU (3'b010) → mult_prod_r2[63:32]&#10;F3_MULHU  (3'b011) → mult_prod_r2[63:32]&#10;&#10;asserts is_mul = (mult_op_r2 == F3_MUL)&#10;Presents formatted 32-bit word to Output Reg"
+          detail="F3_MUL    (3'b000) → mult_prod_r2[31:0]&#10;F3_MULH   (3'b001) → mult_prod_r2[63:32]&#10;F3_MULHSU (3'b010) → mult_prod_r2[63:32]&#10;F3_MULHU  (3'b011) → mult_prod_r2[63:32]&#10;is_mul = (mult_op_r2 == F3_MUL)&#10;Presents formatted 32-bit word to Output Reg"
           tag="SELECTOR"
         />
 
@@ -192,12 +192,12 @@ export default function Slide3_Multiplier() {
         {/* Architectural Result Register */}
         <ModuleBox
           x={1370}
-          y={100}
+          y={90}
           w={350}
-          h={150}
+          h={160}
           title="Architectural Result Register"
           subtitle="result_reg[31:0] (Clock 4 ▲)"
-          detail="Captures output of Formatting MUX&#10;result_reg <= (is_mul) ? prod[31:0] : prod[63:32]&#10;Held stable during pipeline acceptance&#10;Connects directly to EX Stage ex_result MUX"
+          detail="Captures output of Formatting MUX&#10;result_reg <= (is_mul) ? prod[31:0] : prod[63:32]&#10;Held stable during pipeline acceptance&#10;Feeds EX stage ex_result MUX"
           isNew
           tag="FINAL REG"
         />
@@ -205,12 +205,12 @@ export default function Slide3_Multiplier() {
         {/* Handshake Signals */}
         <ModuleBox
           x={1370}
-          y={290}
+          y={280}
           w={350}
-          h={180}
+          h={190}
           title="Pipeline Handshake &amp; Stall Release"
           subtitle="Handshake Ports"
-          detail="done = 1'b1 (Asserted on Cycle 4)&#10;busy = 1'b0 (Released)&#10;m_stalling deasserts → stall_pipeline = 0&#10;CPU pipeline captures result_reg into EX/WB register&#10;Unit returns to IDLE state"
+          detail="done = 1'b1 (Asserted on Cycle 4)&#10;busy = 1'b0 (Released)&#10;m_stalling deasserts → stall_pipeline = 0&#10;CPU captures result_reg into EX/WB register&#10;Unit returns to IDLE state"
           isNew
           tag="HANDSHAKE"
         />
@@ -218,9 +218,9 @@ export default function Slide3_Multiplier() {
         {/* Verilog Code Mapping Card */}
         <ModuleBox
           x={1370}
-          y={500}
+          y={495}
           w={350}
-          h={170}
+          h={180}
           title="Verilog RTL Correspondence"
           subtitle="rtl/cpu/core/rv32m_unit.v"
           detail="Lines 42–46: ext_a, ext_b sign-ext MUXes&#10;Lines 49–51: mult_reg_a, mult_reg_b latches&#10;Line 176: mult_prod_r2 <= reg_a * reg_b&#10;Line 181: result_reg <= is_mul ? [31:0] : [63:32]&#10;Line 210: assign result = result_reg"
@@ -228,7 +228,7 @@ export default function Slide3_Multiplier() {
         />
 
         <SignalWire d="M1116,370 H1368" color="navy" label="formatted[31:0]" lx={1240} ly={356} width={2.4} />
-        <SignalWire d="M1545,250 V288" color="ok" label="done = 1'b1" lx={1545} ly={270} width={2.2} />
+        <SignalWire d="M1545,250 V278" color="ok" label="done = 1'b1" lx={1545} ly={264} width={2.2} />
       </svg>
     </div>
   )
