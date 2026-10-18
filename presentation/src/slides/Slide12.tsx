@@ -27,7 +27,7 @@ function Note({ label, children, d }: { label: string; children: ReactNode; d: n
   return (
     <div className="rise" style={delay(d)}>
       <div className="label">{label}</div>
-      <p style={{ font: '400 25px/1.3 var(--font)', marginTop: 4 }}>{children}</p>
+      <p style={{ font: '400 20px/1.3 var(--font)', marginTop: 4 }}>{children}</p>
     </div>
   )
 }
@@ -104,19 +104,19 @@ export default function Slide12() {
             { op: 'REM / REMU', res: 'return remainder register' },
           ].map((r, i) => (
             <g key={r.op}>
-              <line x1={0} y1={338 + i * 50} x2={580} y2={338 + i * 50} stroke="#e2e8f0" strokeWidth={1} />
-              <text x={0} y={326 + i * 50} style={{ font: '700 21px var(--mono)', fill: 'var(--ink)' }}>{r.op}</text>
-              <text x={230} y={326 + i * 50} style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{r.res}</text>
+              <line x1={0} y1={336 + i * 44} x2={580} y2={336 + i * 44} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={0} y={326 + i * 44} style={{ font: '700 20px var(--mono)', fill: 'var(--ink)' }}>{r.op}</text>
+              <text x={230} y={326 + i * 44} style={{ font: '400 20px var(--font)', fill: 'var(--ink-2)' }}>{r.res}</text>
             </g>
           ))}
         </g>
 
         {/* ── Hardware architecture ─────────────────────────────────── */}
         <g className="rise" style={delay(0.3)}>
-          <text x={0} y={548} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+          <text x={0} y={512} style={{ font: '600 19px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
             HARDWARE ARCHITECTURE
           </text>
-          <line x1={0} y1={558} x2={580} y2={558} stroke="var(--line)" strokeWidth={1.5} />
+          <line x1={0} y1={522} x2={580} y2={522} stroke="var(--line)" strokeWidth={1.5} />
           {[
             '32-bit shift register — partial remainder',
             '33-bit quotient accumulator (LSB → MSB)',
@@ -124,8 +124,8 @@ export default function Slide12() {
             'Signed fixup: 2\'s complement pre-negation',
             'Skid buffer holds next decoded instruction',
           ].map((l, i) => (
-            <text key={i} x={0} y={584 + i * 30}
-              style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
+            <text key={i} x={0} y={544 + i * 20}
+              style={{ font: '400 16px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
           ))}
         </g>
 
@@ -252,8 +252,8 @@ export default function Slide12() {
         </g>
       </svg>
 
-      {/* ── Control buttons ───────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', left: 746, top: 254, display: 'flex', gap: 10, alignItems: 'center' }}>
+      {/* ── Control buttons — top-right above the progress bar ────────── */}
+      <div style={{ position: 'absolute', right: 96, top: 160, display: 'flex', gap: 10, alignItems: 'center' }}>
         <button onClick={reset}
           style={{ display:'flex', alignItems:'center', gap:5, font:'600 14px var(--mono)', color:'var(--ink-2)',
             background:'white', border:'1.5px solid #c4c4c0', borderRadius:3, padding:'5px 12px', cursor:'pointer' }}>
@@ -272,10 +272,10 @@ export default function Slide12() {
         </button>
       </div>
 
-      <div style={{ position:'absolute', left:96, right:96, top:890, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:48 }}>
-        <Note label="Algorithm" d={1.0}>Radix-2 non-restoring: shift partial remainder left, test against divisor, accumulate quotient bit. 32 iterations for a 32-bit dividend.</Note>
-        <Note label="Hardware" d={1.1}>32-bit shift register for partial remainder. State counter 0..32 drives the FSM. Signed fixup via 2's complement pre-negation.</Note>
-        <Note label="Pipeline cost" d={1.2}>33-cycle stall held by m_busy. Skid buffer preserves the next decoded instruction — no fetch is lost. All four DIV/REM opcodes reuse the same unit.</Note>
+      <div style={{ position:'absolute', left:96, right:96, top:874, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:36 }}>
+        <Note label="Algorithm" d={1.0}>Radix-2 non-restoring: shift partial remainder, test against divisor, accumulate quotient bit. 32 iterations per 32-bit dividend.</Note>
+        <Note label="Hardware" d={1.1}>32-bit shift register for partial remainder. State counter 0–32 drives FSM. Signed fixup via 2's-complement pre-negation.</Note>
+        <Note label="Pipeline cost" d={1.2}>33-cycle stall (m_busy HIGH). Skid buffer holds decoded next instruction — no fetch lost. All four DIV/REM opcodes share this unit.</Note>
       </div>
     </Frame>
   )
