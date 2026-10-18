@@ -157,9 +157,10 @@ export default function Slide10() {
         </g>
 
         {/* Animated search token traces EXACTLY along the arrow shafts and through active cells */}
-        <circle r={6.5} fill="var(--navy)">
+        <circle r={6.5} fill="var(--navy)" opacity={0}>
           <animateMotion dur="3.4s" begin="0.8s" repeatCount="indefinite"
             path="M58,88 V118 H322 V156 V196 V224 H178 V256 V296 V324 H368 V352" />
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="3.4s" begin="0.8s" repeatCount="indefinite" />
         </circle>
 
         {/* ── RIGHT: complexity comparison (cleanly placed at x=1060) ─── */}

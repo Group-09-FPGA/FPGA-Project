@@ -96,12 +96,14 @@ export default function Slide2() {
 
         {/* data tokens */}
         {gaps.map((x, i) => (
-          <circle key={x} r={7} cy={505} fill="var(--navy)">
+          <circle key={x} r={7} cx={x} cy={505} fill="var(--navy)" opacity={0}>
             <animate attributeName="cx" from={x} to={x + 56} dur="1.4s" begin={`${1.6 + i * 0.35}s`} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.4s" begin={`${1.6 + i * 0.35}s`} repeatCount="indefinite" />
           </circle>
         ))}
-        <circle r={7} fill="var(--ink)">
+        <circle r={7} fill="var(--ink)" opacity={0}>
           <animateMotion dur="3.2s" begin="2s" repeatCount="indefinite" path="M1680,440 V330 H500 V250" />
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="3.2s" begin="2s" repeatCount="indefinite" />
         </circle>
 
         <text x={1700} y={410} textAnchor="end" style={{ font: '500 20px var(--mono)', fill: 'var(--ink-2)' }}>BBO read ↑</text>
