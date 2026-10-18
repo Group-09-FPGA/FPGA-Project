@@ -39,27 +39,25 @@ echo " Project: FPGA Limit Order Book (RV32IM + Artix-7 LOB Accelerator)"
 echo "======================================================================"
 
 # 1. Canonical Event Decoder Unit Test
-run_test "LOB Event Decoder (tb_lob_event_decoder.sv)" \
+run_test "LOB Event Decoder (tb_lob_event_decoder.v)" \
     "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
-     ${PROJECT_ROOT}/rtl/lob/lob_pkg.sv \
-     ${PROJECT_ROOT}/rtl/lob/lob_event_decoder.sv \
-     ${PROJECT_ROOT}/sim/unit/lob/tb_lob_event_decoder.sv \
+     ${PROJECT_ROOT}/rtl/lob/lob_event_decoder.v \
+     ${PROJECT_ROOT}/sim/unit/lob/tb_lob_event_decoder.v \
      -o ${BUILD_DIR}/tb_event_decoder.vvp" \
     "vvp ${BUILD_DIR}/tb_event_decoder.vvp"
 
 # 2. LOB Free List Stack Unit Test
-run_test "LOB Free List Stack Allocator (tb_lob_free_list.sv)" \
+run_test "LOB Free List Stack Allocator (tb_lob_free_list.v)" \
     "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
-     ${PROJECT_ROOT}/rtl/lob/lob_pkg.sv \
-     ${PROJECT_ROOT}/rtl/lob/lob_free_list.sv \
-     ${PROJECT_ROOT}/sim/unit/lob/tb_lob_free_list.sv \
+     ${PROJECT_ROOT}/rtl/lob/lob_free_list.v \
+     ${PROJECT_ROOT}/sim/unit/lob/tb_lob_free_list.v \
      -o ${BUILD_DIR}/tb_free_list.vvp" \
     "vvp ${BUILD_DIR}/tb_free_list.vvp"
 
 # 3. Ethernet 100M RMII Receiver & CRC-32 Unit Test
 run_test "Ethernet RMII Receiver (tb_rmii_rx.sv)" \
     "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/ethernet \
-     ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.sv \
+     ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v \
      ${PROJECT_ROOT}/sim/unit/tb_rmii_rx.sv \
      -o ${BUILD_DIR}/tb_rmii.vvp" \
     "vvp ${BUILD_DIR}/tb_rmii.vvp"

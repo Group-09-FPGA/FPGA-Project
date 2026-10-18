@@ -1,32 +1,32 @@
 // =============================================================================
-// File: tb_lob_free_list.sv
-// Description: Unit testbench for LIFO free list allocator
+// File: tb_lob_free_list.v
+// Description: Unit testbench for LIFO free list allocator (Verilog-2001)
 // =============================================================================
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module tb_lob_free_list;
 
-    logic        clk;
-    logic        rst_n;
-    logic        init_start;
-    logic        init_busy;
-    logic        init_done;
+    reg         clk;
+    reg         rst_n;
+    reg         init_start;
+    wire        init_busy;
+    wire        init_done;
 
-    logic        rd_top_en;
-    logic [10:0] top_slot;
-    logic        top_valid;
-    logic        pop_commit;
+    reg         rd_top_en;
+    wire [10:0] top_slot;
+    wire        top_valid;
+    reg         pop_commit;
 
-    logic        push_en;
-    logic [10:0] push_slot;
+    reg         push_en;
+    reg  [10:0] push_slot;
 
-    logic        empty;
-    logic        full;
-    logic [11:0] free_count;
-    logic [11:0] active_count;
+    wire        empty;
+    wire        full;
+    wire [11:0] free_count;
+    wire [11:0] active_count;
 
     lob_free_list dut (
         .clk(clk),
@@ -48,16 +48,20 @@ module tb_lob_free_list;
 
     always #5 clk = ~clk;
 
-    int test_count = 0;
-    int pass_count = 0;
+    integer test_count;
+    integer pass_count;
 
-    task check(input string test_name, input logic cond);
-        test_count++;
-        if (cond) begin
-            pass_count++;
-            $display("[PASS] %s", test_name);
-        end else begin
-            $display("[FAIL] %s", test_name);
+    task check;
+        input [511:0] test_name;
+        input cond;
+        begin
+            test_count = test_count + 1;
+            if (cond) begin
+                pass_count = pass_count + 1;
+                $display("[PASS] %0s", test_name);
+            end else begin
+                $display("[FAIL] %0s", test_name);
+            end
         end
     endtask
 
@@ -69,6 +73,8 @@ module tb_lob_free_list;
         pop_commit = 0;
         push_en = 0;
         push_slot = 0;
+        test_count = 0;
+        pass_count = 0;
 
         $display("=== Starting tb_lob_free_list ===");
         #20 rst_n = 1;
@@ -80,26 +86,26 @@ module tb_lob_free_list;
         wait(init_done == 1);
         #10;
         check("Free list initialized (full=1, free_count=2048, active_count=0)",
-              full == 1 && free_count == 12'd2048 && active_count == 12'd0);
+              (full == 1) && (free_count == 12'd2048) && (active_count == 12'd0));
 
         // Test 2: Prefetch top slot (sp-1 = 2047)
         rd_top_en = 1;
         #10;
         rd_top_en = 0;
-        check("Top slot is 2047 with top_valid=1", top_valid == 1 && top_slot == 11'd2047);
+        check("Top slot is 2047 with top_valid=1", (top_valid == 1) && (top_slot == 11'd2047));
 
         // Test 3: Commit pop
         pop_commit = 1;
         #10;
         pop_commit = 0;
         check("After pop_commit: free_count=2047, active_count=1",
-              free_count == 12'd2047 && active_count == 12'd1);
+              (free_count == 12'd2047) && (active_count == 12'd1));
 
         // Test 4: Prefetch next top slot (2046)
         rd_top_en = 1;
         #10;
         rd_top_en = 0;
-        check("Next top slot is 2046", top_valid == 1 && top_slot == 11'd2046);
+        check("Next top slot is 2046", (top_valid == 1) && (top_slot == 11'd2046));
 
         // Test 5: Reclaim (push) slot 2047 back
         push_en = 1;
@@ -107,16 +113,19 @@ module tb_lob_free_list;
         #10;
         push_en = 0;
         check("After push: free_count=2048, full=1",
-              free_count == 12'd2048 && full == 1);
+              (free_count == 12'd2048) && (full == 1));
 
         // Read top again to verify pushed value is now at top
         rd_top_en = 1;
         #10;
         rd_top_en = 0;
-        check("Pushed slot 2047 is back at top", top_valid == 1 && top_slot == 11'd2047);
+        check("Pushed slot 2047 is back at top", (top_valid == 1) && (top_slot == 11'd2047));
 
         $display("tb_lob_free_list: %0d / %0d passed.", pass_count, test_count);
-        if (pass_count != test_count) $fatal(1, "Test failures detected!");
+        if (pass_count != test_count) begin
+            $display("Test failures detected!");
+            $finish(1);
+        end
         $finish;
     end
 

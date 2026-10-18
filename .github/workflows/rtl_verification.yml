@@ -22,30 +22,29 @@ jobs:
 
       - name: Run Verilator Static Analysis & Lint
         run: |
-          echo ">>> Linting SystemVerilog SoC RTL with Verilator..."
-          verilator --lint-only -sv -DSIMULATION \
+          echo ">>> Linting Verilog-2001 SoC RTL with Verilator..."
+          verilator --lint-only -DSIMULATION \
             -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-TIMESCALEMOD -Wno-PINMISSING \
             -Wno-CASEINCOMPLETE -Wno-MULTIDRIVEN -Wno-UNUSEDSIGNAL \
             -Irtl/cpu/core -Irtl/lob -Irtl/common -Irtl/clocking -Irtl/ethernet \
             -Irtl/network -Irtl/itch -Irtl/display -Irtl/telemetry -Irtl/bus -Irtl/top \
-            rtl/lob/lob_pkg.sv \
-            rtl/lob/lob_event_decoder.sv \
-            rtl/lob/lob_slot_table.sv \
-            rtl/lob/lob_free_list.sv \
-            rtl/lob/lob_hash_table.sv \
-            rtl/lob/lob_price_ram.sv \
-            rtl/lob/lob_occupancy.sv \
-            rtl/lob/lob_bbo.sv \
-            rtl/lob/lob_core.sv \
-            rtl/bus/lob_mmio_slave.sv \
-            rtl/common/async_event_fifo.sv \
-            rtl/clocking/clk_rst_mgr.sv \
-            rtl/ethernet/rmii_rx.sv \
-            rtl/network/net_parser.sv \
-            rtl/network/moldudp64_decoder.sv \
-            rtl/itch/itch_decoder.sv \
-            rtl/display/vga_top.sv \
-            rtl/telemetry/uart_telemetry.sv \
+            rtl/lob/lob_event_decoder.v \
+            rtl/lob/lob_slot_table.v \
+            rtl/lob/lob_free_list.v \
+            rtl/lob/lob_hash_table.v \
+            rtl/lob/lob_price_ram.v \
+            rtl/lob/lob_occupancy.v \
+            rtl/lob/lob_bbo.v \
+            rtl/lob/lob_core.v \
+            rtl/bus/lob_mmio_slave.v \
+            rtl/common/async_event_fifo.v \
+            rtl/clocking/clk_rst_mgr.v \
+            rtl/ethernet/rmii_rx.v \
+            rtl/network/net_parser.v \
+            rtl/network/moldudp64_decoder.v \
+            rtl/itch/itch_decoder.v \
+            rtl/display/vga_top.v \
+            rtl/telemetry/uart_telemetry.v \
             rtl/cpu/core/decoder.v \
             rtl/cpu/core/alu.v \
             rtl/cpu/core/branch_unit.v \
@@ -59,7 +58,7 @@ jobs:
             rtl/cpu/core/imem_slave.v \
             rtl/cpu/core/dmem_slave.v \
             rtl/cpu/core/seven_seg_driver.v \
-            rtl/top/top_system.sv
+            rtl/top/top_system.v
           echo ">>> Verilator lint clean: 0 syntax or elaboration errors."
 
       - name: Publish Lint Summary
@@ -97,5 +96,5 @@ jobs:
           echo "| :--- | :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| \`tb_cpu_core.v\` | RV32IM 3-Stage Pipeline | RAW Forwarding, Branch Hazard Flush, RV32M MUL/DIV | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| \`tb_rmii_rx.sv\` | 100M RMII Ethernet RX | 50 MHz Dibit Capture, CRC-32 Check, Runt Rejection | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`tb_lob_event_decoder.sv\` | Ingestion Pipeline | 256-bit Canonical Event Format Validation | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`tb_lob_free_list.sv\` | LOB Core Memory | 2048-Slot O(1) Push/Pop Allocation Stack | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`tb_lob_event_decoder.v\` | Ingestion Pipeline | 256-bit Canonical Event Format Validation | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`tb_lob_free_list.v\` | LOB Core Memory | 2048-Slot O(1) Push/Pop Allocation Stack | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
