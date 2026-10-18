@@ -8,13 +8,13 @@ function Box({ x, y, w, h, t, s, isNew, d = 0 }: BoxProps) {
   const cy = y + h / 2
   return (
     <g className="rise" style={delay(d)}>
-      <rect x={x} y={y} width={w} height={h}
+      <rect x={x} y={y} width={w} height={h} rx={3}
         fill={isNew ? '#e3e4f4' : 'rgba(255,255,255,.55)'}
         stroke={stroke} strokeWidth={isNew ? 2.6 : 1.6} />
-      <text x={x + w / 2} y={s ? cy - 4 : cy + 8} textAnchor="middle"
-        style={{ font: '600 24px var(--font)', fill: isNew ? '#101234' : 'var(--ink-2)' }}>{t}</text>
-      {s && <text x={x + w / 2} y={cy + 22} textAnchor="middle"
-        style={{ font: '400 19px var(--font)', fill: 'var(--ink-2)' }}>{s}</text>}
+      <text x={x + w / 2} y={s ? cy - 6 : cy + 7} textAnchor="middle"
+        style={{ font: '600 22px var(--font)', fill: isNew ? '#101234' : 'var(--ink-2)' }}>{t}</text>
+      {s && <text x={x + w / 2} y={cy + 18} textAnchor="middle"
+        style={{ font: '500 13.5px var(--mono)', fill: 'var(--ink-2)' }}>{s}</text>}
     </g>
   )
 }
@@ -45,17 +45,17 @@ function Note({ label, children, d }: { label: string; children: ReactNode; d: n
 }
 
 export default function Slide9() {
-  // vertical chain positions
-  const BW = 240, BH = 90, BX = 60, GAP = 20
-  const BY = [30, 140, 250, 360, 470, 580, 690]
+  // vertical chain positions: widened to 330px with ample margins
+  const BW = 330, BH = 86, BX = 30
+  const BY = [20, 118, 216, 314, 412, 510, 608]
   const LABELS = [
-    { t: 'Hash table',     s: '1024 × 8-way + 8 stash · O(1) OID→slot',   isNew: true },
-    { t: 'Slot table',     s: '2048 entries · {side, pidx, qty} BRAM',      isNew: true },
-    { t: 'Free list',      s: 'LIFO stack · 0..2047 pre-initialized',       isNew: true },
-    { t: 'Price RAM',      s: 'Bid + Ask banks · 8192 levels × {qty, cnt}', isNew: true },
-    { t: 'Occupancy',      s: 'L0/L1/L2 bitmaps · 8192 price ticks',        isNew: true },
-    { t: 'BBO engine',     s: 'DSP48 · price = base + pidx × tick',          isNew: true },
-    { t: 'MMIO regs',      s: '0x4000_0000 · snapshot on CPU read',          isNew: true },
+    { t: 'Hash table',     s: '1024 × 8-way · 8 CAM stash',       isNew: true },
+    { t: 'Slot table',     s: '2048 entries · {side, pidx, qty}', isNew: true },
+    { t: 'Free list',      s: 'LIFO stack · 0..2047 indices',     isNew: true },
+    { t: 'Price RAM',      s: 'Bid + Ask banks · 8192 levels',    isNew: true },
+    { t: 'Occupancy',      s: 'L0/L1/L2 hierarchical bitmaps',    isNew: true },
+    { t: 'BBO engine',     s: 'DSP48 · base + pidx × tick',       isNew: true },
+    { t: 'MMIO regs',      s: '0x4000_0000 · coherent snapshot',  isNew: true },
   ]
 
   return (
@@ -73,8 +73,8 @@ export default function Slide9() {
 
         {/* Event-in arrow at the top */}
         <g className="rise" style={delay(0.1)}>
-          <line x1={BX + BW / 2} y1={0} x2={BX + BW / 2} y2={28} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
-          <text x={BX + BW / 2 + 12} y={18} style={{ font: '500 19px var(--mono)', fill: 'var(--ink-2)' }}>256-bit event in</text>
+          <line x1={BX + BW / 2} y1={-6} x2={BX + BW / 2} y2={18} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
+          <text x={BX + BW / 2 + 14} y={10} style={{ font: '500 16px var(--mono)', fill: 'var(--ink-2)' }}>256-bit event in</text>
         </g>
 
         {/* Vertical chain */}
@@ -87,26 +87,31 @@ export default function Slide9() {
           <Arrow key={i} isNew d={`M${BX + BW / 2},${BY[i] + BH} V${BY[i + 1] - 2}`} />
         ))}
 
-        {/* MMIO output arrow to CPU */}
+        {/* MMIO output arrow + CPU bus target badge (clean, completely isolated from right column) */}
         <g className="rise" style={delay(1.1)}>
-          <line x1={BX + BW} y1={BY[6] + BH / 2} x2={BX + BW + 100} y2={BY[6] + BH / 2} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
-          <text x={BX + BW + 108} y={BY[6] + BH / 2 + 6} style={{ font: '500 19px var(--mono)', fill: 'var(--ink-2)' }}>CPU reads BBO via MMIO</text>
+          <line x1={BX + BW} y1={BY[6] + BH / 2} x2={BX + BW + 42} y2={BY[6] + BH / 2} stroke="var(--navy)" strokeWidth={2.4} markerEnd="url(#ah9n)" />
+          <rect x={BX + BW + 46} y={BY[6] + 10} width={210} height={66} rx={4}
+            fill="#e3e4f4" stroke="var(--navy)" strokeWidth={1.8} />
+          <text x={BX + BW + 46 + 105} y={BY[6] + 37} textAnchor="middle"
+            style={{ font: '700 13px var(--mono)', fill: '#101234' }}>CPU reads BBO via MMIO</text>
+          <text x={BX + BW + 46 + 105} y={BY[6] + 59} textAnchor="middle"
+            style={{ font: '500 11.5px var(--mono)', fill: 'var(--ink-2)' }}>0x4000_0000 · Bus Arbiter</text>
         </g>
 
         {/* Animated token flowing down the chain */}
-        <circle r={7} fill="var(--navy)">
+        <circle r={6} fill="var(--navy)">
           <animateMotion dur="3.5s" begin="1.5s" repeatCount="indefinite"
             path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
         </circle>
-        <circle r={7} fill="var(--navy)" opacity={0.45}>
+        <circle r={6} fill="var(--navy)" opacity={0.45}>
           <animateMotion dur="3.5s" begin="3s" repeatCount="indefinite"
             path={`M${BX + BW / 2},${BY[0]} V${BY[6] + BH}`} />
         </circle>
 
-        {/* ── RIGHT: FSM states and latency table ───────────────────── */}
+        {/* ── RIGHT: FSM states and latency table (comfortably placed at x=640) ──── */}
         <g className="rise" style={delay(0.6)}>
           {/* ADD flow */}
-          <text x={420} y={50} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+          <text x={640} y={40} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
             ADD ORDER FLOW
           </text>
           {[
@@ -116,12 +121,12 @@ export default function Slide9() {
             'C4-C5: read Price RAM → add qty → writeback',
             'C6: set occupancy bit → check BBO update',
           ].map((l, i) => (
-            <text key={i} x={420} y={78 + i * 34} style={{ font: '400 22px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
+            <text key={i} x={640} y={68 + i * 32} style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
           ))}
         </g>
 
         <g className="rise" style={delay(0.75)}>
-          <text x={420} y={270} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+          <text x={640} y={248} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
             EXECUTE / CANCEL / REPLACE
           </text>
           {[
@@ -130,16 +135,16 @@ export default function Slide9() {
             'If qty=0 → clear occupancy bit → push slot to free list',
             'Trigger BBO re-search if depleted level was best price',
           ].map((l, i) => (
-            <text key={i} x={420} y={298 + i * 34} style={{ font: '400 22px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
+            <text key={i} x={640} y={276 + i * 32} style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{l}</text>
           ))}
         </g>
 
         {/* Latency table */}
         <g className="rise" style={delay(0.9)}>
-          <text x={420} y={470} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+          <text x={640} y={438} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
             DETERMINISTIC LATENCY
           </text>
-          <line x1={420} y1={480} x2={1720} y2={480} stroke="var(--line)" strokeWidth={1.5} />
+          <line x1={640} y1={448} x2={1720} y2={448} stroke="var(--line)" strokeWidth={1.5} />
           {[
             { op: 'ADD',       lat: '6 cycles',    ns: '60 ns  @ 100 MHz' },
             { op: 'EXECUTE',   lat: '8–10 cycles',  ns: '80–100 ns' },
@@ -147,20 +152,20 @@ export default function Slide9() {
             { op: 'REPLACE',   lat: '12 cycles',    ns: '120 ns' },
           ].map((r, i) => (
             <g key={r.op}>
-              <line x1={420} y1={544 + i * 56} x2={1720} y2={544 + i * 56} stroke="#e2e8f0" strokeWidth={1} />
-              <text x={430} y={530 + i * 56} style={{ font: '700 24px var(--mono)', fill: 'var(--navy)' }}>{r.op}</text>
-              <text x={680} y={530 + i * 56} style={{ font: '400 24px var(--font)', fill: 'var(--ink)' }}>{r.lat}</text>
-              <text x={1000} y={530 + i * 56} style={{ font: '500 22px var(--mono)', fill: 'var(--ink-2)' }}>{r.ns}</text>
+              <line x1={640} y1={508 + i * 50} x2={1720} y2={508 + i * 50} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={650} y={495 + i * 50} style={{ font: '700 22px var(--mono)', fill: 'var(--navy)' }}>{r.op}</text>
+              <text x={900} y={495 + i * 50} style={{ font: '400 22px var(--font)', fill: 'var(--ink)' }}>{r.lat}</text>
+              <text x={1220} y={495 + i * 50} style={{ font: '500 20px var(--mono)', fill: 'var(--ink-2)' }}>{r.ns}</text>
             </g>
           ))}
         </g>
 
         {/* Resource numbers */}
         <g className="rise" style={delay(1.05)}>
-          <text x={420} y={726} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
+          <text x={640} y={670} style={{ font: '600 20px var(--mono)', fill: 'var(--navy)', letterSpacing: '.08em' }}>
             ARTIX-7 RESOURCES
           </text>
-          <line x1={420} y1={736} x2={1720} y2={736} stroke="var(--line)" strokeWidth={1.5} />
+          <line x1={640} y1={680} x2={1720} y2={680} stroke="var(--line)" strokeWidth={1.5} />
           {[
             { r: '37 BRAM (36Kb)', p: '27.4%' },
             { r: '18 DSP48E1', p: '7.5%' },
@@ -168,8 +173,8 @@ export default function Slide9() {
             { r: '35,347 Registers', p: '27.9%' },
           ].map((r, i) => (
             <g key={r.r}>
-              <text x={420 + i * 340} y={770} style={{ font: '700 28px var(--mono)', fill: 'var(--ink)' }}>{r.p}</text>
-              <text x={420 + i * 340} y={800} style={{ font: '400 21px var(--font)', fill: 'var(--ink-2)' }}>{r.r}</text>
+              <text x={640 + i * 270} y={714} style={{ font: '700 26px var(--mono)', fill: 'var(--ink)' }}>{r.p}</text>
+              <text x={640 + i * 270} y={742} style={{ font: '400 19px var(--font)', fill: 'var(--ink-2)' }}>{r.r}</text>
             </g>
           ))}
         </g>

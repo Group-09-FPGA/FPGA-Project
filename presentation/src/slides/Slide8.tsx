@@ -111,10 +111,17 @@ export default function Slide8() {
         <Arrow isNew d="M1200,96 H1288" />
         <Arrow isNew d="M1590,96 H1660" />
 
-        {/* ── Animated token ──────────────────────────────────────── */}
-        {[168, 432, 712, 1040, 1370].map((x, i) => (
-          <circle key={x} r={7} cy={96} fill={i >= 3 ? 'var(--navy)' : 'var(--ink-2)'}>
-            <animate attributeName="cx" from={x} to={x + 60} dur="1.3s" begin={`${1.4 + i * 0.26}s`} repeatCount="indefinite" />
+        {/* ── Animated token running exclusively on arrow shafts ──── */}
+        {[
+          { from: 246, to: 300, isNew: false },
+          { from: 526, to: 636, isNew: false },
+          { from: 882, to: 956, isNew: false },
+          { from: 1202, to: 1286, isNew: true },
+          { from: 1592, to: 1658, isNew: true },
+        ].map((seg, i) => (
+          <circle key={seg.from} r={6} cy={96} fill={seg.isNew ? 'var(--navy)' : 'var(--ink-2)'}>
+            <animate attributeName="cx" from={seg.from} to={seg.to} dur="1.1s" begin={`${1.0 + i * 0.22}s`} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="1.1s" begin={`${1.0 + i * 0.22}s`} repeatCount="indefinite" />
           </circle>
         ))}
 
@@ -178,8 +185,8 @@ export default function Slide8() {
         </g>
       </svg>
 
-      {/* ── Bottom notes ─────────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', left: 96, right: 96, top: 890, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48 }}>
+      {/* ── Bottom notes moved comfortably above the footer ────────── */}
+      <div style={{ position: 'absolute', left: 96, right: 96, top: 670, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48 }}>
         <Note label="Protocol stack" d={1.0}>
           Preamble + SFD stripped by RMII RX. Eth/IPv4/UDP validated by net_parser. MoldUDP64 extracts ITCH frame boundaries.
         </Note>
