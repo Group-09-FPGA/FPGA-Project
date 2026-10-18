@@ -1,5 +1,5 @@
 // =============================================================================
-// File: tb_system_top.sv
+// File: tb_system_top.v
 // Description: End-to-End Full System Integration Testbench
 //              Injects realistic RMII 100Mbps Ethernet frames containing:
 //              IPv4 -> UDP (10443) -> MoldUDP64 -> ITCH 5.0 (Add Orders)
@@ -7,11 +7,12 @@
 //              RMII MAC RX -> CRC32 FCS -> IP/UDP Parser -> MoldUDP64 ->
 //              ITCH Decoder -> Async FIFO CDC -> LOB Accelerator ->
 //              MMIO BBO Registers -> VGA Visualizer & UART Telemetry.
+// Target: IEEE 1364-2001 Pure Verilog
 // =============================================================================
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module tb_system_top;
 
@@ -77,99 +78,111 @@ module tb_system_top;
     );
 
     // -------------------------------------------------------------------------
+    // Packet Memory Buffers
+    // -------------------------------------------------------------------------
+    reg [7:0] pkt [0:511];
+    reg [7:0] frame_bytes [0:511];
+    integer   pkt_len;
+    integer   test_errors;
+    integer   timeout;
+
+    // -------------------------------------------------------------------------
     // IEEE 802.3 CRC32 Calculation
     // -------------------------------------------------------------------------
-    function automatic [31:0] calc_crc32(input byte data[], input int len);
-        logic [31:0] crc;
-        logic [7:0]  b;
-        crc = 32'hFFFFFFFF;
-        for (int i = 0; i < len; i++) begin
-            b = data[i];
-            for (int bit_idx = 0; bit_idx < 8; bit_idx++) begin
-                if ((crc[0] ^ b[bit_idx]) == 1'b1)
-                    crc = (crc >> 1) ^ 32'hEDB88320;
-                else
-                    crc = (crc >> 1);
+    function [31:0] calc_crc32;
+        input integer len;
+        reg   [31:0] crc;
+        reg   [7:0]  b;
+        integer i, bit_idx;
+        begin
+            crc = 32'hFFFFFFFF;
+            for (i = 0; i < len; i = i + 1) begin
+                b = pkt[i];
+                for (bit_idx = 0; bit_idx < 8; bit_idx = bit_idx + 1) begin
+                    if ((crc[0] ^ b[bit_idx]) == 1'b1)
+                        crc = (crc >> 1) ^ 32'hEDB88320;
+                    else
+                        crc = (crc >> 1);
+                end
             end
+            calc_crc32 = ~crc;
         end
-        return ~crc;
     endfunction
 
     // -------------------------------------------------------------------------
     // RMII Frame Transmission Task (at 50 MHz eth_refclk)
     // -------------------------------------------------------------------------
-    task automatic send_rmii_packet(input byte payload[], input int len);
-        byte frame_bytes[];
-        int total_len;
-        bit [31:0] fcs;
+    task send_rmii_packet;
+        input integer len;
+        integer total_len;
+        reg [31:0] fcs;
+        integer i, p, d;
+        reg [7:0] cur_b;
+        begin
+            total_len = len + 4;
 
-        total_len = len + 4;
-        frame_bytes = new[total_len];
-
-        // Copy payload
-        for (int i = 0; i < len; i++) begin
-            frame_bytes[i] = payload[i];
-        end
-
-        // Calculate and append 32-bit FCS (CRC32 little-endian)
-        fcs = calc_crc32(payload, len);
-        frame_bytes[len + 0] = fcs[7:0];
-        frame_bytes[len + 1] = fcs[15:8];
-        frame_bytes[len + 2] = fcs[23:16];
-        frame_bytes[len + 3] = fcs[31:24];
-
-        $display("[TB_RMII] Transmitting %0d-byte Ethernet frame (Payload: %0d, FCS: 0x%08X)...",
-                 total_len, len, fcs);
-
-        // Wait for eth_refclk edge
-        @(posedge eth_refclk);
-        eth_crsdv <= 1'b0;
-        eth_rxerr <= 1'b0;
-        eth_rxd   <= 2'b00;
-
-        // Preamble: 7 bytes of 0x55 (28 dibits) + 1 byte SFD 0xD5 (4 dibits)
-        for (int p = 0; p < 7; p++) begin
-            for (int d = 0; d < 4; d++) begin
-                @(posedge eth_refclk);
-                eth_crsdv <= 1'b1;
-                eth_rxd   <= 2'b01; // 0x55 in dibits
+            // Copy payload
+            for (i = 0; i < len; i = i + 1) begin
+                frame_bytes[i] = pkt[i];
             end
+
+            // Calculate and append 32-bit FCS (CRC32 little-endian)
+            fcs = calc_crc32(len);
+            frame_bytes[len + 0] = fcs[7:0];
+            frame_bytes[len + 1] = fcs[15:8];
+            frame_bytes[len + 2] = fcs[23:16];
+            frame_bytes[len + 3] = fcs[31:24];
+
+            $display("[TB_RMII] Transmitting %0d-byte Ethernet frame (Payload: %0d, FCS: 0x%08X)...",
+                     total_len, len, fcs);
+
+            // Wait for eth_refclk edge
+            @(posedge eth_refclk);
+            eth_crsdv <= 1'b0;
+            eth_rxerr <= 1'b0;
+            eth_rxd   <= 2'b00;
+
+            // Preamble: 7 bytes of 0x55 (28 dibits) + 1 byte SFD 0xD5 (4 dibits)
+            for (p = 0; p < 7; p = p + 1) begin
+                for (d = 0; d < 4; d = d + 1) begin
+                    @(posedge eth_refclk);
+                    eth_crsdv <= 1'b1;
+                    eth_rxd   <= 2'b01; // 0x55 in dibits
+                end
+            end
+
+            // SFD (0xD5: dibits 01, 01, 01, 11)
+            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
+            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
+            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
+            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b11;
+
+            // Frame Data Bytes (LSB dibit first)
+            for (i = 0; i < total_len; i = i + 1) begin
+                cur_b = frame_bytes[i];
+                @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[1:0];
+                @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[3:2];
+                @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[5:4];
+                @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[7:6];
+            end
+
+            // End of Frame
+            @(posedge eth_refclk);
+            eth_crsdv <= 1'b0;
+            eth_rxd   <= 2'b00;
+            repeat (24) @(posedge eth_refclk); // Inter-packet gap
         end
-
-        // SFD (0xD5: dibits 01, 01, 01, 11)
-        @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
-        @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
-        @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b01;
-        @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= 2'b11;
-
-        // Frame Data Bytes (LSB dibit first)
-        for (int i = 0; i < total_len; i++) begin
-            byte cur_b = frame_bytes[i];
-            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[1:0];
-            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[3:2];
-            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[5:4];
-            @(posedge eth_refclk); eth_crsdv <= 1'b1; eth_rxd <= cur_b[7:6];
-        end
-
-        // End of Frame
-        @(posedge eth_refclk);
-        eth_crsdv <= 1'b0;
-        eth_rxd   <= 2'b00;
-        repeat (24) @(posedge eth_refclk); // Inter-packet gap
     endtask
 
     // -------------------------------------------------------------------------
     // Main Test Stimulus
     // -------------------------------------------------------------------------
-    byte pkt[];
-    int pkt_len;
-    int test_errors = 0;
-
     initial begin
         $display("==================================================================");
         $display("STARTING FULL-SYSTEM INTEGRATION TESTBENCH (tb_system_top)");
         $display("==================================================================");
 
+        test_errors = 0;
         clk         = 1'b0;
         reset       = 1'b0; // Hold in reset
         sw          = 4'h0;
@@ -207,7 +220,6 @@ module tb_system_top;
         // ITCH Msg 2:  2B len + 36B ITCH Add Sell 300 @ $150.5000 = 38B
         // Total payload = 14 + 20 + 8 + 20 + 38 + 38 = 138 bytes.
         pkt_len = 138;
-        pkt = new[pkt_len];
 
         // Ethernet II Header (14 bytes)
         pkt[0]  = 8'h00; pkt[1]  = 8'h0A; pkt[2]  = 8'h35; pkt[3]  = 8'h01; pkt[4]  = 8'h02; pkt[5]  = 8'h03; // Dest MAC
@@ -227,11 +239,12 @@ module tb_system_top;
         pkt[30] = 8'hC0; pkt[31] = 8'hA8; pkt[32] = 8'h01; pkt[33] = 8'hC8; // Dst IP: 192.168.1.200
 
         // Calculate IPv4 Checksum
-        begin
-            logic [31:0] sum;
+        begin : calc_ip_csum
+            reg [31:0] sum;
+            integer csum_i;
             sum = 0;
-            for (int i = 0; i < 10; i++) begin
-                if (i != 5) sum += {pkt[14 + i*2], pkt[15 + i*2]};
+            for (csum_i = 0; csum_i < 10; csum_i = csum_i + 1) begin
+                if (csum_i != 5) sum = sum + {pkt[14 + csum_i*2], pkt[15 + csum_i*2]};
             end
             while (sum >> 16) sum = (sum & 32'hFFFF) + (sum >> 16);
             sum = ~sum;
@@ -282,27 +295,26 @@ module tb_system_top;
         pkt[134] = 8'h00; pkt[135] = 8'h16; pkt[136] = 8'hF6; pkt[137] = 8'hE8; // Price = 1505000 ($150.5000)
 
         $display("[TB] Injecting Ethernet frame into RMII PHY interface...");
-        send_rmii_packet(pkt, pkt_len);
+        send_rmii_packet(pkt_len);
 
         // ---------------------------------------------------------------------
         // Wait for Hardware Processing Pipeline to Complete
         // ---------------------------------------------------------------------
         $display("[TB] Frame injected. Waiting for hardware pipeline processing...");
 
-        // Wait until LOB processes both events
-        fork
-            begin
-                wait (dut.core_event_count == 32'd2);
-                $display("[TB] Both market data events committed by LOB accelerator!");
-            end
-            begin
-                #50000; // Timeout after 50 us
-                if (dut.core_event_count < 32'd2) begin
-                    $error("[TB_TIMEOUT] LOB core did not commit 2 events within timeout! Count = %0d", dut.core_event_count);
-                    test_errors++;
-                end
-            end
-        join_any
+        // Wait until LOB processes both events (with timeout)
+        timeout = 0;
+        while (dut.core_event_count < 32'd2 && timeout < 5000) begin
+            #10;
+            timeout = timeout + 1;
+        end
+
+        if (dut.core_event_count == 32'd2) begin
+            $display("[TB] Both market data events committed by LOB accelerator!");
+        end else begin
+            $display("[TB_TIMEOUT] LOB core did not commit 2 events within timeout! Count = %0d", dut.core_event_count);
+            test_errors = test_errors + 1;
+        end
 
         // Additional settling cycles for telemetry and MMIO registers
         repeat (50) @(posedge clk);
@@ -318,8 +330,8 @@ module tb_system_top;
         $display("   - Total Valid Frames Received : %0d (Expected: 1)", dut.cnt_rx_frames);
         $display("   - CRC-32 Errors               : %0d (Expected: 0)", dut.cnt_crc_err);
         if (dut.cnt_rx_frames != 32'd1 || dut.cnt_crc_err != 32'd0) begin
-            $error("[FAIL] RMII frame count or CRC error check failed!");
-            test_errors++;
+            $display("[FAIL] RMII frame count or CRC error check failed!");
+            test_errors = test_errors + 1;
         end else begin
             $display("   -> [PASS] RMII Ethernet Frame & CRC32 Verified.");
         end
@@ -341,8 +353,8 @@ module tb_system_top;
         $display("   - Messages Un-framed          : %0d (Expected: 2)", dut.cnt_mold_msgs);
         $display("   - Sequence Gap Detected       : %0d (Expected: 0)", dut.seq_gap_detected);
         if (dut.cnt_mold_msgs != 32'd2 || dut.seq_gap_detected != 1'b0) begin
-            $error("[FAIL] MoldUDP64 message count or gap check failed!");
-            test_errors++;
+            $display("[FAIL] MoldUDP64 message count or gap check failed!");
+            test_errors = test_errors + 1;
         end else begin
             $display("   -> [PASS] MoldUDP64 Protocol Decoder Verified.");
         end
@@ -368,14 +380,14 @@ module tb_system_top;
         $display("   - Best Ask Quantity           : %0d (Expected: 300)", dut.lob_ask_qty);
 
         if (dut.lob_bid_valid != 1'b1 || dut.lob_bid_price != 32'd1500000 || dut.lob_bid_qty != 32'd500) begin
-            $error("[FAIL] Best Bid mismatch!");
-            test_errors++;
+            $display("[FAIL] Best Bid mismatch!");
+            test_errors = test_errors + 1;
         end else if (dut.lob_ask_valid != 1'b1 || dut.lob_ask_price != 32'd1505000 || dut.lob_ask_qty != 32'd300) begin
-            $error("[FAIL] Best Ask mismatch!");
-            test_errors++;
+            $display("[FAIL] Best Ask mismatch!");
+            test_errors = test_errors + 1;
         end else if (dut.lob_active_orders != 12'd2) begin
-            $error("[FAIL] Active order count mismatch!");
-            test_errors++;
+            $display("[FAIL] Active order count mismatch!");
+            test_errors = test_errors + 1;
         end else begin
             $display("   -> [PASS] LOB Core Execution & Book State Verified.");
         end
@@ -389,8 +401,8 @@ module tb_system_top;
         $display("   - UART Serial Line: %0b", uart_txd_out);
 
         if (!led[0] || !led[2] || !led[3] || !led[4] || !led[5]) begin
-            $error("[FAIL] Status LED assertion failed!");
-            test_errors++;
+            $display("[FAIL] Status LED assertion failed!");
+            test_errors = test_errors + 1;
         end else begin
             $display("   -> [PASS] Diagnostic Peripherals Verified.");
         end

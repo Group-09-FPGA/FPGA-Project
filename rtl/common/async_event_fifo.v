@@ -1,5 +1,5 @@
 // =============================================================================
-// File: async_event_fifo.sv
+// File: async_event_fifo.v
 // Description: Dual-clock Asynchronous FIFO for Clock Domain Crossing (CDC)
 //              Crosses 256-bit canonical market data events from 50 MHz RMII/Network
 //              domain to 100 MHz Core/LOB domain with Gray pointer synchronizers
@@ -10,9 +10,9 @@
 `timescale 1ns / 1ps
 
 module async_event_fifo #(
-    parameter int DATA_WIDTH = 256,
-    parameter int ADDR_WIDTH = 6,               // Depth = 2^ADDR_WIDTH = 64
-    parameter     RAM_STYLE  = "distributed"    // "distributed" or "block"
+    parameter DATA_WIDTH = 256,
+    parameter ADDR_WIDTH = 6,               // Depth = 2^ADDR_WIDTH = 64
+    parameter RAM_STYLE  = "distributed"    // "distributed" or "block"
 ) (
     // -------------------------------------------------------------------------
     // Write Clock Domain (50 MHz RMII / ITCH Parser)
@@ -43,7 +43,7 @@ module async_event_fifo #(
     output wire [ADDR_WIDTH:0]   rd_count
 );
 
-    localparam int DEPTH = 1 << ADDR_WIDTH;
+    localparam DEPTH = 1 << ADDR_WIDTH;
 
     // -------------------------------------------------------------------------
     // Dual-Port Memory Storage
@@ -62,13 +62,17 @@ module async_event_fifo #(
     // -------------------------------------------------------------------------
     // Gray to Binary Conversion Function
     // -------------------------------------------------------------------------
-    function automatic [ADDR_WIDTH:0] gray_to_bin(input [ADDR_WIDTH:0] g);
-        logic [ADDR_WIDTH:0] b;
-        b[ADDR_WIDTH] = g[ADDR_WIDTH];
-        for (int i = ADDR_WIDTH - 1; i >= 0; i--) begin
-            b[i] = b[i+1] ^ g[i];
+    function [ADDR_WIDTH:0] gray_to_bin;
+        input [ADDR_WIDTH:0] g;
+        reg   [ADDR_WIDTH:0] b;
+        integer i;
+        begin
+            b[ADDR_WIDTH] = g[ADDR_WIDTH];
+            for (i = ADDR_WIDTH - 1; i >= 0; i = i - 1) begin
+                b[i] = b[i+1] ^ g[i];
+            end
+            gray_to_bin = b;
         end
-        return b;
     endfunction
 
     // -------------------------------------------------------------------------
@@ -80,8 +84,8 @@ module async_event_fifo #(
     // Synchronize rptr_gray into wr_clk domain
     always @(posedge wr_clk or negedge wr_rst_n) begin
         if (!wr_rst_n) begin
-            rptr_gray_sync1 <= '0;
-            rptr_gray_sync2 <= '0;
+            rptr_gray_sync1 <= {ADDR_WIDTH+1{1'b0}};
+            rptr_gray_sync2 <= {ADDR_WIDTH+1{1'b0}};
         end else begin
             rptr_gray_sync1 <= rptr_gray;
             rptr_gray_sync2 <= rptr_gray_sync1;
@@ -91,8 +95,8 @@ module async_event_fifo #(
     // Synchronize wptr_gray into rd_clk domain
     always @(posedge rd_clk or negedge rd_rst_n) begin
         if (!rd_rst_n) begin
-            wptr_gray_sync1 <= '0;
-            wptr_gray_sync2 <= '0;
+            wptr_gray_sync1 <= {ADDR_WIDTH+1{1'b0}};
+            wptr_gray_sync2 <= {ADDR_WIDTH+1{1'b0}};
         end else begin
             wptr_gray_sync1 <= wptr_gray;
             wptr_gray_sync2 <= wptr_gray_sync1;
@@ -115,8 +119,8 @@ module async_event_fifo #(
 
     always @(posedge wr_clk or negedge wr_rst_n) begin
         if (!wr_rst_n) begin
-            wptr_bin    <= '0;
-            wptr_gray   <= '0;
+            wptr_bin    <= {ADDR_WIDTH+1{1'b0}};
+            wptr_gray   <= {ADDR_WIDTH+1{1'b0}};
             full_reg    <= 1'b0;
             wr_overflow <= 1'b0;
         end else begin
@@ -159,8 +163,8 @@ module async_event_fifo #(
 
     always @(posedge rd_clk or negedge rd_rst_n) begin
         if (!rd_rst_n) begin
-            rptr_bin     <= '0;
-            rptr_gray    <= '0;
+            rptr_bin     <= {ADDR_WIDTH+1{1'b0}};
+            rptr_gray    <= {ADDR_WIDTH+1{1'b0}};
             empty_reg    <= 1'b1;
             rd_underflow <= 1'b0;
         end else begin

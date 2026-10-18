@@ -1,5 +1,5 @@
 // =============================================================================
-// File: rmii_rx.sv
+// File: rmii_rx.v
 // Description: RMII 100Mbps Ethernet Receiver with CRC-32 (FCS) verification
 //              and BRAM Store-and-Forward Frame Buffer
 // Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T, LAN8720A PHY)
@@ -8,8 +8,8 @@
 `timescale 1ns / 1ps
 
 module rmii_rx #(
-    parameter int BUFFER_DEPTH = 2048,  // Stores up to max Ethernet frame (1518 bytes)
-    parameter bit [31:0] CRC32_POLY = 32'hEDB88320 // Reversed polynomial for IEEE 802.3
+    parameter BUFFER_DEPTH = 2048,  // Stores up to max Ethernet frame (1518 bytes)
+    parameter [31:0] CRC32_POLY = 32'hEDB88320 // Reversed polynomial for IEEE 802.3
 ) (
     input  wire        clk_50,          // 50 MHz RMII Reference Clock
     input  wire        rst_n,           // Active-low synchronous reset
@@ -38,16 +38,15 @@ module rmii_rx #(
     // -------------------------------------------------------------------------
     // 1. Dibit-to-Byte Assembler & Preamble / SFD Detection
     // -------------------------------------------------------------------------
-    typedef enum logic [2:0] {
+    localparam [2:0]
         RX_IDLE       = 3'd0,
         RX_PREAMBLE   = 3'd1,
         RX_SFD        = 3'd2,
         RX_DATA       = 3'd3,
         RX_CHECK_FCS  = 3'd4,
-        RX_DISCARD    = 3'd5
-    } rx_fsm_t;
+        RX_DISCARD    = 3'd5;
 
-    rx_fsm_t state;
+    reg [2:0] state;
 
     reg [1:0] dibit_cnt;      // Counts 0..3 dibits per byte
     reg [7:0] shift_byte;     // Shift register for dibit assembly
@@ -57,7 +56,7 @@ module rmii_rx #(
     // Synchronize and filter crs_dv
     reg [1:0] crs_dv_sync;
     reg [1:0] rx_err_sync;
-    reg [1:0] rxd_sync [1:0];
+    reg [1:0] rxd_sync [0:1];
 
     always @(posedge clk_50 or negedge rst_n) begin
         if (!rst_n) begin
@@ -81,22 +80,22 @@ module rmii_rx #(
     // 2. IEEE 802.3 CRC-32 Calculation (Bit-serial / Dibit or Byte-wide)
     // -------------------------------------------------------------------------
     reg [31:0] crc32_reg;
-    reg        crc_init;
-    reg        crc_update;
-    reg [7:0]  crc_data_in;
 
-    function automatic [31:0] calc_crc32_byte(input [31:0] current_crc, input [7:0] byte_in);
-        logic [31:0] crc;
-        logic [7:0]  d;
-        crc = current_crc;
-        d   = byte_in;
-        for (int i = 0; i < 8; i++) begin
-            if ((crc[0] ^ d[i]) == 1'b1)
-                crc = (crc >> 1) ^ 32'hEDB88320;
-            else
-                crc = (crc >> 1);
+    function [31:0] calc_crc32_byte;
+        input [31:0] current_crc;
+        input [7:0]  byte_in;
+        reg   [31:0] crc;
+        integer i;
+        begin
+            crc = current_crc;
+            for (i = 0; i < 8; i = i + 1) begin
+                if ((crc[0] ^ byte_in[i]) == 1'b1)
+                    crc = (crc >> 1) ^ 32'hEDB88320;
+                else
+                    crc = (crc >> 1);
+            end
+            calc_crc32_byte = crc;
         end
-        return crc;
     endfunction
 
     // -------------------------------------------------------------------------

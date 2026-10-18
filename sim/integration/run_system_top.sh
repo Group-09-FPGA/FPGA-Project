@@ -11,26 +11,26 @@ ln -sf "$PROJECT_ROOT/software/baremetal/lob_test/imem.hex" imem.hex
 ln -sf "$PROJECT_ROOT/software/baremetal/lob_test/dmem.hex" dmem.hex
 
 echo ">>> Analyzing RTL and Testbench files with xvlog..."
-xvlog -sv -d SIMULATION \
+xvlog -d SIMULATION \
     -i "$PROJECT_ROOT/rtl/cpu/core" \
-    "$PROJECT_ROOT/rtl/lob/lob_pkg.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_event_decoder.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_slot_table.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_free_list.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_hash_table.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_price_ram.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_occupancy.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_bbo.sv" \
-    "$PROJECT_ROOT/rtl/lob/lob_core.sv" \
-    "$PROJECT_ROOT/rtl/bus/lob_mmio_slave.sv" \
-    "$PROJECT_ROOT/rtl/common/async_event_fifo.sv" \
-    "$PROJECT_ROOT/rtl/clocking/clk_rst_mgr.sv" \
-    "$PROJECT_ROOT/rtl/ethernet/rmii_rx.sv" \
-    "$PROJECT_ROOT/rtl/network/net_parser.sv" \
-    "$PROJECT_ROOT/rtl/network/moldudp64_decoder.sv" \
-    "$PROJECT_ROOT/rtl/itch/itch_decoder.sv" \
-    "$PROJECT_ROOT/rtl/display/vga_top.sv" \
-    "$PROJECT_ROOT/rtl/telemetry/uart_telemetry.sv" \
+    -i "$PROJECT_ROOT/rtl/lob" \
+    "$PROJECT_ROOT/rtl/lob/lob_event_decoder.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_slot_table.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_free_list.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_hash_table.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_price_ram.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_occupancy.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_bbo.v" \
+    "$PROJECT_ROOT/rtl/lob/lob_core.v" \
+    "$PROJECT_ROOT/rtl/bus/lob_mmio_slave.v" \
+    "$PROJECT_ROOT/rtl/common/async_event_fifo.v" \
+    "$PROJECT_ROOT/rtl/clocking/clk_rst_mgr.v" \
+    "$PROJECT_ROOT/rtl/ethernet/rmii_rx.v" \
+    "$PROJECT_ROOT/rtl/network/net_parser.v" \
+    "$PROJECT_ROOT/rtl/network/moldudp64_decoder.v" \
+    "$PROJECT_ROOT/rtl/itch/itch_decoder.v" \
+    "$PROJECT_ROOT/rtl/display/vga_top.v" \
+    "$PROJECT_ROOT/rtl/telemetry/uart_telemetry.v" \
     "$PROJECT_ROOT/rtl/cpu/core/decoder.v" \
     "$PROJECT_ROOT/rtl/cpu/core/alu.v" \
     "$PROJECT_ROOT/rtl/cpu/core/branch_unit.v" \
@@ -44,8 +44,8 @@ xvlog -sv -d SIMULATION \
     "$PROJECT_ROOT/rtl/cpu/core/imem_slave.v" \
     "$PROJECT_ROOT/rtl/cpu/core/dmem_slave.v" \
     "$PROJECT_ROOT/rtl/cpu/core/seven_seg_driver.v" \
-    "$PROJECT_ROOT/rtl/top/top_system.sv" \
-    "$PROJECT_ROOT/sim/integration/tb_system_top.sv"
+    "$PROJECT_ROOT/rtl/top/top_system.v" \
+    "$PROJECT_ROOT/sim/integration/tb_system_top.v"
 
 echo ">>> Elaborating snapshot with xelab..."
 xelab -top tb_system_top -snapshot sim_system_top -debug typical

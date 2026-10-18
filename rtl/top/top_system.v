@@ -1,5 +1,5 @@
 // =============================================================================
-// File: top_system.sv
+// File: top_system.v
 // Description: Full End-to-End FPGA Market Data Processor & LOB Accelerator
 // Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T, XC7A100T-1CSG324C)
 // Data Path:
@@ -10,12 +10,12 @@
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module top_system #(
-    parameter bit [31:0] DEFAULT_PRICE_BASE = 32'd900000,
-    parameter bit [31:0] DEFAULT_TICK       = 32'd1000,
-    parameter bit [15:0] DEFAULT_LOCATE     = 16'd1
+    parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
+    parameter [31:0] DEFAULT_TICK       = 32'd1000,
+    parameter [15:0] DEFAULT_LOCATE     = 16'd1
 ) (
     // -------------------------------------------------------------------------
     // 100 MHz Master Board Clock & Reset

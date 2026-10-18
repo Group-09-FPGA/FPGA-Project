@@ -21,18 +21,17 @@ puts "Repository Root : $REPO_ROOT"
 puts "Build Directory : $BUILD_DIR"
 puts "=============================================================================="
 
-# 1. Read SystemVerilog sources
-puts "Reading LOB SystemVerilog sources..."
-read_verilog -sv [list \
-    "$REPO_ROOT/rtl/lob/lob_pkg.sv" \
-    "$REPO_ROOT/rtl/lob/lob_event_decoder.sv" \
-    "$REPO_ROOT/rtl/lob/lob_slot_table.sv" \
-    "$REPO_ROOT/rtl/lob/lob_free_list.sv" \
-    "$REPO_ROOT/rtl/lob/lob_hash_table.sv" \
-    "$REPO_ROOT/rtl/lob/lob_price_ram.sv" \
-    "$REPO_ROOT/rtl/lob/lob_occupancy.sv" \
-    "$REPO_ROOT/rtl/lob/lob_bbo.sv" \
-    "$REPO_ROOT/rtl/lob/lob_core.sv" \
+# 1. Read Verilog sources
+puts "Reading LOB Verilog sources..."
+read_verilog [list \
+    "$REPO_ROOT/rtl/lob/lob_event_decoder.v" \
+    "$REPO_ROOT/rtl/lob/lob_slot_table.v" \
+    "$REPO_ROOT/rtl/lob/lob_free_list.v" \
+    "$REPO_ROOT/rtl/lob/lob_hash_table.v" \
+    "$REPO_ROOT/rtl/lob/lob_price_ram.v" \
+    "$REPO_ROOT/rtl/lob/lob_occupancy.v" \
+    "$REPO_ROOT/rtl/lob/lob_bbo.v" \
+    "$REPO_ROOT/rtl/lob/lob_core.v" \
 ]
 
 # Enforce single-threaded execution to prevent high RAM usage and helper process spawning
@@ -41,7 +40,7 @@ set_param synth.maxThreads 1
 
 # 2. Run Out-of-Context Synthesis with RuntimeOptimized directive (low memory)
 puts "Synthesizing design (single-threaded, low RAM footprint)..."
-synth_design -top $TOP -part $PART -mode out_of_context -directive RuntimeOptimized
+synth_design -top $TOP -part $PART -mode out_of_context -directive RuntimeOptimized -include_dirs "$REPO_ROOT/rtl/lob"
 
 # 3. Create 100 MHz target clock constraint (10.000 ns period, 50% duty cycle)
 puts "Applying 100 MHz clock constraint on port clk..."

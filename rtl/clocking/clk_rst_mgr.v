@@ -1,5 +1,5 @@
 // =============================================================================
-// File: clk_rst_mgr.sv
+// File: clk_rst_mgr.v
 // Description: Clock Generation and Reset Management Module
 //              Generates:
 //                - clk_core: 100.0 MHz (Core CPU, LOB accelerator, memory bus)
@@ -13,7 +13,7 @@
 `timescale 1ns / 1ps
 
 module clk_rst_mgr #(
-    parameter bit SIM_BYPASS = 1'b0  // Set 1 in testbench to bypass MMCM lock wait
+    parameter SIM_BYPASS = 1'b0  // Set 1 in testbench to bypass MMCM lock wait
 ) (
     // Physical Board Pins
     input  wire clk_100mhz_in,       // 100.0 MHz oscillator (pin E3)
