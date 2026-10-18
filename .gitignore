@@ -2,15 +2,21 @@
 build/
 build_system/
 sim/build_*/
+sim/build_system_top/
 .Xil/
 *.bit
 *.dcp
 *.rpt
+
+# Node.js & Diagram artifacts
 node_modules/
 dist/
 *.tsbuildinfo
 
 # Vivado journals, logs & backups
+*.jou
+*.log
+*.backup.*
 vivado*.jou
 vivado*.log
 vivado*.backup.*
@@ -25,15 +31,19 @@ xelab*.pb
 # Simulation waveforms & transient artifacts
 *.wdb
 *.vcd
+*.pb
 xsim.dir/
 
-# Scratch logs and diffs
+# Scratch logs, diffs, and binaries
 diff_*.txt
 output_*.log
-implementation_plan.md
+*.out
+a.out
 
-# Python and general artifacts
+# Python and virtual environments
 __pycache__/
 *.pyc
-*.out
-*.log
+.venv/
+.pytest_cache/
+.hypothesis/
+
