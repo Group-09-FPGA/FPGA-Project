@@ -92,15 +92,15 @@ export const NOTES: Notes[] = [
     time: '2:00',
     points: [
       'This trace comes from cycle-accurate RTL simulation of cpu_core + interconnect + slaves.',
-      'EX-to-EX Forwarding: T2, T8, T13, and T55 bypass RAW stalls directly into the ALU.',
+      'EX-to-EX Forwarding: T2, T8, T13, and T49 bypass RAW stalls directly into the ALU.',
       'Hazards: Load-ALU bubble at T12 (1 stall cycle) and branch squash at T15 (FLUSH).',
-      'MUL completes in 4 cycles (T4–T7); Radix-2 DIV stalls for 33 cycles (T16–T55).',
+      'MUL completes in 4 cycles (T4–T7); Radix-2 DIV completes 33 cycles after its T15 launch, at T48.',
       'Cycle-by-cycle hardware signals match sim: stall_pipeline, m_busy, fwd selects, bus handshakes.',
     ],
     qa: [
       'Why 1-cycle bubble on load-use? DMEM data arrives in MEM/WB at T12, forwarded to EX at T13 for add x7.',
       'How does branch squashing work? beq evaluates in EX at T14; wrong +4 fetch (addi x8) is flushed at T15.',
-      'Why does DIV take 34 cycles? 32-iteration radix-2 divider + 1 init cycle while frontend is held in skid buffer.',
+      'Why does DIV take 33 cycles? The radix-2 divider uses 32 iterations plus 1 initialization cycle.',
     ],
   },
   // [6] MUL Unit
@@ -122,8 +122,8 @@ export const NOTES: Notes[] = [
   {
     time: '1:30',
     points: [
-      'Radix-2 non-restoring serial divider: 32 bit-iterations + 1 init = 33 stall cycles.',
-      'Trace: div x9, x4, x1 with x4=63, x1=7 → quotient=9, remainder=0. Stall T16 → T55.',
+      'Radix-2 non-restoring serial divider: 32 bit-iterations + 1 init = 33 cycles from launch to completion.',
+      'Trace: div x9, x4, x1 with x4=63, x1=7 → quotient=9, remainder=0. Launch T15; completion T48.',
       'Hardware: 32-bit shift register for partial remainder; 33-bit quotient accumulator; state counter FSM.',
       "Signed fixup: 2's complement pre-negation on dividend/divisor; sign-correct result.",
       'RISC-V spec edge cases hardwired: x/0 = −1, −2³¹ / −1 = −2³¹ rem=0.',
