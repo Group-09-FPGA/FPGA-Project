@@ -1,5 +1,5 @@
 // =============================================================================
-// File: uart_telemetry.sv
+// File: uart_telemetry.v
 // Description: 115200 Baud UART Transmitter & Hardware Telemetry Engine
 //              Supports MMIO CPU transmit and optional automated hardware BBO streaming.
 // Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
@@ -8,8 +8,8 @@
 `timescale 1ns / 1ps
 
 module uart_telemetry #(
-    parameter int CLK_FREQ  = 100_000_000,
-    parameter int BAUD_RATE = 115_200
+    parameter CLK_FREQ  = 100000000,
+    parameter BAUD_RATE = 115200
 ) (
     input  wire        clk,              // Core 100 MHz clock
     input  wire        rst_n,            // Active-low synchronous reset
@@ -34,7 +34,7 @@ module uart_telemetry #(
     output reg         uart_txd
 );
 
-    localparam int CLKS_PER_BIT = CLK_FREQ / BAUD_RATE; // ~868 cycles
+    localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE; // ~868 cycles
 
     // -------------------------------------------------------------------------
     // 1. Transmit Byte FIFO (64 entries)
@@ -55,14 +55,13 @@ module uart_telemetry #(
     // -------------------------------------------------------------------------
     // 2. Hardware UART Baud & Bit Transmitter FSM
     // -------------------------------------------------------------------------
-    typedef enum logic [1:0] {
+    localparam [1:0]
         TX_IDLE  = 2'd0,
         TX_START = 2'd1,
         TX_DATA  = 2'd2,
-        TX_STOP  = 2'd3
-    } tx_fsm_t;
+        TX_STOP  = 2'd3;
 
-    tx_fsm_t tx_state;
+    reg [1:0] tx_state;
     reg [15:0] baud_cnt;
     reg [ 2:0] bit_idx;
     reg [ 7:0] tx_shift;
@@ -133,8 +132,11 @@ module uart_telemetry #(
     reg       telem_busy;
     reg [31:0] lat_bid_p, lat_bid_q, lat_ask_p, lat_ask_q;
 
-    function automatic [7:0] hex2ascii(input [3:0] nibble);
-        return (nibble < 4'd10) ? (8'h30 + {4'd0, nibble}) : (8'h41 + {4'd0, nibble - 4'd10});
+    function [7:0] hex2ascii;
+        input [3:0] nibble;
+        begin
+            hex2ascii = (nibble < 4'd10) ? (8'h30 + {4'd0, nibble}) : (8'h41 + {4'd0, nibble - 4'd10});
+        end
     endfunction
 
     reg [7:0] hw_char;

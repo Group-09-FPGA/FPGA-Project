@@ -1,5 +1,5 @@
 // =============================================================================
-// File: lob_core.sv
+// File: lob_core.v
 // Description: Top-level sequencer and transaction controller for LOB accelerator
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
 // Authoritative spec: docs/phase1_architecture_final_v7.md §10-18
@@ -7,53 +7,87 @@
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module lob_core #(
-    parameter bit [31:0] DEFAULT_PRICE_BASE   = 32'd0,
-    parameter bit [31:0] DEFAULT_TICK         = 32'd1,
-    parameter bit        DEFAULT_FAIL_STOP_EN = 1'b1
+    parameter [31:0] DEFAULT_PRICE_BASE   = 32'd0,
+    parameter [31:0] DEFAULT_TICK         = 32'd1,
+    parameter        DEFAULT_FAIL_STOP_EN = 1'b1
 ) (
-    input  logic         clk,
-    input  logic         rst_n,
+    input  wire         clk,
+    input  wire         rst_n,
 
     // Canonical Event Ingestion Interface
-    input  logic         event_valid,
-    output logic         event_ready,
-    input  logic [255:0] event_data,
+    input  wire         event_valid,
+    output wire         event_ready,
+    input  wire [255:0] event_data,
 
     // Runtime Control & Configuration
-    input  logic         cfg_clear,
-    input  logic         cfg_fail_stop_en,
-    input  logic [31:0]  cfg_price_base,
-    input  logic [31:0]  cfg_tick,
+    input  wire         cfg_clear,
+    input  wire         cfg_fail_stop_en,
+    input  wire [31:0]  cfg_price_base,
+    input  wire [31:0]  cfg_tick,
 
     // Accelerator State & Telemetry
-    output logic         book_valid,
-    output logic         init_done,
-    output logic         busy,
-    output logic         error_valid,
-    output logic [7:0]   error_code,
-    output logic [11:0]  active_order_count,
-    output logic         event_done,
+    output reg          book_valid,
+    output reg          init_done,
+    output wire         busy,
+    output reg          error_valid,
+    output reg  [7:0]   error_code,
+    output wire [11:0]  active_order_count,
+    output reg          event_done,
 
     // Best Bid & Offer (BBO)
-    output logic         best_bid_valid,
-    output logic [31:0]  best_bid_price,
-    output logic [31:0]  best_bid_qty,
+    output wire         best_bid_valid,
+    output wire [31:0]  best_bid_price,
+    output wire [31:0]  best_bid_qty,
 
-    output logic         best_ask_valid,
-    output logic [31:0]  best_ask_price,
-    output logic [31:0]  best_ask_qty
+    output wire         best_ask_valid,
+    output wire [31:0]  best_ask_price,
+    output wire [31:0]  best_ask_qty
 );
 
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Local Constants and Functions
+    // -------------------------------------------------------------------------
+    localparam [3:0] OP_INVALID = `OP_INVALID;
+    localparam [3:0] OP_ADD     = `OP_ADD;
+    localparam [3:0] OP_EXECUTE = `OP_EXECUTE;
+    localparam [3:0] OP_CANCEL  = `OP_CANCEL;
+    localparam [3:0] OP_DELETE  = `OP_DELETE;
+    localparam [3:0] OP_REPLACE = `OP_REPLACE;
+
+    localparam [7:0] FAIL_NONE        = `FAIL_NONE;
+    localparam [7:0] FAIL_EVT_FORMAT  = `FAIL_EVT_FORMAT;
+    localparam [7:0] FAIL_DUP_OID     = `FAIL_DUP_OID;
+    localparam [7:0] FAIL_MISSING_OID = `FAIL_MISSING_OID;
+    localparam [7:0] FAIL_NO_SLOT     = `FAIL_NO_SLOT;
+    localparam [7:0] FAIL_HASH_FULL   = `FAIL_HASH_FULL;
+    localparam [7:0] FAIL_QTY_OVF     = `FAIL_QTY_OVF;
+    localparam [7:0] FAIL_QTY_UF      = `FAIL_QTY_UF;
+    localparam [7:0] FAIL_PRICE_OOW   = `FAIL_PRICE_OOW;
+    localparam [7:0] FAIL_INVALID_OP  = `FAIL_INVALID_OP;
+
+    function [9:0] hash_oid;
+        input [63:0] oid;
+        begin
+            hash_oid = oid[9:0]   ^
+                       oid[19:10] ^
+                       oid[29:20] ^
+                       oid[39:30] ^
+                       oid[49:40] ^
+                       oid[59:50] ^
+                       {6'b0, oid[63:60]};
+        end
+    endfunction
+
     // Configuration Multiplexing (Registered for Timing Closure)
     // -------------------------------------------------------------------------
-    logic [31:0] eff_price_base;
-    logic [31:0] eff_tick;
+    reg [31:0] eff_price_base;
+    reg [31:0] eff_tick;
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             eff_price_base <= DEFAULT_PRICE_BASE;
             eff_tick       <= DEFAULT_TICK;
@@ -63,7 +97,7 @@ module lob_core #(
         end
     end
 
-    logic eff_fail_stop;
+    wire eff_fail_stop;
     assign eff_fail_stop  = cfg_fail_stop_en;
 
     // -------------------------------------------------------------------------
@@ -71,11 +105,11 @@ module lob_core #(
     // -------------------------------------------------------------------------
 
     // 1. Decoder Signals
-    canonical_event_t dec_evt;
-    logic             dec_valid;
-    logic             dec_error;
-    err_code_t        dec_err_code;
-    logic             dec_is_add, dec_is_exec, dec_is_cancel, dec_is_delete, dec_is_replace, dec_price_oow;
+    wire [255:0] dec_evt;
+    wire             dec_valid;
+    wire             dec_error;
+    wire [7:0]       dec_err_code;
+    wire             dec_is_add, dec_is_exec, dec_is_cancel, dec_is_delete, dec_is_replace, dec_price_oow;
 
     lob_event_decoder u_decoder (
         .raw_event(event_data),
@@ -92,32 +126,33 @@ module lob_core #(
     );
 
     // 2. Hash Table Signals
-    logic        hash_init_start, hash_init_busy, hash_init_done;
-    logic        hash_rd_en;
-    logic [9:0]  hash_rd_set;
-    logic [63:0] hash_lookup_key;
-    logic        hash_match_valid, hash_match_hit;
-    logic [10:0] hash_match_slot;
-    logic [2:0]  hash_match_way;
-    logic        hash_match_is_stash;
-    logic [2:0]  hash_match_stash_idx;
-    logic        hash_free_way_avail;
-    logic [2:0]  hash_free_way_idx;
-    logic        hash_free_stash_avail;
-    logic [2:0]  hash_free_stash_idx;
-    logic        hash_bucket_full;
-    logic        hash_wr_way_en;
-    logic [9:0]  hash_wr_set;
-    logic [2:0]  hash_wr_way_idx;
-    logic        hash_wr_stash_en;
-    logic [2:0]  hash_wr_stash_idx;
-    logic [10:0] hash_wr_slot;
-    logic [63:0] hash_wr_key;
-    logic        hash_inv_way_en;
-    logic [9:0]  hash_inv_set;
-    logic [2:0]  hash_inv_way_idx;
-    logic        hash_inv_stash_en;
-    logic [2:0]  hash_inv_stash_idx;
+    reg          hash_init_start;
+    wire         hash_init_busy, hash_init_done;
+    reg          hash_rd_en;
+    reg [9:0]    hash_rd_set;
+    reg [63:0]   hash_lookup_key;
+    wire         hash_match_valid, hash_match_hit;
+    wire [10:0]  hash_match_slot;
+    wire [2:0]   hash_match_way;
+    wire         hash_match_is_stash;
+    wire [2:0]   hash_match_stash_idx;
+    wire         hash_free_way_avail;
+    wire [2:0]   hash_free_way_idx;
+    wire         hash_free_stash_avail;
+    wire [2:0]   hash_free_stash_idx;
+    wire         hash_bucket_full;
+    reg          hash_wr_way_en;
+    reg [9:0]    hash_wr_set;
+    reg [2:0]    hash_wr_way_idx;
+    reg          hash_wr_stash_en;
+    reg [2:0]    hash_wr_stash_idx;
+    reg [10:0]   hash_wr_slot;
+    reg [63:0]   hash_wr_key;
+    reg          hash_inv_way_en;
+    reg [9:0]    hash_inv_set;
+    reg [2:0]    hash_inv_way_idx;
+    reg          hash_inv_stash_en;
+    reg [2:0]    hash_inv_stash_idx;
 
     lob_hash_table u_hash_table (
         .clk(clk),
@@ -154,13 +189,14 @@ module lob_core #(
     );
 
     // 3. Slot Table Signals
-    logic        slot_init_start, slot_init_busy, slot_init_done;
-    logic        slot_wr_en;
-    logic [10:0] slot_wr_addr;
-    slot_entry_t slot_wr_data;
-    logic        slot_rd_en;
-    logic [10:0] slot_rd_addr;
-    slot_entry_t slot_rd_data;
+    reg          slot_init_start;
+    wire         slot_init_busy, slot_init_done;
+    reg          slot_wr_en;
+    reg [10:0]   slot_wr_addr;
+    reg [46:0]   slot_wr_data;
+    reg          slot_rd_en;
+    reg [10:0]   slot_rd_addr;
+    wire [46:0]  slot_rd_data;
 
     lob_slot_table u_slot_table (
         .clk(clk),
@@ -177,17 +213,18 @@ module lob_core #(
     );
 
     // 4. Free List Signals
-    logic        free_init_start, free_init_busy, free_init_done;
-    logic        free_rd_top_en;
-    logic [10:0] free_top_slot;
-    logic        free_top_valid;
-    logic        free_pop_commit;
-    logic        free_push_en;
-    logic [10:0] free_push_slot;
-    logic        free_empty;
-    logic        free_full;
-    logic [11:0] free_count;
-    logic [11:0] free_active_count;
+    reg          free_init_start;
+    wire         free_init_busy, free_init_done;
+    reg          free_rd_top_en;
+    wire [10:0]  free_top_slot;
+    wire         free_top_valid;
+    reg          free_pop_commit;
+    reg          free_push_en;
+    reg [10:0]   free_push_slot;
+    wire         free_empty;
+    wire         free_full;
+    wire [11:0]  free_count;
+    wire [11:0]  free_active_count;
 
     lob_free_list u_free_list (
         .clk(clk),
@@ -210,14 +247,15 @@ module lob_core #(
     assign active_order_count = free_active_count;
 
     // 5. Price RAM Signals
-    logic        price_init_start, price_init_busy, price_init_done;
-    logic        price_wr_en;
-    logic [13:0] price_wr_addr;
-    logic [31:0] price_wr_data;
-    logic        price_rd_en;
-    logic [13:0] price_rd_addr;
-    logic        price_rd_valid;
-    logic [31:0] price_rd_data;
+    reg          price_init_start;
+    wire         price_init_busy, price_init_done;
+    reg          price_wr_en;
+    reg [13:0]  price_wr_addr;
+    reg [31:0]  price_wr_data;
+    reg          price_rd_en;
+    reg [13:0]  price_rd_addr;
+    wire         price_rd_valid;
+    wire [31:0]  price_rd_data;
 
     lob_price_ram u_price_ram (
         .clk(clk),
@@ -235,23 +273,24 @@ module lob_core #(
     );
 
     // 6. Occupancy Signals
-    logic        occ_init_start, occ_init_busy, occ_init_done;
-    logic        occ_leaf_rd_en;
-    logic        occ_leaf_rd_side;
-    logic [7:0]  occ_leaf_rd_word_idx;
-    logic [31:0] occ_leaf_rd_data;
-    logic        occ_leaf_upd_en;
-    logic        occ_leaf_upd_side;
-    logic [12:0] occ_leaf_upd_pidx;
-    logic        occ_leaf_upd_bit_val;
-    logic        occ_search_start;
-    logic        occ_search_side;
-    logic        occ_search_busy;
-    logic        occ_search_done;
-    logic        occ_search_valid;
-    logic [12:0] occ_search_pidx;
-    logic        occ_bid_has_orders;
-    logic        occ_ask_has_orders;
+    reg          occ_init_start;
+    wire         occ_init_busy, occ_init_done;
+    reg          occ_leaf_rd_en;
+    reg          occ_leaf_rd_side;
+    reg [7:0]   occ_leaf_rd_word_idx;
+    wire [31:0] occ_leaf_rd_data;
+    reg          occ_leaf_upd_en;
+    reg          occ_leaf_upd_side;
+    reg [12:0]  occ_leaf_upd_pidx;
+    reg          occ_leaf_upd_bit_val;
+    reg          occ_search_start;
+    reg          occ_search_side;
+    wire         occ_search_busy;
+    wire         occ_search_done;
+    wire         occ_search_valid;
+    wire [12:0] occ_search_pidx;
+    wire         occ_bid_has_orders;
+    wire         occ_ask_has_orders;
 
     lob_occupancy u_occupancy (
         .clk(clk),
@@ -278,21 +317,21 @@ module lob_core #(
     );
 
     // 7. BBO Signals
-    logic        bbo_direct_upd_en;
-    logic        bbo_direct_side;
-    logic [12:0] bbo_direct_pidx;
-    logic [31:0] bbo_direct_qty;
-    logic        bbo_search_upd_en;
-    logic        bbo_search_side;
-    logic        bbo_search_valid;
-    logic [12:0] bbo_search_pidx;
-    logic [31:0] bbo_search_qty;
-    logic        bbo_clear_en;
-    logic [12:0] bbo_cur_best_bid_pidx;
-    logic [12:0] bbo_cur_best_ask_pidx;
-    logic        bbo_check_side;
-    logic [12:0] bbo_check_pidx;
-    logic        bbo_triggers_search;
+    reg          bbo_direct_upd_en;
+    reg          bbo_direct_side;
+    reg [12:0]  bbo_direct_pidx;
+    reg [31:0]  bbo_direct_qty;
+    reg          bbo_search_upd_en;
+    reg          bbo_search_side;
+    reg          bbo_search_valid;
+    reg [12:0]  bbo_search_pidx;
+    reg [31:0]  bbo_search_qty;
+    reg          bbo_clear_en;
+    wire [12:0] bbo_cur_best_bid_pidx;
+    wire [12:0] bbo_cur_best_ask_pidx;
+    wire         bbo_check_side;
+    wire [12:0] bbo_check_pidx;
+    wire         bbo_triggers_search;
 
     lob_bbo u_bbo (
         .clk(clk),
@@ -325,7 +364,7 @@ module lob_core #(
     // -------------------------------------------------------------------------
     // Sequencer State Machine
     // -------------------------------------------------------------------------
-    typedef enum logic [5:0] {
+    localparam [5:0]
         ST_RESET         = 6'd0,
         ST_INIT_START    = 6'd1,
         ST_INIT_WAIT     = 6'd2,
@@ -375,54 +414,69 @@ module lob_core #(
 
         // Terminal States
         ST_DONE          = 6'd38,
-        ST_FAIL_STOP     = 6'd39
-    } state_t;
+        ST_FAIL_STOP     = 6'd39;
 
-    state_t state;
+    reg [5:0] state;
+
 
     // Operation Tracking Registers
-    canonical_event_t cur_evt;
-    logic             reg_is_add, reg_is_exec, reg_is_cancel, reg_is_delete, reg_is_replace;
+    reg [255:0] cur_evt;
+
+    wire [3:0]  cur_evt_ver    = cur_evt[`EVT_VER_SLICE];
+    wire [3:0]  cur_evt_op     = cur_evt[`EVT_OP_SLICE];
+    wire        cur_evt_side   = cur_evt[`EVT_SIDE_BIT];
+    wire [63:0] cur_evt_oid    = cur_evt[`EVT_OID_SLICE];
+    wire [63:0] cur_evt_noid   = cur_evt[`EVT_NOID_SLICE];
+    wire [31:0] cur_evt_shares = cur_evt[`EVT_SHARES_SLICE];
+    wire [12:0] cur_evt_pidx   = cur_evt[`EVT_PIDX_SLICE];
+    wire        cur_evt_oow    = cur_evt[`EVT_OOW_BIT];
+    wire [31:0] cur_evt_seq    = cur_evt[`EVT_SEQ_SLICE];
+
+    wire        slot_rd_valid  = slot_rd_data[`SLOT_VALID_BIT];
+    wire        slot_rd_side   = slot_rd_data[`SLOT_SIDE_BIT];
+    wire [12:0] slot_rd_pidx   = slot_rd_data[`SLOT_PIDX_SLICE];
+    wire [31:0] slot_rd_shares = slot_rd_data[`SLOT_SHARES_SLICE];
+    reg               reg_is_add, reg_is_exec, reg_is_cancel, reg_is_delete, reg_is_replace;
 
     // Intermediate Latched State
-    logic [10:0] lat_slot;
-    logic [2:0]  lat_way;
-    logic        lat_is_stash;
-    logic [2:0]  lat_stash_idx;
-    logic        lat_ord_side;
-    logic [12:0] lat_ord_pidx;
-    logic [31:0] lat_ord_shares;
-    logic [31:0] lat_deduct_shares;
-    logic [31:0] lat_rem_shares;
-    logic        lat_is_kill;
-    logic [31:0] lat_new_level_qty;
-    logic        lat_level_zero;
-    logic        lat_triggers_search;
+    reg [10:0] lat_slot;
+    reg [2:0]  lat_way;
+    reg        lat_is_stash;
+    reg [2:0]  lat_stash_idx;
+    reg        lat_ord_side;
+    reg [12:0] lat_ord_pidx;
+    reg [31:0] lat_ord_shares;
+    reg [31:0] lat_deduct_shares;
+    reg [31:0] lat_rem_shares;
+    reg        lat_is_kill;
+    reg [31:0] lat_new_level_qty;
+    reg        lat_level_zero;
+    reg        lat_triggers_search;
 
     // Replace Specific Registers
-    logic [10:0] rep_slot;
-    logic [2:0]  rep_old_way;
-    logic        rep_old_is_stash;
-    logic [2:0]  rep_old_stash_idx;
-    logic [2:0]  rep_new_way;
-    logic        rep_new_use_stash;
-    logic [2:0]  rep_new_stash_idx;
-    logic        rep_ord_side;
-    logic [12:0] rep_old_pidx;
-    logic [12:0] rep_new_pidx;
-    logic [31:0] rep_old_shares;
-    logic [31:0] rep_new_shares;
-    logic [31:0] rep_price_old_qty;
-    logic [31:0] rep_price_new_qty;
-    logic [31:0] rep_new_old_level_qty;
-    logic [31:0] rep_new_new_level_qty;
-    logic        rep_old_level_zero;
-    logic        rep_triggers_search;
+    reg [10:0] rep_slot;
+    reg [2:0]  rep_old_way;
+    reg        rep_old_is_stash;
+    reg [2:0]  rep_old_stash_idx;
+    reg [2:0]  rep_new_way;
+    reg        rep_new_use_stash;
+    reg [2:0]  rep_new_stash_idx;
+    reg        rep_ord_side;
+    reg [12:0] rep_old_pidx;
+    reg [12:0] rep_new_pidx;
+    reg [31:0] rep_old_shares;
+    reg [31:0] rep_new_shares;
+    reg [31:0] rep_price_old_qty;
+    reg [31:0] rep_price_new_qty;
+    reg [31:0] rep_new_old_level_qty;
+    reg [31:0] rep_new_new_level_qty;
+    reg        rep_old_level_zero;
+    reg        rep_triggers_search;
 
     // Search Execution State
-    logic        search_target_side;
-    logic [12:0] found_search_pidx;
-    logic        found_search_valid;
+    reg        search_target_side;
+    reg [12:0] found_search_pidx;
+    reg        found_search_valid;
 
     // -------------------------------------------------------------------------
     // Output Status Flags
@@ -439,7 +493,7 @@ module lob_core #(
     // -------------------------------------------------------------------------
     // Main Control FSM
     // -------------------------------------------------------------------------
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state               <= ST_RESET;
             book_valid          <= 1'b0;
@@ -455,101 +509,101 @@ module lob_core #(
             occ_init_start      <= 1'b0;
 
             hash_rd_en          <= 1'b0;
-            hash_rd_set         <= '0;
-            hash_lookup_key     <= '0;
+            hash_rd_set         <= 0;
+            hash_lookup_key     <= 0;
             hash_wr_way_en      <= 1'b0;
-            hash_wr_set         <= '0;
-            hash_wr_way_idx     <= '0;
+            hash_wr_set         <= 0;
+            hash_wr_way_idx     <= 0;
             hash_wr_stash_en    <= 1'b0;
-            hash_wr_stash_idx   <= '0;
-            hash_wr_slot        <= '0;
-            hash_wr_key         <= '0;
+            hash_wr_stash_idx   <= 0;
+            hash_wr_slot        <= 0;
+            hash_wr_key         <= 0;
             hash_inv_way_en     <= 1'b0;
-            hash_inv_set        <= '0;
-            hash_inv_way_idx    <= '0;
+            hash_inv_set        <= 0;
+            hash_inv_way_idx    <= 0;
             hash_inv_stash_en   <= 1'b0;
-            hash_inv_stash_idx  <= '0;
+            hash_inv_stash_idx  <= 0;
 
             slot_wr_en          <= 1'b0;
-            slot_wr_addr        <= '0;
-            slot_wr_data        <= '0;
+            slot_wr_addr        <= 0;
+            slot_wr_data        <= 0;
             slot_rd_en          <= 1'b0;
-            slot_rd_addr        <= '0;
+            slot_rd_addr        <= 0;
 
             free_rd_top_en      <= 1'b0;
             free_pop_commit     <= 1'b0;
             free_push_en        <= 1'b0;
-            free_push_slot      <= '0;
+            free_push_slot      <= 0;
 
             price_wr_en         <= 1'b0;
-            price_wr_addr       <= '0;
-            price_wr_data       <= '0;
+            price_wr_addr       <= 0;
+            price_wr_data       <= 0;
             price_rd_en         <= 1'b0;
-            price_rd_addr       <= '0;
+            price_rd_addr       <= 0;
 
             occ_leaf_rd_en      <= 1'b0;
             occ_leaf_rd_side    <= 1'b0;
-            occ_leaf_rd_word_idx<= '0;
+            occ_leaf_rd_word_idx<= 0;
             occ_leaf_upd_en     <= 1'b0;
             occ_leaf_upd_side   <= 1'b0;
-            occ_leaf_upd_pidx   <= '0;
+            occ_leaf_upd_pidx   <= 0;
             occ_leaf_upd_bit_val<= 1'b0;
             occ_search_start    <= 1'b0;
             occ_search_side     <= 1'b0;
 
             bbo_direct_upd_en   <= 1'b0;
             bbo_direct_side     <= 1'b0;
-            bbo_direct_pidx     <= '0;
-            bbo_direct_qty      <= '0;
+            bbo_direct_pidx     <= 0;
+            bbo_direct_qty      <= 0;
             bbo_search_upd_en   <= 1'b0;
             bbo_search_side     <= 1'b0;
             bbo_search_valid    <= 1'b0;
-            bbo_search_pidx     <= '0;
-            bbo_search_qty      <= '0;
+            bbo_search_pidx     <= 0;
+            bbo_search_qty      <= 0;
             bbo_clear_en        <= 1'b0;
 
-            cur_evt             <= '0;
+            cur_evt             <= 0;
             reg_is_add          <= 1'b0;
             reg_is_exec         <= 1'b0;
             reg_is_cancel       <= 1'b0;
             reg_is_delete       <= 1'b0;
             reg_is_replace      <= 1'b0;
 
-            lat_slot            <= '0;
-            lat_way             <= '0;
+            lat_slot            <= 0;
+            lat_way             <= 0;
             lat_is_stash        <= 1'b0;
-            lat_stash_idx       <= '0;
+            lat_stash_idx       <= 0;
             lat_ord_side        <= 1'b0;
-            lat_ord_pidx        <= '0;
-            lat_ord_shares      <= '0;
-            lat_deduct_shares   <= '0;
-            lat_rem_shares      <= '0;
+            lat_ord_pidx        <= 0;
+            lat_ord_shares      <= 0;
+            lat_deduct_shares   <= 0;
+            lat_rem_shares      <= 0;
             lat_is_kill         <= 1'b0;
-            lat_new_level_qty   <= '0;
+            lat_new_level_qty   <= 0;
             lat_level_zero      <= 1'b0;
             lat_triggers_search <= 1'b0;
 
-            rep_slot            <= '0;
-            rep_old_way         <= '0;
+            rep_slot            <= 0;
+            rep_old_way         <= 0;
             rep_old_is_stash    <= 1'b0;
-            rep_old_stash_idx   <= '0;
-            rep_new_way         <= '0;
+            rep_old_stash_idx   <= 0;
+            rep_new_way         <= 0;
             rep_new_use_stash   <= 1'b0;
-            rep_new_stash_idx   <= '0;
+            rep_new_stash_idx   <= 0;
             rep_ord_side        <= 1'b0;
-            rep_old_pidx        <= '0;
-            rep_new_pidx        <= '0;
-            rep_old_shares      <= '0;
-            rep_new_shares      <= '0;
-            rep_price_old_qty   <= '0;
-            rep_price_new_qty   <= '0;
-            rep_new_old_level_qty <= '0;
-            rep_new_new_level_qty <= '0;
+            rep_old_pidx        <= 0;
+            rep_new_pidx        <= 0;
+            rep_old_shares      <= 0;
+            rep_new_shares      <= 0;
+            rep_price_old_qty   <= 0;
+            rep_price_new_qty   <= 0;
+            rep_new_old_level_qty <= 0;
+            rep_new_new_level_qty <= 0;
             rep_old_level_zero  <= 1'b0;
             rep_triggers_search <= 1'b0;
 
             search_target_side  <= 1'b0;
-            found_search_pidx   <= '0;
+            found_search_pidx   <= 0;
             found_search_valid  <= 1'b0;
         end else begin
             // Default single-cycle pulse resets
@@ -652,7 +706,7 @@ module lob_core #(
                                     state      <= ST_IDLE;
                                 end
                             end else begin
-                                case (dec_evt.op)
+                                case (dec_evt[`EVT_OP_SLICE])
                                     OP_ADD:     state <= ST_ADD_C1;
                                     OP_EXECUTE,
                                     OP_CANCEL,
@@ -679,17 +733,17 @@ module lob_core #(
                     ST_ADD_C1: begin
                         // Prefetch reads across all structures
                         hash_rd_en          <= 1'b1;
-                        hash_rd_set         <= hash_oid(cur_evt.oid);
-                        hash_lookup_key     <= cur_evt.oid;
+                        hash_rd_set         <= hash_oid(cur_evt_oid);
+                        hash_lookup_key     <= cur_evt_oid;
 
                         free_rd_top_en      <= 1'b1;
 
                         price_rd_en         <= 1'b1;
-                        price_rd_addr       <= {cur_evt.side, cur_evt.pidx};
+                        price_rd_addr       <= {cur_evt_side, cur_evt_pidx};
 
                         occ_leaf_rd_en      <= 1'b1;
-                        occ_leaf_rd_side    <= cur_evt.side;
-                        occ_leaf_rd_word_idx<= cur_evt.pidx[12:5];
+                        occ_leaf_rd_side    <= cur_evt_side;
+                        occ_leaf_rd_word_idx<= cur_evt_pidx[12:5];
 
                         state <= ST_ADD_C2;
                     end
@@ -742,7 +796,7 @@ module lob_core #(
                         // Price RAM read data is now valid (Latency 3 from C1)
                         if (price_rd_valid) begin
                             // Overflow check: 32-bit addition carry
-                            if ((price_rd_data + cur_evt.shares) < price_rd_data) begin
+                            if ((price_rd_data + cur_evt_shares) < price_rd_data) begin
                                 error_valid <= 1'b1;
                                 error_code  <= FAIL_QTY_OVF;
                                 if (eff_fail_stop) begin
@@ -752,7 +806,7 @@ module lob_core #(
                                     state      <= ST_IDLE;
                                 end
                             end else begin
-                                lat_new_level_qty <= price_rd_data + cur_evt.shares;
+                                lat_new_level_qty <= price_rd_data + cur_evt_shares;
                                 state             <= ST_ADD_C5;
                             end
                         end
@@ -765,38 +819,38 @@ module lob_core #(
                             hash_wr_stash_en  <= 1'b1;
                             hash_wr_stash_idx <= lat_stash_idx;
                             hash_wr_slot      <= lat_slot;
-                            hash_wr_key       <= cur_evt.oid;
+                            hash_wr_key       <= cur_evt_oid;
                         end else begin
                             hash_wr_way_en    <= 1'b1;
-                            hash_wr_set       <= hash_oid(cur_evt.oid);
+                            hash_wr_set       <= hash_oid(cur_evt_oid);
                             hash_wr_way_idx   <= lat_way;
                             hash_wr_slot      <= lat_slot;
-                            hash_wr_key       <= cur_evt.oid;
+                            hash_wr_key       <= cur_evt_oid;
                         end
 
                         // Slot table entry write
                         slot_wr_en   <= 1'b1;
                         slot_wr_addr <= lat_slot;
-                        slot_wr_data <= '{valid: 1'b1, side: cur_evt.side, pidx: cur_evt.pidx, shares: cur_evt.shares};
+                        slot_wr_data <= {1'b1, cur_evt_side, cur_evt_pidx, cur_evt_shares};
 
                         // Free list pop
                         free_pop_commit <= 1'b1;
 
                         // Price RAM level quantity write
                         price_wr_en   <= 1'b1;
-                        price_wr_addr <= {cur_evt.side, cur_evt.pidx};
+                        price_wr_addr <= {cur_evt_side, cur_evt_pidx};
                         price_wr_data <= lat_new_level_qty;
 
                         // Occupancy mask set
                         occ_leaf_upd_en      <= 1'b1;
-                        occ_leaf_upd_side    <= cur_evt.side;
-                        occ_leaf_upd_pidx    <= cur_evt.pidx;
+                        occ_leaf_upd_side    <= cur_evt_side;
+                        occ_leaf_upd_pidx    <= cur_evt_pidx;
                         occ_leaf_upd_bit_val <= 1'b1;
 
                         // Direct BBO Fast Path update
                         bbo_direct_upd_en <= 1'b1;
-                        bbo_direct_side   <= cur_evt.side;
-                        bbo_direct_pidx   <= cur_evt.pidx;
+                        bbo_direct_side   <= cur_evt_side;
+                        bbo_direct_pidx   <= cur_evt_pidx;
                         bbo_direct_qty    <= lat_new_level_qty;
 
                         state <= ST_ADD_C6;
@@ -812,8 +866,8 @@ module lob_core #(
                     // ---------------------------------------------------------
                     ST_ECD_C1: begin
                         hash_rd_en      <= 1'b1;
-                        hash_rd_set     <= hash_oid(cur_evt.oid);
-                        hash_lookup_key <= cur_evt.oid;
+                        hash_rd_set     <= hash_oid(cur_evt_oid);
+                        hash_lookup_key <= cur_evt_oid;
                         state           <= ST_ECD_C2;
                     end
 
@@ -851,21 +905,21 @@ module lob_core #(
 
                     ST_ECD_C5: begin
                         // Slot data is now valid
-                        lat_ord_side   <= slot_rd_data.side;
-                        lat_ord_pidx   <= slot_rd_data.pidx;
-                        lat_ord_shares <= slot_rd_data.shares;
+                        lat_ord_side   <= slot_rd_side;
+                        lat_ord_pidx   <= slot_rd_pidx;
+                        lat_ord_shares <= slot_rd_shares;
 
                         // Calculate reduction amount
                         if (reg_is_delete) begin
-                            lat_deduct_shares <= slot_rd_data.shares;
+                            lat_deduct_shares <= slot_rd_shares;
                             lat_rem_shares    <= 32'd0;
                             lat_is_kill       <= 1'b1;
                             price_rd_en       <= 1'b1;
-                            price_rd_addr     <= {slot_rd_data.side, slot_rd_data.pidx};
+                            price_rd_addr     <= {slot_rd_side, slot_rd_pidx};
                             state             <= ST_ECD_C6;
                         end else begin
-                            lat_deduct_shares <= cur_evt.shares;
-                            if (cur_evt.shares > slot_rd_data.shares) begin
+                            lat_deduct_shares <= cur_evt_shares;
+                            if (cur_evt_shares > slot_rd_shares) begin
                                 error_valid <= 1'b1;
                                 error_code  <= FAIL_QTY_UF;
                                 if (eff_fail_stop) begin
@@ -875,10 +929,10 @@ module lob_core #(
                                     state      <= ST_IDLE;
                                 end
                             end else begin
-                                lat_rem_shares <= slot_rd_data.shares - cur_evt.shares;
-                                lat_is_kill    <= (slot_rd_data.shares == cur_evt.shares);
+                                lat_rem_shares <= slot_rd_shares - cur_evt_shares;
+                                lat_is_kill    <= (slot_rd_shares == cur_evt_shares);
                                 price_rd_en    <= 1'b1;
-                                price_rd_addr  <= {slot_rd_data.side, slot_rd_data.pidx};
+                                price_rd_addr  <= {slot_rd_side, slot_rd_pidx};
                                 state          <= ST_ECD_C6;
                             end
                         end
@@ -913,7 +967,7 @@ module lob_core #(
                         // 1. Update slot table
                         slot_wr_en   <= 1'b1;
                         slot_wr_addr <= lat_slot;
-                        slot_wr_data <= '{valid: !lat_is_kill, side: lat_ord_side, pidx: lat_ord_pidx, shares: lat_rem_shares};
+                        slot_wr_data <= {!lat_is_kill, lat_ord_side, lat_ord_pidx, lat_rem_shares};
 
                         // 2. Update price level RAM
                         price_wr_en   <= 1'b1;
@@ -935,7 +989,7 @@ module lob_core #(
                                 hash_inv_stash_idx <= lat_stash_idx;
                             end else begin
                                 hash_inv_way_en    <= 1'b1;
-                                hash_inv_set       <= hash_oid(cur_evt.oid);
+                                hash_inv_set       <= hash_oid(cur_evt_oid);
                                 hash_inv_way_idx   <= lat_way;
                             end
 
@@ -970,8 +1024,8 @@ module lob_core #(
                     ST_REP_C1: begin
                         // Lookup old OID
                         hash_rd_en      <= 1'b1;
-                        hash_rd_set     <= hash_oid(cur_evt.oid);
-                        hash_lookup_key <= cur_evt.oid;
+                        hash_rd_set     <= hash_oid(cur_evt_oid);
+                        hash_lookup_key <= cur_evt_oid;
                         state           <= ST_REP_C2;
                     end
 
@@ -995,8 +1049,8 @@ module lob_core #(
 
                             // Lookup new NOID (must NOT exist)
                             hash_rd_en      <= 1'b1;
-                            hash_rd_set     <= hash_oid(cur_evt.noid);
-                            hash_lookup_key <= cur_evt.noid;
+                            hash_rd_set     <= hash_oid(cur_evt_noid);
+                            hash_lookup_key <= cur_evt_noid;
 
                             // Read slot table
                             slot_rd_en   <= 1'b1;
@@ -1033,15 +1087,15 @@ module lob_core #(
                             rep_new_use_stash <= !hash_free_way_avail && hash_free_stash_avail;
                             rep_new_stash_idx <= hash_free_stash_idx;
 
-                            rep_ord_side      <= slot_rd_data.side;
-                            rep_old_pidx      <= slot_rd_data.pidx;
-                            rep_old_shares    <= slot_rd_data.shares;
-                            rep_new_pidx      <= cur_evt.pidx;
-                            rep_new_shares    <= cur_evt.shares;
+                            rep_ord_side      <= slot_rd_side;
+                            rep_old_pidx      <= slot_rd_pidx;
+                            rep_old_shares    <= slot_rd_shares;
+                            rep_new_pidx      <= cur_evt_pidx;
+                            rep_new_shares    <= cur_evt_shares;
 
                             // Read Price RAM for old price level
                             price_rd_en   <= 1'b1;
-                            price_rd_addr <= {slot_rd_data.side, slot_rd_data.pidx};
+                            price_rd_addr <= {slot_rd_side, slot_rd_pidx};
 
                             state <= ST_REP_C6;
                         end
@@ -1122,7 +1176,7 @@ module lob_core #(
                             hash_inv_stash_idx <= rep_old_stash_idx;
                         end else begin
                             hash_inv_way_en    <= 1'b1;
-                            hash_inv_set       <= hash_oid(cur_evt.oid);
+                            hash_inv_set       <= hash_oid(cur_evt_oid);
                             hash_inv_way_idx   <= rep_old_way;
                         end
 
@@ -1148,19 +1202,19 @@ module lob_core #(
                             hash_wr_stash_en  <= 1'b1;
                             hash_wr_stash_idx <= rep_new_stash_idx;
                             hash_wr_slot      <= rep_slot;
-                            hash_wr_key       <= cur_evt.noid;
+                            hash_wr_key       <= cur_evt_noid;
                         end else begin
                             hash_wr_way_en    <= 1'b1;
-                            hash_wr_set       <= hash_oid(cur_evt.noid);
+                            hash_wr_set       <= hash_oid(cur_evt_noid);
                             hash_wr_way_idx   <= rep_new_way;
                             hash_wr_slot      <= rep_slot;
-                            hash_wr_key       <= cur_evt.noid;
+                            hash_wr_key       <= cur_evt_noid;
                         end
 
                         // Slot reuse with new price & shares
                         slot_wr_en   <= 1'b1;
                         slot_wr_addr <= rep_slot;
-                        slot_wr_data <= '{valid: 1'b1, side: rep_ord_side, pidx: rep_new_pidx, shares: rep_new_shares};
+                        slot_wr_data <= {1'b1, rep_ord_side, rep_new_pidx, rep_new_shares};
 
                         // New price RAM write
                         price_wr_en   <= 1'b1;
@@ -1215,7 +1269,7 @@ module lob_core #(
                                 bbo_search_upd_en <= 1'b1;
                                 bbo_search_side   <= search_target_side;
                                 bbo_search_valid  <= 1'b0;
-                                bbo_search_pidx   <= '0;
+                                bbo_search_pidx   <= 0;
                                 bbo_search_qty    <= 32'd0;
                                 state             <= ST_DONE;
                             end

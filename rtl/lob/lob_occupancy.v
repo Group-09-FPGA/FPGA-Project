@@ -1,5 +1,5 @@
 // =============================================================================
-// File: lob_occupancy.sv
+// File: lob_occupancy.v
 // Description: 3-level hierarchical occupancy bitmask trees and priority encoders
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
 // Authoritative spec: docs/phase1_architecture_final_v7.md §14, §15, §16
@@ -7,131 +7,143 @@
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module lob_occupancy #(
-    parameter int unsigned PRICE_LEVELS_PER_SIDE = lob_pkg::PRICE_LEVELS_PER_SIDE, // 8,192
-    parameter int unsigned OCC_LEAF_WORDS         = lob_pkg::OCC_LEAF_WORDS          // 256
+    parameter PRICE_LEVELS_PER_SIDE = `PRICE_LEVELS_PER_SIDE, // 8,192
+    parameter OCC_LEAF_WORDS         = `OCC_LEAF_WORDS          // 256
 ) (
-    input  logic        clk,
-    input  logic        rst_n,
+    input  wire        clk,
+    input  wire        rst_n,
 
     // Hardware Initialization
-    input  logic        init_start,
-    output logic        init_busy,
-    output logic        init_done,
+    input  wire        init_start,
+    output wire        init_busy,
+    output reg         init_done,
 
     // Prefetch / Normal Leaf Word Read Port (Latency = 1 cycle)
-    input  logic        leaf_rd_en,
-    input  logic        leaf_rd_side,       // 0=Bid, 1=Ask
-    input  logic [7:0]  leaf_rd_word_idx,   // pidx[12:5]
-    output logic [31:0] leaf_rd_data,
+    input  wire        leaf_rd_en,
+    input  wire        leaf_rd_side,       // 0=Bid, 1=Ask
+    input  wire [7:0]  leaf_rd_word_idx,   // pidx[12:5]
+    output wire [31:0] leaf_rd_data,
 
     // Leaf Update Commit Port
-    input  logic        leaf_upd_en,
-    input  logic        leaf_upd_side,      // 0=Bid, 1=Ask
-    input  logic [12:0] leaf_upd_pidx,      // pidx
-    input  logic        leaf_upd_bit_val,   // 1=Add (level non-zero), 0=Remove (level zero)
+    input  wire        leaf_upd_en,
+    input  wire        leaf_upd_side,      // 0=Bid, 1=Ask
+    input  wire [12:0] leaf_upd_pidx,      // pidx
+    input  wire        leaf_upd_bit_val,   // 1=Add (level non-zero), 0=Remove (level zero)
 
     // Search Engine Request / Result
-    input  logic        search_start,
-    input  logic        search_side,        // 0=Bid (highest pidx), 1=Ask (lowest pidx)
-    output logic        search_busy,
-    output logic        search_done,
-    output logic        search_valid,       // 1 if side is non-empty
-    output logic [12:0] search_pidx,
+    input  wire        search_start,
+    input  wire        search_side,        // 0=Bid (highest pidx), 1=Ask (lowest pidx)
+    output wire        search_busy,
+    output reg         search_done,
+    output reg         search_valid,       // 1 if side is non-empty
+    output reg  [12:0] search_pidx,
 
     // Live occupancy status flags
-    output logic        bid_has_orders,
-    output logic        ask_has_orders
+    output wire        bid_has_orders,
+    output wire        ask_has_orders
 );
 
     // -------------------------------------------------------------------------
     // Leaf Memories (256 words x 32 bits per side)
     // -------------------------------------------------------------------------
     (* ram_style = "distributed" *)
-    logic [31:0] leaf_mem_bid [0:OCC_LEAF_WORDS-1];
+    reg [31:0] leaf_mem_bid [0:OCC_LEAF_WORDS-1];
 
     (* ram_style = "distributed" *)
-    logic [31:0] leaf_mem_ask [0:OCC_LEAF_WORDS-1];
+    reg [31:0] leaf_mem_ask [0:OCC_LEAF_WORDS-1];
 
     // L1 Register Masks (256 bits per side)
-    logic [255:0] l1_bid;
-    logic [255:0] l1_ask;
+    reg [255:0] l1_bid;
+    reg [255:0] l1_ask;
 
     // L0 Register Masks (8 bits per side)
-    logic [7:0]   l0_bid;
-    logic [7:0]   l0_ask;
+    reg [7:0]   l0_bid;
+    reg [7:0]   l0_ask;
 
     assign bid_has_orders = (l0_bid != 8'd0);
     assign ask_has_orders = (l0_ask != 8'd0);
 
     // Initialization counter (256 cycles)
-    logic [8:0] init_cnt;
-    logic       initializing;
+    reg [8:0] init_cnt;
+    reg       initializing;
 
     assign init_busy = initializing;
 
     // -------------------------------------------------------------------------
     // Priority Encoder Functions
     // -------------------------------------------------------------------------
-    function automatic logic [2:0] prio_enc_high_8(input logic [7:0] in);
-        for (int i = 7; i >= 0; i--) begin
-            if (in[i]) return 3'(i);
+    function [2:0] prio_enc_high_8;
+        input [7:0] in;
+        integer i;
+        begin
+            prio_enc_high_8 = 3'd0;
+            for (i = 0; i < 8; i = i + 1) begin
+                if (in[i]) prio_enc_high_8 = i[2:0];
+            end
         end
-        return 3'd0;
     endfunction
 
-    function automatic logic [4:0] prio_enc_high_32(input logic [31:0] in);
-        for (int i = 31; i >= 0; i--) begin
-            if (in[i]) return 5'(i);
+    function [4:0] prio_enc_high_32;
+        input [31:0] in;
+        integer i;
+        begin
+            prio_enc_high_32 = 5'd0;
+            for (i = 0; i < 32; i = i + 1) begin
+                if (in[i]) prio_enc_high_32 = i[4:0];
+            end
         end
-        return 5'd0;
     endfunction
 
-    function automatic logic [2:0] prio_enc_low_8(input logic [7:0] in);
-        for (int i = 0; i < 8; i++) begin
-            if (in[i]) return 3'(i);
+    function [2:0] prio_enc_low_8;
+        input [7:0] in;
+        integer i;
+        begin
+            prio_enc_low_8 = 3'd0;
+            for (i = 7; i >= 0; i = i - 1) begin
+                if (in[i]) prio_enc_low_8 = i[2:0];
+            end
         end
-        return 3'd0;
     endfunction
 
-    function automatic logic [4:0] prio_enc_low_32(input logic [31:0] in);
-        for (int i = 0; i < 32; i++) begin
-            if (in[i]) return 5'(i);
+    function [4:0] prio_enc_low_32;
+        input [31:0] in;
+        integer i;
+        begin
+            prio_enc_low_32 = 5'd0;
+            for (i = 31; i >= 0; i = i - 1) begin
+                if (in[i]) prio_enc_low_32 = i[4:0];
+            end
         end
-        return 5'd0;
     endfunction
 
     // -------------------------------------------------------------------------
     // Search FSM (S0..S4: 4-stage pipelined search)
     // -------------------------------------------------------------------------
-    typedef enum logic [2:0] {
-        SRCH_IDLE = 3'd0,
-        SRCH_S0   = 3'd1,
-        SRCH_S1   = 3'd2,
-        SRCH_S2   = 3'd3,
-        SRCH_S3   = 3'd4,
-        SRCH_S4   = 3'd5
-    } srch_state_t;
+    localparam [2:0] SRCH_IDLE = 3'd0,
+                     SRCH_S0   = 3'd1,
+                     SRCH_S1   = 3'd2,
+                     SRCH_S2   = 3'd3,
+                     SRCH_S3   = 3'd4,
+                     SRCH_S4   = 3'd5;
 
-    srch_state_t srch_state;
-    logic        srch_side_reg;
-    logic [2:0]  srch_g;
-    logic [4:0]  srch_j;
-    logic [4:0]  srch_m;
-    logic [7:0]  srch_leaf_addr;
-    logic [31:0] srch_leaf_data;
-    logic        srch_empty;
+    reg [2:0]  srch_state;
+    reg        srch_side_reg;
+    reg [2:0]  srch_g;
+    reg [4:0]  srch_j;
+    reg [4:0]  srch_m;
+    reg        srch_empty;
 
     assign search_busy = (srch_state != SRCH_IDLE);
 
     // Read arbitration for Leaf RAMs (Search vs Normal prefetch)
-    logic       eff_leaf_rd_en;
-    logic       eff_leaf_rd_side;
-    logic [7:0] eff_leaf_rd_addr;
+    reg       eff_leaf_rd_en;
+    reg       eff_leaf_rd_side;
+    reg [7:0] eff_leaf_rd_addr;
 
-    always_comb begin
+    always @* begin
         if (srch_state == SRCH_S2) begin
             eff_leaf_rd_en   = 1'b1;
             eff_leaf_rd_side = srch_side_reg;
@@ -144,9 +156,9 @@ module lob_occupancy #(
     end
 
     // Leaf RAM Read Ports
-    logic [31:0] leaf_rd_data_reg;
+    reg [31:0] leaf_rd_data_reg;
 
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if (eff_leaf_rd_en) begin
             if (eff_leaf_rd_side == 1'b0) begin
                 leaf_rd_data_reg <= leaf_mem_bid[eff_leaf_rd_addr];
@@ -156,21 +168,21 @@ module lob_occupancy #(
         end
     end
 
-    assign leaf_rd_data   = leaf_rd_data_reg;
-    assign srch_leaf_data = leaf_rd_data_reg;
+    assign leaf_rd_data = leaf_rd_data_reg;
+    wire [31:0] srch_leaf_data = leaf_rd_data_reg;
 
     // Search state machine
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             srch_state    <= SRCH_IDLE;
             srch_side_reg <= 1'b0;
-            srch_g        <= '0;
-            srch_j        <= '0;
-            srch_m        <= '0;
+            srch_g        <= 3'd0;
+            srch_j        <= 5'd0;
+            srch_m        <= 5'd0;
             srch_empty    <= 1'b0;
             search_done   <= 1'b0;
             search_valid  <= 1'b0;
-            search_pidx   <= '0;
+            search_pidx   <= 13'd0;
         end else begin
             search_done <= 1'b0;
 
@@ -190,7 +202,7 @@ module lob_occupancy #(
                             srch_empty   <= 1'b1;
                             search_done  <= 1'b1;
                             search_valid <= 1'b0;
-                            search_pidx  <= '0;
+                            search_pidx  <= 13'd0;
                             srch_state   <= SRCH_IDLE;
                         end else begin
                             srch_g     <= prio_enc_high_8(l0_bid);
@@ -202,7 +214,7 @@ module lob_occupancy #(
                             srch_empty   <= 1'b1;
                             search_done  <= 1'b1;
                             search_valid <= 1'b0;
-                            search_pidx  <= '0;
+                            search_pidx  <= 13'd0;
                             srch_state   <= SRCH_IDLE;
                         end else begin
                             srch_g     <= prio_enc_low_8(l0_ask);
@@ -253,18 +265,14 @@ module lob_occupancy #(
     // -------------------------------------------------------------------------
     // Memory Write & Hierarchy Updates (Leaf, L1, L0)
     // -------------------------------------------------------------------------
-    logic [7:0]  upd_word_addr;
-    logic [4:0]  upd_bit_pos;
-    logic [2:0]  upd_grp_idx;
-    logic [31:0] upd_new_word_bid;
-    logic [31:0] upd_new_word_ask;
-
-    assign upd_word_addr = leaf_upd_pidx[12:5];
-    assign upd_bit_pos   = leaf_upd_pidx[4:0];
-    assign upd_grp_idx   = leaf_upd_pidx[12:10];
+    wire [7:0]  upd_word_addr = leaf_upd_pidx[12:5];
+    wire [4:0]  upd_bit_pos   = leaf_upd_pidx[4:0];
+    wire [2:0]  upd_grp_idx   = leaf_upd_pidx[12:10];
+    reg  [31:0] upd_new_word_bid;
+    reg  [31:0] upd_new_word_ask;
 
     // Compute updated word from current leaf read / memory
-    always_comb begin
+    always @* begin
         upd_new_word_bid = leaf_mem_bid[upd_word_addr];
         upd_new_word_ask = leaf_mem_ask[upd_word_addr];
         if (leaf_upd_side == 1'b0) begin
@@ -275,7 +283,7 @@ module lob_occupancy #(
     end
 
     // Leaf memory synchronous writes (no asynchronous reset)
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if (initializing) begin
             leaf_mem_bid[init_cnt[7:0]] <= 32'd0;
             leaf_mem_ask[init_cnt[7:0]] <= 32'd0;
@@ -289,24 +297,29 @@ module lob_occupancy #(
     end
 
     // Hierarchy masks (L1, L0) and initialization FSM
-    always_ff @(posedge clk or negedge rst_n) begin
+    integer g_bid;
+    integer g_ask;
+    reg [31:0] grp_l1_bid;
+    reg [31:0] grp_l1_ask;
+
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            l1_bid       <= '0;
-            l1_ask       <= '0;
-            l0_bid       <= '0;
-            l0_ask       <= '0;
-            init_cnt     <= '0;
+            l1_bid       <= 256'd0;
+            l1_ask       <= 256'd0;
+            l0_bid       <= 8'd0;
+            l0_ask       <= 8'd0;
+            init_cnt     <= 9'd0;
             initializing <= 1'b0;
             init_done    <= 1'b0;
         end else begin
             if (init_start && !initializing) begin
-                init_cnt     <= '0;
+                init_cnt     <= 9'd0;
                 initializing <= 1'b1;
                 init_done    <= 1'b0;
-                l1_bid       <= '0;
-                l1_ask       <= '0;
-                l0_bid       <= '0;
-                l0_ask       <= '0;
+                l1_bid       <= 256'd0;
+                l1_ask       <= 256'd0;
+                l0_bid       <= 8'd0;
+                l0_ask       <= 8'd0;
             end else if (initializing) begin
                 if (init_cnt == OCC_LEAF_WORDS - 1) begin
                     initializing <= 1'b0;
@@ -320,25 +333,23 @@ module lob_occupancy #(
                     l1_bid[upd_word_addr] <= (upd_new_word_bid != 32'd0);
                     // Update L0
                     // Check if group has any other active words
-                    for (int g = 0; g < 8; g++) begin
-                        logic [31:0] grp_l1;
-                        grp_l1 = l1_bid[g*32 +: 32];
-                        if (g == upd_grp_idx) begin
-                            grp_l1[leaf_upd_pidx[9:5]] = (upd_new_word_bid != 32'd0);
+                    for (g_bid = 0; g_bid < 8; g_bid = g_bid + 1) begin
+                        grp_l1_bid = l1_bid[g_bid*32 +: 32];
+                        if (g_bid == upd_grp_idx) begin
+                            grp_l1_bid[leaf_upd_pidx[9:5]] = (upd_new_word_bid != 32'd0);
                         end
-                        l0_bid[g] <= (grp_l1 != 32'd0);
+                        l0_bid[g_bid] <= (grp_l1_bid != 32'd0);
                     end
                 end else begin
                     // Update L1
                     l1_ask[upd_word_addr] <= (upd_new_word_ask != 32'd0);
                     // Update L0
-                    for (int g = 0; g < 8; g++) begin
-                        logic [31:0] grp_l1;
-                        grp_l1 = l1_ask[g*32 +: 32];
-                        if (g == upd_grp_idx) begin
-                            grp_l1[leaf_upd_pidx[9:5]] = (upd_new_word_ask != 32'd0);
+                    for (g_ask = 0; g_ask < 8; g_ask = g_ask + 1) begin
+                        grp_l1_ask = l1_ask[g_ask*32 +: 32];
+                        if (g_ask == upd_grp_idx) begin
+                            grp_l1_ask[leaf_upd_pidx[9:5]] = (upd_new_word_ask != 32'd0);
                         end
-                        l0_ask[g] <= (grp_l1 != 32'd0);
+                        l0_ask[g_ask] <= (grp_l1_ask != 32'd0);
                     end
                 end
             end

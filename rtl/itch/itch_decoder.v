@@ -1,5 +1,5 @@
 // =============================================================================
-// File: itch_decoder.sv
+// File: itch_decoder.v
 // Description: NASDAQ TotalView-ITCH 5.0 binary message parser
 //              Stock Locate filtering, Price Normalization, and Canonical 256-bit packing
 // Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
@@ -7,12 +7,12 @@
 
 `timescale 1ns / 1ps
 
-import lob_pkg::*;
+`include "lob_defines.vh"
 
 module itch_decoder #(
-    parameter bit [31:0] DEFAULT_PRICE_BASE = 32'd900000,
-    parameter bit [31:0] DEFAULT_TICK       = 32'd1000,
-    parameter bit [15:0] DEFAULT_LOCATE     = 16'd1
+    parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
+    parameter [31:0] DEFAULT_TICK       = 32'd1000,
+    parameter [15:0] DEFAULT_LOCATE     = 16'd1
 ) (
     input  wire        clk,
     input  wire        rst_n,
@@ -44,29 +44,39 @@ module itch_decoder #(
     output reg  [31:0] cnt_itch_oow_events
 );
 
+    localparam [3:0] OP_INVALID = `OP_INVALID;
+    localparam [3:0] OP_ADD     = `OP_ADD;
+    localparam [3:0] OP_EXECUTE = `OP_EXECUTE;
+    localparam [3:0] OP_CANCEL  = `OP_CANCEL;
+    localparam [3:0] OP_DELETE  = `OP_DELETE;
+    localparam [3:0] OP_REPLACE = `OP_REPLACE;
+
+    localparam SIDE_BID = `SIDE_BID;
+    localparam SIDE_ASK = `SIDE_ASK;
+
     wire [15:0] active_locate     = (cfg_stock_locate != 16'd0) ? cfg_stock_locate : DEFAULT_LOCATE;
     wire [31:0] active_price_base = (cfg_price_base != 32'd0)   ? cfg_price_base   : DEFAULT_PRICE_BASE;
     wire [31:0] active_tick       = (cfg_tick != 32'd0)         ? cfg_tick         : DEFAULT_TICK;
 
     // Fast hardware reciprocal division by 1000 using DSP multiplier
     // (x * 274877907) >> 38 == x / 1000 for all 32-bit unsigned integers
-    function automatic void div_rem_1000(
-        input  logic [31:0] val,
-        output logic [31:0] quot,
-        output logic [31:0] rem
-    );
-        logic [63:0] prod;
-        prod = (64'(val) * 64'd274877907);
-        quot = prod[63:38];
-        rem  = val - (quot * 32'd1000);
-    endfunction
+    task div_rem_1000;
+        input  [31:0] val;
+        output [31:0] quot;
+        output [31:0] rem;
+        reg    [63:0] prod;
+        begin
+            prod = ({32'd0, val} * 64'd274877907);
+            quot = prod[63:38];
+            rem  = val - (quot * 32'd1000);
+        end
+    endtask
 
-    typedef enum logic [1:0] {
+    localparam [1:0]
         ST_COLLECT = 2'd0,
-        ST_EMIT    = 2'd1
-    } parser_state_t;
+        ST_EMIT    = 2'd1;
 
-    parser_state_t state;
+    reg [1:0] state;
 
     assign itch_msg_ready = (state == ST_COLLECT) && canon_event_ready;
 
@@ -78,6 +88,18 @@ module itch_decoder #(
     // Diagnostic registers for debug
     reg [ 7:0] msg_type;
     reg [15:0] msg_locate;
+
+    // Intermediate variables for parsing in ST_EMIT
+    reg [ 7:0]  cur_type;
+    reg [15:0]  cur_loc;
+    reg [63:0]  cur_oid, cur_noid;
+    reg         cur_side;
+    reg [31:0]  cur_shares;
+    reg [31:0]  cur_raw_p;
+    reg [31:0]  p_quot, p_rem;
+    reg [12:0]  final_pidx;
+    reg         is_oow;
+    reg [255:0] evt;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -93,18 +115,28 @@ module itch_decoder #(
             cnt_itch_filtered_msgs <= 32'd0;
             cnt_itch_admin_msgs    <= 32'd0;
             cnt_itch_oow_events    <= 32'd0;
+            cur_type               <= 8'd0;
+            cur_loc                <= 16'd0;
+            cur_oid                <= 64'd0;
+            cur_noid               <= 64'd0;
+            cur_side               <= 1'b0;
+            cur_shares             <= 32'd0;
+            cur_raw_p              <= 32'd0;
+            p_quot                 <= 32'd0;
+            p_rem                  <= 32'd0;
+            final_pidx             <= 13'd0;
+            is_oow                 <= 1'b0;
+            evt                    <= 256'd0;
         end else begin
             canon_event_valid <= 1'b0;
 
             case (state)
                 ST_COLLECT: begin
                     if (itch_msg_valid) begin
-                        $display("[ITCH_COLLECT @ %0t] byte_cnt=%0d start=%0b last=%0b byte=0x%02X",
-                                 $time, byte_cnt, itch_msg_start, itch_msg_last, itch_msg_byte);
                         if (itch_msg_start) begin
-                            cur_seq      <= itch_msg_seq;
-                            msg_buffer[0]<= itch_msg_byte;
-                            byte_cnt     <= 6'd1;
+                            cur_seq       <= itch_msg_seq;
+                            msg_buffer[0] <= itch_msg_byte;
+                            byte_cnt      <= 6'd1;
                         end else begin
                             msg_buffer[byte_cnt] <= itch_msg_byte;
                             byte_cnt <= byte_cnt + 6'd1;
@@ -118,24 +150,13 @@ module itch_decoder #(
                 end
 
                 ST_EMIT: begin
-                    logic [ 7:0] cur_type;
-                    logic [15:0] cur_loc;
-                    logic [63:0] cur_oid, cur_noid;
-                    logic        cur_side;
-                    logic [31:0] cur_shares;
-                    logic [31:0] cur_raw_p;
-                    logic [31:0] p_quot, p_rem;
-                    logic [12:0] final_pidx;
-                    logic        is_oow;
-                    canonical_event_t evt;
-
                     cur_type   = msg_buffer[0];
                     cur_loc    = {msg_buffer[1], msg_buffer[2]};
                     msg_type   <= cur_type;
                     msg_locate <= cur_loc;
 
-                    cur_oid    = '0;
-                    cur_noid   = '0;
+                    cur_oid    = 64'd0;
+                    cur_noid   = 64'd0;
                     cur_side   = 1'b0;
                     cur_shares = 32'd0;
                     cur_raw_p  = 32'd0;
@@ -143,7 +164,7 @@ module itch_decoder #(
                     p_rem      = 32'd0;
                     final_pidx = 13'd0;
                     is_oow     = 1'b0;
-                    evt        = '0;
+                    evt        = 256'd0;
 
                     if (cur_loc != active_locate) begin
                         // Filter out order not matching target stock locate
@@ -170,15 +191,7 @@ module itch_decoder #(
                                     end
                                 end
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_ADD;
-                                evt.side   = cur_side;
-                                evt.oid    = cur_oid;
-                                evt.noid   = 64'd0;
-                                evt.shares = cur_shares;
-                                evt.pidx   = final_pidx;
-                                evt.oow    = is_oow;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_ADD, cur_side, 7'd0, cur_oid, 64'd0, cur_shares, final_pidx, is_oow, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -205,15 +218,7 @@ module itch_decoder #(
                                     end
                                 end
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_ADD;
-                                evt.side   = cur_side;
-                                evt.oid    = cur_oid;
-                                evt.noid   = 64'd0;
-                                evt.shares = cur_shares;
-                                evt.pidx   = final_pidx;
-                                evt.oow    = is_oow;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_ADD, cur_side, 7'd0, cur_oid, 64'd0, cur_shares, final_pidx, is_oow, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -225,11 +230,7 @@ module itch_decoder #(
                                               msg_buffer[15], msg_buffer[16], msg_buffer[17], msg_buffer[18]};
                                 cur_shares = {msg_buffer[19], msg_buffer[20], msg_buffer[21], msg_buffer[22]};
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_EXECUTE;
-                                evt.oid    = cur_oid;
-                                evt.shares = cur_shares;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_EXECUTE, 1'b0, 7'd0, cur_oid, 64'd0, cur_shares, 13'd0, 1'b0, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -241,11 +242,7 @@ module itch_decoder #(
                                               msg_buffer[15], msg_buffer[16], msg_buffer[17], msg_buffer[18]};
                                 cur_shares = {msg_buffer[19], msg_buffer[20], msg_buffer[21], msg_buffer[22]};
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_EXECUTE;
-                                evt.oid    = cur_oid;
-                                evt.shares = cur_shares;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_EXECUTE, 1'b0, 7'd0, cur_oid, 64'd0, cur_shares, 13'd0, 1'b0, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -257,11 +254,7 @@ module itch_decoder #(
                                               msg_buffer[15], msg_buffer[16], msg_buffer[17], msg_buffer[18]};
                                 cur_shares = {msg_buffer[19], msg_buffer[20], msg_buffer[21], msg_buffer[22]};
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_CANCEL;
-                                evt.oid    = cur_oid;
-                                evt.shares = cur_shares;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_CANCEL, 1'b0, 7'd0, cur_oid, 64'd0, cur_shares, 13'd0, 1'b0, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -272,11 +265,7 @@ module itch_decoder #(
                                 cur_oid    = {msg_buffer[11], msg_buffer[12], msg_buffer[13], msg_buffer[14],
                                               msg_buffer[15], msg_buffer[16], msg_buffer[17], msg_buffer[18]};
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_DELETE;
-                                evt.oid    = cur_oid;
-                                evt.shares = 32'd0;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_DELETE, 1'b0, 7'd0, cur_oid, 64'd0, 32'd0, 13'd0, 1'b0, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;
@@ -304,14 +293,7 @@ module itch_decoder #(
                                     end
                                 end
 
-                                evt.ver    = 4'h1;
-                                evt.op     = OP_REPLACE;
-                                evt.oid    = cur_oid;
-                                evt.noid   = cur_noid;
-                                evt.shares = cur_shares;
-                                evt.pidx   = final_pidx;
-                                evt.oow    = is_oow;
-                                evt.seq    = cur_seq[31:0];
+                                evt = {4'h1, OP_REPLACE, 1'b0, 7'd0, cur_oid, cur_noid, cur_shares, final_pidx, is_oow, 2'd0, cur_seq[31:0], 32'd0};
 
                                 canon_event_valid     <= 1'b1;
                                 canon_event_data      <= evt;

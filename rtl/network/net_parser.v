@@ -1,5 +1,5 @@
 // =============================================================================
-// File: net_parser.sv
+// File: net_parser.v
 // Description: Hardware Ethernet II + IPv4 + UDP packet header parser
 //              with IPv4 header checksum verification and destination port filter
 // Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
@@ -8,7 +8,7 @@
 `timescale 1ns / 1ps
 
 module net_parser #(
-    parameter bit [15:0] DEFAULT_UDP_PORT = 16'd10443 // Default TotalView-ITCH UDP port
+    parameter [15:0] DEFAULT_UDP_PORT = 16'd10443 // Default TotalView-ITCH UDP port
 ) (
     input  wire        clk,             // System clock or network domain clock
     input  wire        rst_n,           // Active-low synchronous reset
@@ -41,16 +41,15 @@ module net_parser #(
     output reg  [31:0] cnt_port_mismatch_drop
 );
 
-    typedef enum logic [3:0] {
+    localparam [3:0]
         ST_IDLE          = 4'd0,
         ST_ETH_HEADER    = 4'd1,
         ST_IPV4_HEADER   = 4'd2,
         ST_UDP_HEADER    = 4'd3,
         ST_STREAM_UDP    = 4'd4,
-        ST_DRAIN_DROP    = 4'd5
-    } parse_fsm_t;
+        ST_DRAIN_DROP    = 4'd5;
 
-    parse_fsm_t state;
+    reg [3:0] state;
 
     reg [11:0] byte_idx;
     reg [15:0] ethertype;
@@ -72,11 +71,14 @@ module net_parser #(
     wire [15:0] active_target_port = (cfg_udp_port != 16'd0) ? cfg_udp_port : DEFAULT_UDP_PORT;
 
     // Fold 32-bit checksum accumulator to 16-bit
-    function automatic [15:0] fold_checksum(input [31:0] acc);
-        logic [31:0] sum;
-        sum = (acc[31:16] + acc[15:0]);
-        sum = sum + sum[31:16];
-        return ~sum[15:0];
+    function [15:0] fold_checksum;
+        input [31:0] acc;
+        reg   [31:0] sum;
+        begin
+            sum = (acc[31:16] + acc[15:0]);
+            sum = sum + sum[31:16];
+            fold_checksum = ~sum[15:0];
+        end
     endfunction
 
     // Combinational read enable to rmii_rx frame buffer
@@ -235,8 +237,6 @@ module net_parser #(
                 end
 
                 ST_STREAM_UDP: begin
-                    $display("[NET_STREAM @ %0t] ready=%0b byte_idx=%0d streamed=%0d in_byte=0x%02X cur_out=0x%02X",
-                             $time, udp_payload_ready, byte_idx, udp_bytes_streamed, frame_byte_in, udp_payload_byte);
                     if (udp_payload_ready) begin
                         byte_idx           <= byte_idx + 12'd1;
                         udp_bytes_streamed <= udp_bytes_streamed + 12'd1;

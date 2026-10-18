@@ -1,5 +1,5 @@
 // =============================================================================
-// File: lob_mmio_slave.sv
+// File: lob_mmio_slave.v
 // Description: MMIO slave peripheral for LOB accelerator on CPU system bus
 // Base Address: 0x4000_0000
 // =============================================================================
@@ -7,9 +7,9 @@
 `timescale 1ns / 1ps
 
 module lob_mmio_slave #(
-    parameter bit [31:0] DEFAULT_PRICE_BASE = 32'd900000,
-    parameter bit [31:0] DEFAULT_TICK       = 32'd1000,
-    parameter bit [15:0] DEFAULT_LOCATE     = 16'd1
+    parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
+    parameter [31:0] DEFAULT_TICK       = 32'd1000,
+    parameter [15:0] DEFAULT_LOCATE     = 16'd1
 ) (
     input  wire        clk,
     input  wire        reset, // active-low

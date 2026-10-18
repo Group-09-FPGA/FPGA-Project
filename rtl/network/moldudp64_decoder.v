@@ -1,5 +1,5 @@
 // =============================================================================
-// File: moldudp64_decoder.sv
+// File: moldudp64_decoder.v
 // Description: Hardware MoldUDP64 protocol downstream framing and sequence tracker
 //              Maintains authoritative 64-bit sequence, detects gaps/duplicates,
 //              and un-frames length-prefixed ITCH 5.0 messages
@@ -47,15 +47,14 @@ module moldudp64_decoder (
     output reg  [31:0] cnt_trunc_errors
 );
 
-    typedef enum logic [2:0] {
+    localparam [2:0]
         MOLD_IDLE        = 3'd0,
         MOLD_HEADER      = 3'd1,
         MOLD_MSG_LEN     = 3'd2,
         MOLD_STREAM_MSG  = 3'd3,
-        MOLD_DRAIN       = 3'd4
-    } mold_fsm_t;
+        MOLD_DRAIN       = 3'd4;
 
-    mold_fsm_t state;
+    reg [2:0] state;
 
     reg [ 4:0] hdr_byte_cnt;
     reg [79:0] session_id;
@@ -114,11 +113,6 @@ module moldudp64_decoder (
             end else if (cfg_seq_reset) begin
                 seq_initialized  <= 1'b0;
                 seq_gap_detected <= 1'b0;
-            end
-
-            if (udp_payload_valid || (state != MOLD_IDLE)) begin
-                $display("[MOLD @ %0t] state=%0d cur_msg_idx=%0d cur_byte_cnt=%0d udp_valid=%0b udp_byte=0x%02X itch_ready=%0b",
-                         $time, state, cur_msg_idx, cur_msg_byte_cnt, udp_payload_valid, udp_payload_byte, itch_msg_ready);
             end
 
             case (state)

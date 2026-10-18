@@ -1,5 +1,5 @@
 // =============================================================================
-// File: vga_top.sv
+// File: vga_top.v
 // Description: Real-time 640x480 @ 60Hz VGA Market Data & Order Book Visualizer
 //              Renders Book Status, BBO (Bid in Green, Ask in Red), Spread,
 //              Active Orders, Total Events, and Network Frame Counters.
@@ -38,17 +38,17 @@ module vga_top (
     // -------------------------------------------------------------------------
     // 640x480 @ 60 Hz Standard Video Timing Parameters
     // -------------------------------------------------------------------------
-    localparam int H_ACTIVE = 640;
-    localparam int H_FP     = 16;
-    localparam int H_SYNC   = 96;
-    localparam int H_BP     = 48;
-    localparam int H_TOTAL  = H_ACTIVE + H_FP + H_SYNC + H_BP; // 800
+    localparam H_ACTIVE = 640;
+    localparam H_FP     = 16;
+    localparam H_SYNC   = 96;
+    localparam H_BP     = 48;
+    localparam H_TOTAL  = H_ACTIVE + H_FP + H_SYNC + H_BP; // 800
 
-    localparam int V_ACTIVE = 480;
-    localparam int V_FP     = 10;
-    localparam int V_SYNC   = 2;
-    localparam int V_BP     = 33;
-    localparam int V_TOTAL  = V_ACTIVE + V_FP + V_SYNC + V_BP; // 525
+    localparam V_ACTIVE = 480;
+    localparam V_FP     = 10;
+    localparam V_SYNC   = 2;
+    localparam V_BP     = 33;
+    localparam V_TOTAL  = V_ACTIVE + V_FP + V_SYNC + V_BP; // 525
 
     reg [9:0] h_cnt;
     reg [9:0] v_cnt;
@@ -142,8 +142,11 @@ module vga_top (
     wire [2:0] font_y  = v_cnt[3:1]; // 0..7 (scaled 2x)
 
     // Helper: 4-bit nibble to ASCII character
-    function automatic [7:0] nibble_to_hex(input [3:0] n);
-        return (n < 4'd10) ? (8'h30 + {4'd0, n}) : (8'h37 + {4'd0, n}); // '0'..'9' or 'A'..'F'
+    function [7:0] nibble_to_hex;
+        input [3:0] n;
+        begin
+            nibble_to_hex = (n < 4'd10) ? (8'h30 + {4'd0, n}) : (8'h37 + {4'd0, n});
+        end
     endfunction
 
     // -------------------------------------------------------------------------
@@ -351,48 +354,52 @@ module vga_top (
     // -------------------------------------------------------------------------
     // Font ROM (Standard 8x8 bitmap table)
     // -------------------------------------------------------------------------
-    function automatic [7:0] font_lookup(input [7:0] ascii, input [2:0] y);
+    function [7:0] font_lookup;
+        input [7:0] ascii;
+        input [2:0] y;
+        begin
         case (ascii)
-            "0": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h6E; 3'd3: return 8'h76; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "1": case(y) 3'd0: return 8'h18; 3'd1: return 8'h38; 3'd2: return 8'h18; 3'd3: return 8'h18; 3'd4: return 8'h18; 3'd5: return 8'h18; 3'd6: return 8'h7E; default: return 8'h00; endcase
-            "2": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h06; 3'd3: return 8'h0C; 3'd4: return 8'h30; 3'd5: return 8'h60; 3'd6: return 8'h7E; default: return 8'h00; endcase
-            "3": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h06; 3'd3: return 8'h1C; 3'd4: return 8'h06; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "4": case(y) 3'd0: return 8'h0C; 3'd1: return 8'h1C; 3'd2: return 8'h34; 3'd3: return 8'h64; 3'd4: return 8'h7E; 3'd5: return 8'h04; 3'd6: return 8'h04; default: return 8'h00; endcase
-            "5": case(y) 3'd0: return 8'h7E; 3'd1: return 8'h60; 3'd2: return 8'h7C; 3'd3: return 8'h06; 3'd4: return 8'h06; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "6": case(y) 3'd0: return 8'h1C; 3'd1: return 8'h30; 3'd2: return 8'h60; 3'd3: return 8'h7C; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "7": case(y) 3'd0: return 8'h7E; 3'd1: return 8'h06; 3'd2: return 8'h0C; 3'd3: return 8'h18; 3'd4: return 8'h30; 3'd5: return 8'h30; 3'd6: return 8'h30; default: return 8'h00; endcase
-            "8": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h3C; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "9": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h3E; 3'd4: return 8'h06; 3'd5: return 8'h0C; 3'd6: return 8'h38; default: return 8'h00; endcase
-            "A": case(y) 3'd0: return 8'h18; 3'd1: return 8'h3C; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h7E; 3'd5: return 8'h66; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "B": case(y) 3'd0: return 8'h7C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h7C; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h7C; default: return 8'h00; endcase
-            "C": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h60; 3'd3: return 8'h60; 3'd4: return 8'h60; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "D": case(y) 3'd0: return 8'h78; 3'd1: return 8'h6C; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h66; 3'd5: return 8'h6C; 3'd6: return 8'h78; default: return 8'h00; endcase
-            "E": case(y) 3'd0: return 8'h7E; 3'd1: return 8'h60; 3'd2: return 8'h60; 3'd3: return 8'h7C; 3'd4: return 8'h60; 3'd5: return 8'h60; 3'd6: return 8'h7E; default: return 8'h00; endcase
-            "F": case(y) 3'd0: return 8'h7E; 3'd1: return 8'h60; 3'd2: return 8'h60; 3'd3: return 8'h7C; 3'd4: return 8'h60; 3'd5: return 8'h60; 3'd6: return 8'h60; default: return 8'h00; endcase
-            "G": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h60; 3'd3: return 8'h6E; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "H": case(y) 3'd0: return 8'h66; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h7E; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "I": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h18; 3'd2: return 8'h18; 3'd3: return 8'h18; 3'd4: return 8'h18; 3'd5: return 8'h18; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "K": case(y) 3'd0: return 8'h66; 3'd1: return 8'h6C; 3'd2: return 8'h78; 3'd3: return 8'h70; 3'd4: return 8'h78; 3'd5: return 8'h6C; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "L": case(y) 3'd0: return 8'h60; 3'd1: return 8'h60; 3'd2: return 8'h60; 3'd3: return 8'h60; 3'd4: return 8'h60; 3'd5: return 8'h60; 3'd6: return 8'h7E; default: return 8'h00; endcase
-            "M": case(y) 3'd0: return 8'h63; 3'd1: return 8'h77; 3'd2: return 8'h7F; 3'd3: return 8'h6B; 3'd4: return 8'h63; 3'd5: return 8'h63; 3'd6: return 8'h63; default: return 8'h00; endcase
-            "N": case(y) 3'd0: return 8'h66; 3'd1: return 8'h76; 3'd2: return 8'h7E; 3'd3: return 8'h7E; 3'd4: return 8'h6E; 3'd5: return 8'h66; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "O": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "P": case(y) 3'd0: return 8'h7C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h7C; 3'd4: return 8'h60; 3'd5: return 8'h60; 3'd6: return 8'h60; default: return 8'h00; endcase
-            "Q": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h6A; 3'd5: return 8'h6C; 3'd6: return 8'h36; default: return 8'h00; endcase
-            "R": case(y) 3'd0: return 8'h7C; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h7C; 3'd4: return 8'h78; 3'd5: return 8'h6C; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "S": case(y) 3'd0: return 8'h3C; 3'd1: return 8'h66; 3'd2: return 8'h60; 3'd3: return 8'h3C; 3'd4: return 8'h06; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "T": case(y) 3'd0: return 8'h7E; 3'd1: return 8'h18; 3'd2: return 8'h18; 3'd3: return 8'h18; 3'd4: return 8'h18; 3'd5: return 8'h18; 3'd6: return 8'h18; default: return 8'h00; endcase
-            "U": case(y) 3'd0: return 8'h66; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h66; 3'd5: return 8'h66; 3'd6: return 8'h3C; default: return 8'h00; endcase
-            "V": case(y) 3'd0: return 8'h66; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h66; 3'd4: return 8'h66; 3'd5: return 8'h3C; 3'd6: return 8'h18; default: return 8'h00; endcase
-            "X": case(y) 3'd0: return 8'h66; 3'd1: return 8'h66; 3'd2: return 8'h3C; 3'd3: return 8'h18; 3'd4: return 8'h3C; 3'd5: return 8'h66; 3'd6: return 8'h66; default: return 8'h00; endcase
-            "Y": case(y) 3'd0: return 8'h66; 3'd1: return 8'h66; 3'd2: return 8'h66; 3'd3: return 8'h3C; 3'd4: return 8'h18; 3'd5: return 8'h18; 3'd6: return 8'h18; default: return 8'h00; endcase
-            "-": case(y) 3'd3: return 8'h7E; default: return 8'h00; endcase
-            ":": case(y) 3'd1: return 8'h18; 3'd2: return 8'h18; 3'd4: return 8'h18; 3'd5: return 8'h18; default: return 8'h00; endcase
-            "$": case(y) 3'd0: return 8'h18; 3'd1: return 8'h3E; 3'd2: return 8'h58; 3'd3: return 8'h3C; 3'd4: return 8'h0E; 3'd5: return 8'h7C; 3'd6: return 8'h18; default: return 8'h00; endcase
-            ".": case(y) 3'd5: return 8'h18; 3'd6: return 8'h18; default: return 8'h00; endcase
-            "#": case(y) 3'd1: return 8'h24; 3'd2: return 8'h7E; 3'd3: return 8'h24; 3'd4: return 8'h7E; 3'd5: return 8'h24; default: return 8'h00; endcase
-            default: return 8'h00;
+            "0": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h6E; 3'd3: font_lookup = 8'h76; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "1": case(y) 3'd0: font_lookup = 8'h18; 3'd1: font_lookup = 8'h38; 3'd2: font_lookup = 8'h18; 3'd3: font_lookup = 8'h18; 3'd4: font_lookup = 8'h18; 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h7E; default: font_lookup = 8'h00; endcase
+            "2": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h06; 3'd3: font_lookup = 8'h0C; 3'd4: font_lookup = 8'h30; 3'd5: font_lookup = 8'h60; 3'd6: font_lookup = 8'h7E; default: font_lookup = 8'h00; endcase
+            "3": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h06; 3'd3: font_lookup = 8'h1C; 3'd4: font_lookup = 8'h06; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "4": case(y) 3'd0: font_lookup = 8'h0C; 3'd1: font_lookup = 8'h1C; 3'd2: font_lookup = 8'h34; 3'd3: font_lookup = 8'h64; 3'd4: font_lookup = 8'h7E; 3'd5: font_lookup = 8'h04; 3'd6: font_lookup = 8'h04; default: font_lookup = 8'h00; endcase
+            "5": case(y) 3'd0: font_lookup = 8'h7E; 3'd1: font_lookup = 8'h60; 3'd2: font_lookup = 8'h7C; 3'd3: font_lookup = 8'h06; 3'd4: font_lookup = 8'h06; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "6": case(y) 3'd0: font_lookup = 8'h1C; 3'd1: font_lookup = 8'h30; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "7": case(y) 3'd0: font_lookup = 8'h7E; 3'd1: font_lookup = 8'h06; 3'd2: font_lookup = 8'h0C; 3'd3: font_lookup = 8'h18; 3'd4: font_lookup = 8'h30; 3'd5: font_lookup = 8'h30; 3'd6: font_lookup = 8'h30; default: font_lookup = 8'h00; endcase
+            "8": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h3C; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "9": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h3E; 3'd4: font_lookup = 8'h06; 3'd5: font_lookup = 8'h0C; 3'd6: font_lookup = 8'h38; default: font_lookup = 8'h00; endcase
+            "A": case(y) 3'd0: font_lookup = 8'h18; 3'd1: font_lookup = 8'h3C; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h7E; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "B": case(y) 3'd0: font_lookup = 8'h7C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h7C; default: font_lookup = 8'h00; endcase
+            "C": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h60; 3'd4: font_lookup = 8'h60; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "D": case(y) 3'd0: font_lookup = 8'h78; 3'd1: font_lookup = 8'h6C; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h6C; 3'd6: font_lookup = 8'h78; default: font_lookup = 8'h00; endcase
+            "E": case(y) 3'd0: font_lookup = 8'h7E; 3'd1: font_lookup = 8'h60; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h60; 3'd5: font_lookup = 8'h60; 3'd6: font_lookup = 8'h7E; default: font_lookup = 8'h00; endcase
+            "F": case(y) 3'd0: font_lookup = 8'h7E; 3'd1: font_lookup = 8'h60; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h60; 3'd5: font_lookup = 8'h60; 3'd6: font_lookup = 8'h60; default: font_lookup = 8'h00; endcase
+            "G": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h6E; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "H": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h7E; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "I": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h18; 3'd2: font_lookup = 8'h18; 3'd3: font_lookup = 8'h18; 3'd4: font_lookup = 8'h18; 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "K": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h6C; 3'd2: font_lookup = 8'h78; 3'd3: font_lookup = 8'h70; 3'd4: font_lookup = 8'h78; 3'd5: font_lookup = 8'h6C; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "L": case(y) 3'd0: font_lookup = 8'h60; 3'd1: font_lookup = 8'h60; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h60; 3'd4: font_lookup = 8'h60; 3'd5: font_lookup = 8'h60; 3'd6: font_lookup = 8'h7E; default: font_lookup = 8'h00; endcase
+            "M": case(y) 3'd0: font_lookup = 8'h63; 3'd1: font_lookup = 8'h77; 3'd2: font_lookup = 8'h7F; 3'd3: font_lookup = 8'h6B; 3'd4: font_lookup = 8'h63; 3'd5: font_lookup = 8'h63; 3'd6: font_lookup = 8'h63; default: font_lookup = 8'h00; endcase
+            "N": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h76; 3'd2: font_lookup = 8'h7E; 3'd3: font_lookup = 8'h7E; 3'd4: font_lookup = 8'h6E; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "O": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "P": case(y) 3'd0: font_lookup = 8'h7C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h60; 3'd5: font_lookup = 8'h60; 3'd6: font_lookup = 8'h60; default: font_lookup = 8'h00; endcase
+            "Q": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h6A; 3'd5: font_lookup = 8'h6C; 3'd6: font_lookup = 8'h36; default: font_lookup = 8'h00; endcase
+            "R": case(y) 3'd0: font_lookup = 8'h7C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h7C; 3'd4: font_lookup = 8'h78; 3'd5: font_lookup = 8'h6C; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "S": case(y) 3'd0: font_lookup = 8'h3C; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h60; 3'd3: font_lookup = 8'h3C; 3'd4: font_lookup = 8'h06; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "T": case(y) 3'd0: font_lookup = 8'h7E; 3'd1: font_lookup = 8'h18; 3'd2: font_lookup = 8'h18; 3'd3: font_lookup = 8'h18; 3'd4: font_lookup = 8'h18; 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            "U": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h3C; default: font_lookup = 8'h00; endcase
+            "V": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h66; 3'd4: font_lookup = 8'h66; 3'd5: font_lookup = 8'h3C; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            "X": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h3C; 3'd3: font_lookup = 8'h18; 3'd4: font_lookup = 8'h3C; 3'd5: font_lookup = 8'h66; 3'd6: font_lookup = 8'h66; default: font_lookup = 8'h00; endcase
+            "Y": case(y) 3'd0: font_lookup = 8'h66; 3'd1: font_lookup = 8'h66; 3'd2: font_lookup = 8'h66; 3'd3: font_lookup = 8'h3C; 3'd4: font_lookup = 8'h18; 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            "-": case(y) 3'd3: font_lookup = 8'h7E; default: font_lookup = 8'h00; endcase
+            ":": case(y) 3'd1: font_lookup = 8'h18; 3'd2: font_lookup = 8'h18; 3'd4: font_lookup = 8'h18; 3'd5: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            "$": case(y) 3'd0: font_lookup = 8'h18; 3'd1: font_lookup = 8'h3E; 3'd2: font_lookup = 8'h58; 3'd3: font_lookup = 8'h3C; 3'd4: font_lookup = 8'h0E; 3'd5: font_lookup = 8'h7C; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            ".": case(y) 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
+            "#": case(y) 3'd1: font_lookup = 8'h24; 3'd2: font_lookup = 8'h7E; 3'd3: font_lookup = 8'h24; 3'd4: font_lookup = 8'h7E; 3'd5: font_lookup = 8'h24; default: font_lookup = 8'h00; endcase
+            default: font_lookup = 8'h00;
         endcase
+            end
     endfunction
 
     // -------------------------------------------------------------------------
