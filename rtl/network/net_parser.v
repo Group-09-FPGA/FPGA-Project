@@ -249,7 +249,9 @@ module net_parser #(
 
                         if ((udp_bytes_streamed + 12'd1) == udp_payload_len || frame_byte_last) begin
                             udp_payload_last <= 1'b1;
-                            state            <= ST_IDLE;
+                            // Ethernet padding follows short UDP datagrams. Drain
+                            // it so the RX buffer can retire the complete frame.
+                            state            <= frame_byte_last ? ST_IDLE : ST_DRAIN_DROP;
                         end
                     end else begin
                         udp_payload_valid <= 1'b0;

@@ -70,6 +70,7 @@ module top_system #(
     // =========================================================================
     wire clk_core;
     wire clk_eth;
+    wire clk_eth_phy;
     wire clk_vga;
     wire rst_core_n;
     wire rst_eth_n;
@@ -81,6 +82,7 @@ module top_system #(
         .rst_btn_n     (reset),
         .clk_core      (clk_core),
         .clk_eth       (clk_eth),
+        .clk_eth_phy   (clk_eth_phy),
         .clk_vga       (clk_vga),
         .rst_core_n    (rst_core_n),
         .rst_eth_n     (rst_eth_n),
@@ -89,8 +91,24 @@ module top_system #(
         .mmcm_locked   (mmcm_locked)
     );
 
-    // Forward 50.0 MHz clock to external LAN8720A PHY
+`ifdef SIMULATION
     assign eth_refclk = clk_eth;
+`else
+    // Forward dedicated 50.0 MHz 45-degree phase shifted clock to external LAN8720A PHY via ODDR primitive
+    ODDR #(
+        .DDR_CLK_EDGE("SAME_EDGE"),
+        .INIT(1'b0),
+        .SRTYPE("SYNC")
+    ) u_oddr_refclk (
+        .Q (eth_refclk),
+        .C (clk_eth_phy),
+        .CE(1'b1),
+        .D1(1'b1),
+        .D2(1'b0),
+        .R (1'b0),
+        .S (1'b0)
+    );
+`endif
 
     // =========================================================================
     // 2. Ethernet RMII Physical Receiver & Frame Buffer (50 MHz Domain)
@@ -649,13 +667,17 @@ module top_system #(
     assign led[15:12] = lob_error_valid ? lob_error_code[3:0] : lob_active_orders[3:0];
 
     // Interactive 7-Segment Value Selection via Slide Switches sw[1:0]
+    // Default (sw=00): Best Bid Price ($XXXX.XXXX)
+    // sw=01:          Best Ask Price ($XXXX.XXXX)
+    // sw=10:          Active Orders (4 decimal digits) & Events (4 digits)
+    // sw=11:          RX Frames (4 decimal digits) & CPU PC (4 digits)
     reg [31:0] display_val;
     always @(*) begin
         case (sw[1:0])
-            2'b00: display_val = cpu_pc;                                    // CPU PC
-            2'b01: display_val = lob_bid_price;                            // Best Bid Price
-            2'b10: display_val = lob_ask_price;                            // Best Ask Price
-            2'b11: display_val = {4'h0, lob_active_orders, core_event_count[15:0]}; // Orders & Events
+            2'b00: display_val = lob_bid_price;                                     // Best Bid Price
+            2'b01: display_val = lob_ask_price;                                     // Best Ask Price
+            2'b10: display_val = {4'h0, lob_active_orders, core_event_count[15:0]}; // Orders & Events
+            2'b11: display_val = {cnt_rx_frames[15:0], cpu_pc[15:0]};              // Net Frames & CPU PC
         endcase
     end
 
@@ -663,6 +685,8 @@ module top_system #(
         .clk   (clk_core),
         .reset (rst_core_n),
         .value (display_val),
+        .format((sw[1:0] == 2'b00 || sw[1:0] == 2'b01) ? 2'b01 : 2'b10),
+        .point_mask((sw[1:0] == 2'b00 || sw[1:0] == 2'b01) ? 8'b0001_0000 : 8'b0),
         .an    (an),
         .seg   (seg),
         .dp    (dp)

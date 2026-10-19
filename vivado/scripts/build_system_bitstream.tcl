@@ -11,15 +11,15 @@ set BUILD_DIR  [file normalize "$REPO_ROOT/build_system"]
 
 file mkdir $BUILD_DIR
 
-# Limit thread and worker count to strictly limit memory footprint below 80% RAM
-set_param general.maxThreads 2
-set_param synth.maxThreads 2
+# Optimize thread count for Intel Core Ultra 8-core host
+set_param general.maxThreads 4
+set_param synth.maxThreads 4
 
 puts "=========================================================="
 puts "Starting FPGA Market Data Processor Implementation"
 puts "Repository Root : $REPO_ROOT"
 puts "Build Directory : $BUILD_DIR"
-puts "Max Threads Set : 2 (Memory Safety Enforcement)"
+puts "Max Threads Set : 4"
 puts "=========================================================="
 
 # 1. Prepare Memory Hex Payloads

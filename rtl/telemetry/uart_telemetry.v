@@ -188,6 +188,20 @@ module uart_telemetry #(
     reg        pending_update;
     reg [31:0] pend_bid_p, pend_bid_q, pend_ask_p, pend_ask_q;
 
+    reg [26:0] heartbeat_cnt;
+    wire heartbeat_pulse = (heartbeat_cnt >= (CLK_FREQ - 1));
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            heartbeat_cnt <= 27'd0;
+        else if (heartbeat_pulse)
+            heartbeat_cnt <= 27'd0;
+        else
+            heartbeat_cnt <= heartbeat_cnt + 27'd1;
+    end
+
+    wire telem_trigger = hw_telem_trigger || heartbeat_pulse;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             telem_busy     <= 1'b0;
@@ -202,7 +216,7 @@ module uart_telemetry #(
             pend_ask_p     <= 32'd0;
             pend_ask_q     <= 32'd0;
         end else begin
-            if (!telem_busy && auto_telem_en && hw_telem_trigger) begin
+            if (!telem_busy && auto_telem_en && telem_trigger) begin
                 lat_bid_p      <= best_bid_price;
                 lat_bid_q      <= best_bid_qty;
                 lat_ask_p      <= best_ask_price;

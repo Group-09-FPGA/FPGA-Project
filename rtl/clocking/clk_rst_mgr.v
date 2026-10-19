@@ -21,7 +21,8 @@ module clk_rst_mgr #(
 
     // Derived Clock Outputs
     output wire clk_core,            // 100.0 MHz
-    output wire clk_eth,             // 50.0 MHz (to RMII and pin D5)
+    output wire clk_eth,             // 50.0 MHz (to RMII internal logic)
+    output wire clk_eth_phy,         // 50.0 MHz, 45-deg phase shifted (to pin D5 via ODDR)
     output wire clk_vga,             // 25.0 MHz (to VGA DAC)
 
     // Synchronized Active-Low Resets
@@ -49,7 +50,8 @@ module clk_rst_mgr #(
         else
             clk_50_reg <= ~clk_50_reg;
     end
-    assign clk_eth = clk_50_reg;
+    assign clk_eth     = clk_50_reg;
+    assign clk_eth_phy = clk_50_reg;
 
     reg [1:0] clk_25_cnt = 2'b0;
     always @(posedge clk_100mhz_in or negedge rst_btn_n) begin
@@ -67,7 +69,7 @@ module clk_rst_mgr #(
     // Hardware Xilinx 7-Series MMCM Primitive
     // =========================================================================
     wire clkfbout, clkfbout_buf;
-    wire clk_core_unbuf, clk_eth_unbuf, clk_vga_unbuf;
+    wire clk_core_unbuf, clk_eth_unbuf, clk_eth_phy_unbuf, clk_vga_unbuf;
 
     MMCME2_BASE #(
         .BANDWIDTH("OPTIMIZED"),
@@ -77,12 +79,15 @@ module clk_rst_mgr #(
         .CLKOUT0_DIVIDE_F(10.000),     // CLKOUT0 = 1000 / 10 = 100.0 MHz
         .CLKOUT0_DUTY_CYCLE(0.5),
         .CLKOUT0_PHASE(0.0),
-        .CLKOUT1_DIVIDE(20),           // CLKOUT1 = 1000 / 20 = 50.0 MHz
+        .CLKOUT1_DIVIDE(20),           // CLKOUT1 = 1000 / 20 = 50.0 MHz (Internal MAC)
         .CLKOUT1_DUTY_CYCLE(0.5),
         .CLKOUT1_PHASE(0.0),
-        .CLKOUT2_DIVIDE(40),           // CLKOUT2 = 1000 / 40 = 25.0 MHz
+        .CLKOUT2_DIVIDE(40),           // CLKOUT2 = 1000 / 40 = 25.0 MHz (VGA)
         .CLKOUT2_DUTY_CYCLE(0.5),
         .CLKOUT2_PHASE(0.0),
+        .CLKOUT3_DIVIDE(20),           // CLKOUT3 = 1000 / 20 = 50.0 MHz (External LAN8720A PHY)
+        .CLKOUT3_DUTY_CYCLE(0.5),
+        .CLKOUT3_PHASE(45.0),          // 45.0 deg phase shift per Digilent Nexys A7 manual
         .DIVCLK_DIVIDE(1),
         .REF_JITTER1(0.010),
         .STARTUP_WAIT("FALSE")
@@ -93,7 +98,7 @@ module clk_rst_mgr #(
         .CLKOUT1B  (),
         .CLKOUT2   (clk_vga_unbuf),
         .CLKOUT2B  (),
-        .CLKOUT3   (),
+        .CLKOUT3   (clk_eth_phy_unbuf),
         .CLKOUT3B  (),
         .CLKOUT4   (),
         .CLKOUT5   (),
@@ -107,10 +112,11 @@ module clk_rst_mgr #(
         .CLKFBIN   (clkfbout_buf)
     );
 
-    BUFG u_bufg_fb   (.I(clkfbout),       .O(clkfbout_buf));
-    BUFG u_bufg_core (.I(clk_core_unbuf), .O(clk_core));
-    BUFG u_bufg_eth  (.I(clk_eth_unbuf),  .O(clk_eth));
-    BUFG u_bufg_vga  (.I(clk_vga_unbuf),  .O(clk_vga));
+    BUFG u_bufg_fb   (.I(clkfbout),          .O(clkfbout_buf));
+    BUFG u_bufg_core (.I(clk_core_unbuf),    .O(clk_core));
+    BUFG u_bufg_eth  (.I(clk_eth_unbuf),     .O(clk_eth));
+    BUFG u_bufg_phy  (.I(clk_eth_phy_unbuf), .O(clk_eth_phy));
+    BUFG u_bufg_vga  (.I(clk_vga_unbuf),     .O(clk_vga));
 
 `endif
 
