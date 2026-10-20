@@ -5,7 +5,7 @@ Interactive, presentation-themed technical block diagrams for the RV32IM + pure-
 ## Running
 
 ```bash
-cd diagrams
+cd docs/diagrams
 pnpm install
 pnpm dev
 ```

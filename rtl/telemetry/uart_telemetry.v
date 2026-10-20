@@ -8,8 +8,9 @@
 `timescale 1ns / 1ps
 
 module uart_telemetry #(
-    parameter CLK_FREQ  = 100000000,
-    parameter BAUD_RATE = 115200
+    parameter CLK_FREQ           = 100000000,
+    parameter BAUD_RATE          = 115200,
+    parameter DEFAULT_AUTO_TELEM = 1'b1
 ) (
     input  wire        clk,              // Core 100 MHz clock
     input  wire        rst_n,            // Active-low synchronous reset
@@ -184,26 +185,52 @@ module uart_telemetry #(
         end
     end
 
+    reg        pending_update;
+    reg [31:0] pend_bid_p, pend_bid_q, pend_ask_p, pend_ask_q;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            telem_busy <= 1'b0;
-            telem_step <= 5'd0;
-            lat_bid_p  <= 32'd0;
-            lat_bid_q  <= 32'd0;
-            lat_ask_p  <= 32'd0;
-            lat_ask_q  <= 32'd0;
+            telem_busy     <= 1'b0;
+            telem_step     <= 5'd0;
+            lat_bid_p      <= 32'd0;
+            lat_bid_q      <= 32'd0;
+            lat_ask_p      <= 32'd0;
+            lat_ask_q      <= 32'd0;
+            pending_update <= 1'b0;
+            pend_bid_p     <= 32'd0;
+            pend_bid_q     <= 32'd0;
+            pend_ask_p     <= 32'd0;
+            pend_ask_q     <= 32'd0;
         end else begin
             if (!telem_busy && auto_telem_en && hw_telem_trigger) begin
-                lat_bid_p  <= best_bid_price;
-                lat_bid_q  <= best_bid_qty;
-                lat_ask_p  <= best_ask_price;
-                lat_ask_q  <= best_ask_qty;
-                telem_step <= 5'd0;
-                telem_busy <= 1'b1;
+                lat_bid_p      <= best_bid_price;
+                lat_bid_q      <= best_bid_qty;
+                lat_ask_p      <= best_ask_price;
+                lat_ask_q      <= best_ask_qty;
+                telem_step     <= 5'd0;
+                telem_busy     <= 1'b1;
+                pending_update <= 1'b0;
             end else if (telem_busy) begin
+                if (auto_telem_en && hw_telem_trigger) begin
+                    pending_update <= 1'b1;
+                    pend_bid_p     <= best_bid_price;
+                    pend_bid_q     <= best_bid_qty;
+                    pend_ask_p     <= best_ask_price;
+                    pend_ask_q     <= best_ask_qty;
+                end
                 if (hw_wr_en) begin
                     if (telem_step == 5'd30) begin
-                        telem_busy <= 1'b0;
+                        if (pending_update) begin
+                            lat_bid_p      <= pend_bid_p;
+                            lat_bid_q      <= pend_bid_q;
+                            lat_ask_p      <= pend_ask_p;
+                            lat_ask_q      <= pend_ask_q;
+                            telem_step     <= 5'd0;
+                            pending_update <= 1'b0;
+                            telem_busy     <= 1'b1;
+                        end else begin
+                            telem_busy <= 1'b0;
+                        end
                     end else begin
                         telem_step <= telem_step + 5'd1;
                     end
@@ -223,7 +250,7 @@ module uart_telemetry #(
             fifo_wptr     <= 6'd0;
             fifo_rptr     <= 6'd0;
             fifo_count    <= 7'd0;
-            auto_telem_en <= 1'b0; // Default off, enabled via MMIO or manual
+            auto_telem_en <= DEFAULT_AUTO_TELEM; // Enabled on reset by default
             bus_rsp_valid <= 1'b0;
             bus_rsp_rdata <= 32'd0;
         end else begin
