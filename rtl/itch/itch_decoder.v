@@ -115,18 +115,6 @@ module itch_decoder #(
             cnt_itch_filtered_msgs <= 32'd0;
             cnt_itch_admin_msgs    <= 32'd0;
             cnt_itch_oow_events    <= 32'd0;
-            cur_type               <= 8'd0;
-            cur_loc                <= 16'd0;
-            cur_oid                <= 64'd0;
-            cur_noid               <= 64'd0;
-            cur_side               <= 1'b0;
-            cur_shares             <= 32'd0;
-            cur_raw_p              <= 32'd0;
-            p_quot                 <= 32'd0;
-            p_rem                  <= 32'd0;
-            final_pidx             <= 13'd0;
-            is_oow                 <= 1'b0;
-            evt                    <= 256'd0;
         end else begin
             canon_event_valid <= 1'b0;
 
