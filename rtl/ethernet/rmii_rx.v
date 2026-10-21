@@ -53,28 +53,36 @@ module rmii_rx #(
     reg       byte_valid;     // Pulses 1 cycle every 4 dibits during DATA
     reg [7:0] assembled_byte; // Assembled 8-bit byte
 
-    // Synchronize and filter crs_dv
-    reg [1:0] crs_dv_sync;
-    reg [1:0] rx_err_sync;
-    reg [1:0] rxd_sync [0:1];
+    // Pack input registers into IOB for zero fabric skew and optimal timing margin
+    (* IOB = "true" *) reg        rmii_crs_dv_iob;
+    (* IOB = "true" *) reg        rmii_rx_err_iob;
+    (* IOB = "true" *) reg  [1:0] rmii_rxd_iob;
+
+    reg crs_dv_d1;
 
     always @(posedge clk_50 or negedge rst_n) begin
         if (!rst_n) begin
-            crs_dv_sync   <= 2'b0;
-            rx_err_sync   <= 2'b0;
-            rxd_sync[0]   <= 2'b0;
-            rxd_sync[1]   <= 2'b0;
+            rmii_crs_dv_iob <= 1'b0;
+            rmii_rx_err_iob <= 1'b0;
+            rmii_rxd_iob    <= 2'b0;
+            crs_dv_d1       <= 1'b0;
         end else begin
-            crs_dv_sync   <= {crs_dv_sync[0], rmii_crs_dv};
-            rx_err_sync   <= {rx_err_sync[0], rmii_rx_err};
-            rxd_sync[0]   <= rmii_rxd;
-            rxd_sync[1]   <= rxd_sync[0];
+            rmii_crs_dv_iob <= rmii_crs_dv;
+            rmii_rx_err_iob <= rmii_rx_err;
+            rmii_rxd_iob    <= rmii_rxd;
+            crs_dv_d1       <= rmii_crs_dv_iob;
         end
     end
 
-    wire cur_crs_dv = crs_dv_sync[1];
-    wire cur_rx_err = rx_err_sync[1];
-    wire [1:0] cur_rxd = rxd_sync[1];
+    wire cur_crs_dv = rmii_crs_dv_iob;
+    wire cur_rx_err = rmii_rx_err_iob;
+    wire [1:0] cur_rxd = rmii_rxd_iob;
+
+    // In RMII 100Mbps mode, CRS_DV toggles at 25 MHz (alternating 1, 0, 1, 0)
+    // at the end of a packet while the PHY elasticity buffer drains.
+    // Carrier/data remains active if current OR previous cycle was high.
+    // Inactive only when CRS_DV stays low for >= 2 consecutive 50MHz cycles.
+    wire crs_dv_active = cur_crs_dv | crs_dv_d1;
 
     // -------------------------------------------------------------------------
     // 2. IEEE 802.3 CRC-32 Calculation (Bit-serial / Dibit or Byte-wide)
@@ -108,12 +116,18 @@ module rmii_rx #(
     reg [10:0] rd_ptr;
     reg [10:0] committed_frame_len;
     reg [10:0] active_bytes_received;
+    reg [10:0] read_start_ptr;
+    reg [10:0] queued_start_ptr;
+    reg [11:0] queued_frame_len;
+    reg        queued_valid;
 
     reg        buffer_overflow;
+    wire [10:0] frame_bytes_stored = wr_ptr - wr_start_ptr;
+    wire [10:0] read_last_ptr = read_start_ptr + frame_len[10:0] - 11'd1;
 
     // Buffer read port (asynchronous read for 0-latency streaming)
     assign frame_byte_out = frame_mem[rd_ptr];
-    assign frame_byte_last = (rd_ptr == (wr_start_ptr + frame_len - 1'b1));
+    assign frame_byte_last = (rd_ptr == read_last_ptr);
 
     // -------------------------------------------------------------------------
     // 4. Receiver FSM & Packet Parsing
@@ -132,6 +146,11 @@ module rmii_rx #(
             wr_start_ptr          <= 11'd0;
             active_bytes_received <= 11'd0;
             committed_frame_len   <= 11'd0;
+            read_start_ptr        <= 11'd0;
+            queued_start_ptr      <= 11'd0;
+            queued_frame_len      <= 12'd0;
+            queued_valid          <= 1'b0;
+            rd_ptr                <= 11'd0;
             buffer_overflow       <= 1'b0;
             had_phy_error         <= 1'b0;
             frame_valid           <= 1'b0;
@@ -149,9 +168,16 @@ module rmii_rx #(
             // Frame reading progress from downstream parser
             if (frame_valid && frame_read_en) begin
                 if (frame_byte_last) begin
-                    frame_valid    <= 1'b0;
                     frame_done_ack <= 1'b1;
-                    wr_start_ptr   <= wr_ptr; // advance start pointer for next frame
+                    if (queued_valid) begin
+                        rd_ptr           <= queued_start_ptr;
+                        read_start_ptr   <= queued_start_ptr;
+                        frame_len        <= queued_frame_len;
+                        queued_valid     <= 1'b0;
+                    end else begin
+                        frame_valid <= 1'b0;
+                        rd_ptr      <= rd_ptr + 11'd1;
+                    end
                 end else begin
                     rd_ptr <= rd_ptr + 11'd1;
                 end
@@ -167,29 +193,23 @@ module rmii_rx #(
                     crc32_reg             <= 32'hFFFF_FFFF;
 
                     if (cur_crs_dv) begin
-                        if (cur_rxd == 2'b01) begin
-                            // Preamble pattern (01_01_01_01 = 0x55)
-                            state <= RX_PREAMBLE;
-                        end
+                        state <= RX_PREAMBLE;
                     end
                 end
 
                 RX_PREAMBLE: begin
-                    if (!cur_crs_dv) begin
+                    if (!crs_dv_active) begin
                         state <= RX_IDLE;
                     end else if (cur_rx_err) begin
                         had_phy_error <= 1'b1;
                         state <= RX_DISCARD;
                     end else if (cur_rxd == 2'b11) begin
-                        // SFD ending nibble/dibit (0xD5: 1101_0101 -> final dibit is 2'b11)
+                        // SFD detected! (0xD5 ending dibit)
                         dibit_cnt  <= 2'd0;
                         shift_byte <= 8'd0;
                         crc32_reg  <= 32'hFFFF_FFFF;
                         wr_ptr     <= wr_start_ptr;
                         state      <= RX_DATA;
-                    end else if (cur_rxd != 2'b01) begin
-                        // Malformed preamble
-                        state <= RX_DISCARD;
                     end
                 end
 
@@ -215,7 +235,11 @@ module rmii_rx #(
                         crc32_reg <= calc_crc32_byte(crc32_reg, {cur_rxd, shift_byte[5:0]});
 
                         // Write to BRAM frame buffer
-                        if (!frame_valid && ((wr_ptr - wr_start_ptr) < BUFFER_DEPTH)) begin
+                        // Keep one byte free when unread frames occupy the ring.
+                        // The current uncommitted frame may use the whole ring if
+                        // the downstream side has already drained its predecessor.
+                        if ((frame_bytes_stored < BUFFER_DEPTH) &&
+                            (!frame_valid || ((wr_ptr + 11'd1) != rd_ptr))) begin
                             frame_mem[wr_ptr] <= {cur_rxd, shift_byte[5:0]};
                             wr_ptr            <= wr_ptr + 11'd1;
                         end else begin
@@ -227,8 +251,8 @@ module rmii_rx #(
                         dibit_cnt <= dibit_cnt + 2'd1;
                     end
 
-                    // End of frame detected on falling edge of crs_dv
-                    if (!cur_crs_dv) begin
+                    // End of frame detected when crs_dv is inactive for >= 2 cycles
+                    if (!crs_dv_active) begin
                         state <= RX_CHECK_FCS;
                     end
                 end
@@ -260,18 +284,31 @@ module rmii_rx #(
                         state       <= RX_IDLE;
                     end
                     // 5. Valid Frame! Commit to downstream parser
-                    else begin
+                    else if (!queued_valid || (frame_valid && frame_read_en && frame_byte_last)) begin
                         cnt_rx_frames       <= cnt_rx_frames + 32'd1;
                         committed_frame_len <= active_bytes_received - 11'd4; // subtract 4-byte FCS
-                        frame_len           <= active_bytes_received - 11'd4;
-                        frame_valid         <= 1'b1;
-                        rd_ptr              <= wr_start_ptr;
+                        wr_start_ptr        <= wr_ptr;
+                        if (!frame_valid || (frame_read_en && frame_byte_last && !queued_valid)) begin
+                            frame_len      <= active_bytes_received - 11'd4;
+                            frame_valid    <= 1'b1;
+                            rd_ptr         <= wr_start_ptr;
+                            read_start_ptr <= wr_start_ptr;
+                        end else begin
+                            queued_frame_len <= active_bytes_received - 11'd4;
+                            queued_start_ptr <= wr_start_ptr;
+                            queued_valid     <= 1'b1;
+                        end
                         state               <= RX_IDLE;
+                    end
+                    else begin
+                        cnt_overflow_err <= cnt_overflow_err + 32'd1;
+                        wr_ptr           <= wr_start_ptr;
+                        state            <= RX_IDLE;
                     end
                 end
 
                 RX_DISCARD: begin
-                    if (!cur_crs_dv) begin
+                    if (!crs_dv_active) begin
                         wr_ptr <= wr_start_ptr; // rollback
                         state  <= RX_IDLE;
                     end

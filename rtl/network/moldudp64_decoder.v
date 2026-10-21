@@ -177,7 +177,12 @@ module moldudp64_decoder (
                                     seq_gap_detected <= 1'b1;
                                     gap_expected_seq <= expected_seq;
                                     gap_received_seq <= pkt_seq;
-                                    state            <= MOLD_DRAIN;
+                                    // The live feed cannot replay missed packets here.
+                                    // Record the gap and resume at this packet.
+                                    expected_seq     <= pkt_seq;
+                                    state            <= MOLD_MSG_LEN;
+                                    cur_msg_idx      <= 16'd0;
+                                    cur_msg_byte_cnt <= 16'd0;
                                 end else begin
                                     // Duplicate / stale packet (pkt_seq < expected_seq)
                                     cnt_duplicates <= cnt_duplicates + 32'd1;

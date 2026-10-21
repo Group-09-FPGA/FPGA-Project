@@ -2,30 +2,83 @@
 
 ////////////////////////////////////////////////////////////
 // seven_seg_driver.v
-// Displays a 32-bit value as 8 hex digits on the Nexys A7
-// 7-segment display. Needs the fast board clock (100 MHz)
+// Displays a 32-bit value as hexadecimal, eight decimal digits, or
+// two four-digit decimal fields on the Nexys A7 7-segment display.
+// Decimal conversion runs over 32 clock cycles to keep the logic small.
+// Needs the fast board clock (100 MHz)
 // for proper multiplexed refresh (~1 kHz per digit).
 //
 // Ports:
 //   clk    - fast board clock (100 MHz)
 //   reset  - active-low reset
-//   value  - 32-bit value to display (8 hex nibbles)
+//   value  - raw 32-bit value to display
+//   format - 0: hex, 1: eight decimal digits, 2: two decimal 16-bit fields
+//   point_mask - bit per digit, 1 lights that digit's decimal point
 //   an     - 8-bit anode select, active-low (AN[7:0])
 //   seg    - 7-bit segment, active-low {CG,CF,CE,CD,CC,CB,CA}
-//   dp     - decimal point, active-low (always off)
+//   dp     - decimal point, active-low
 ////////////////////////////////////////////////////////////
 
 module seven_seg_driver (
     input  wire        clk,
     input  wire        reset,
     input  wire [31:0] value,
+    input  wire [1:0]  format,
+    input  wire [7:0]  point_mask,
     output reg  [7:0]  an,    // active-low anode select
     output reg  [6:0]  seg,   // active-low segments {CG..CA}
-    output wire        dp     // decimal point: always off
+    output wire        dp
 );
 
-    // DP always off (active-low, so 1 = off)
-    assign dp = 1'b1;
+    // Double-dabble conversion. In split mode each 16-bit half is converted
+    // independently; values above 9999 show their four least-significant
+    // decimal digits. The displayed result changes only after a full pass.
+    reg [31:0] binary_shift;
+    reg [31:0] bcd_work;
+    reg [31:0] decimal_digits;
+    reg [5:0]  steps_remaining;
+    reg [1:0]  working_format;
+    reg [31:0] bcd_adjusted;
+    reg [31:0] bcd_next;
+    integer i;
+
+    always @(*) begin
+        bcd_adjusted = bcd_work;
+        for (i = 0; i < 8; i = i + 1) begin
+            if (bcd_work[i*4 +: 4] >= 4'd5)
+                bcd_adjusted[i*4 +: 4] = bcd_work[i*4 +: 4] + 4'd3;
+        end
+        if (working_format == 2'b10)
+            bcd_next = {bcd_adjusted[30:16], binary_shift[31],
+                        bcd_adjusted[14:0], binary_shift[15]};
+        else
+            bcd_next = {bcd_adjusted[30:0], binary_shift[31]};
+    end
+
+    always @(posedge clk or negedge reset) begin
+        if (!reset) begin
+            binary_shift    <= 32'd0;
+            bcd_work        <= 32'd0;
+            decimal_digits  <= 32'd0;
+            steps_remaining <= 6'd0;
+            working_format  <= 2'b00;
+        end else if (steps_remaining == 6'd0) begin
+            binary_shift    <= value;
+            bcd_work        <= 32'd0;
+            working_format  <= format;
+            steps_remaining <= (format == 2'b10) ? 6'd16 : 6'd32;
+        end else begin
+            bcd_work <= bcd_next;
+            if (working_format == 2'b10)
+                binary_shift <= {binary_shift[30:16], 1'b0,
+                                 binary_shift[14:0], 1'b0};
+            else
+                binary_shift <= {binary_shift[30:0], 1'b0};
+            steps_remaining <= steps_remaining - 1'b1;
+            if (steps_remaining == 6'd1)
+                decimal_digits <= bcd_next;
+        end
+    end
 
     ////////////////////////////////////////////////////////////
     // Refresh counter
@@ -34,6 +87,7 @@ module seven_seg_driver (
     ////////////////////////////////////////////////////////////
     reg [16:0] refresh_cnt;
     reg [2:0]  digit_sel;
+    assign dp = ~point_mask[digit_sel];
 
     always @(posedge clk or negedge reset) begin
         if (!reset) begin
@@ -50,21 +104,22 @@ module seven_seg_driver (
     end
 
     ////////////////////////////////////////////////////////////
-    // Nibble mux: select which hex digit to show
+    // Digit mux: select hexadecimal or converted decimal digit
     // digit_sel=0 -> rightmost digit (LSB nibble)
     // digit_sel=7 -> leftmost digit (MSB nibble)
     ////////////////////////////////////////////////////////////
     reg [3:0] nibble;
+    wire [31:0] displayed_value = (format == 2'b00) ? value : decimal_digits;
     always @(*) begin
         case (digit_sel)
-            3'd0: nibble = value[ 3: 0];
-            3'd1: nibble = value[ 7: 4];
-            3'd2: nibble = value[11: 8];
-            3'd3: nibble = value[15:12];
-            3'd4: nibble = value[19:16];
-            3'd5: nibble = value[23:20];
-            3'd6: nibble = value[27:24];
-            3'd7: nibble = value[31:28];
+            3'd0: nibble = displayed_value[ 3: 0];
+            3'd1: nibble = displayed_value[ 7: 4];
+            3'd2: nibble = displayed_value[11: 8];
+            3'd3: nibble = displayed_value[15:12];
+            3'd4: nibble = displayed_value[19:16];
+            3'd5: nibble = displayed_value[23:20];
+            3'd6: nibble = displayed_value[27:24];
+            3'd7: nibble = displayed_value[31:28];
             default: nibble = 4'h0;
         endcase
     end

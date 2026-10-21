@@ -222,6 +222,8 @@ seven_seg_driver seg_u (
 	.clk   (clk),
 	.reset (rst_n),
 	.value (pc_out),   // show current fetch PC
+	.format(2'b00),
+	.point_mask(8'b0),
 	.an    (an),
 	.seg   (seg),
 	.dp    (dp)

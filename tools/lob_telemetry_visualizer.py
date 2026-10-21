@@ -60,6 +60,7 @@ class LOBVisualizer:
         self.prev_ask = 0.0
         self.active_orders = 0
         self.event_count = 0
+        self.quote_changes = 0
         self.start_time = time.time()
         self.last_update_time = None
         self.log_history = []
@@ -91,7 +92,9 @@ class LOBVisualizer:
                 self.active_orders = int(m.group(3), 16)
             self.event_count += 1
             self.last_update_time = time.time()
-            self.add_log(f"TELEMETRY UPDATE: BID=${self.best_bid:.4f} | ASK=${self.best_ask:.4f}")
+            if self.best_bid != self.prev_bid or self.best_ask != self.prev_ask:
+                self.quote_changes += 1
+                self.add_log(f"BBO CHANGED: BID=${self.best_bid:.4f} | ASK=${self.best_ask:.4f}")
             return True
         elif line.strip():
             self.add_log(f"RAW: {line.strip()}")
@@ -117,7 +120,7 @@ class LOBVisualizer:
         # Status Line
         status_color = GREEN if (self.demo or (self.last_update_time and time.time() - self.last_update_time < 3.0)) else YELLOW
         mode_str = f"{MAGENTA}[DEMO MODE]{RESET}" if self.demo else f"{GREEN}[LIVE /dev/ttyUSB]{RESET}"
-        buf.append(f" Status: {mode_str} | Port: {BOLD}{self.port}{RESET} | Events: {BOLD}{self.event_count}{RESET} | Rate: {BOLD}{hz:.1f} Hz{RESET}")
+        buf.append(f" Status: {mode_str} | Port: {BOLD}{self.port}{RESET} | Frames: {BOLD}{self.event_count}{RESET} | Quote changes: {BOLD}{self.quote_changes}{RESET} | Rate: {BOLD}{hz:.1f} Hz{RESET}")
         buf.append(f"{CYAN}------------------------------------------------------------------------------{RESET}")
 
         # Order Book Ladder (BBO Display)
@@ -133,16 +136,23 @@ class LOBVisualizer:
         buf.append(f"       {GREEN}{BOLD}└──────────────────────┘{RESET}          {RED}{BOLD}└──────────────────────┘{RESET}")
 
         # Spread Banner
-        if self.best_bid > 0 and self.best_ask > 0 and spread >= 0:
-            spread_str = f"${spread:.4f} ({spread_ticks} ticks)"
-            buf.append(f"\n                        {BOLD}Spread: {YELLOW}{spread_str}{RESET}\n")
+        if self.best_bid > 0 and self.best_ask > 0:
+            if spread >= 0:
+                spread_str = f"${spread:.4f} ({spread_ticks} ticks)"
+                buf.append(f"\n                        {BOLD}Spread: {YELLOW}{spread_str}{RESET}\n")
+            else:
+                crossed_ticks = abs(int(round(spread * 10000)))
+                crossed_str = f"-${abs(spread):.4f} (-{crossed_ticks} ticks) [CROSSED BOOK: BID > ASK]"
+                buf.append(f"\n               {BOLD}Spread: {RED}{crossed_str}{RESET}\n")
+        elif self.best_bid > 0 or self.best_ask > 0:
+            buf.append(f"\n                        {BOLD}Spread: {YELLOW}One-Sided Market{RESET}\n")
         else:
             buf.append(f"\n                        {BOLD}Spread: {DIM}Awaiting Market Data...{RESET}\n")
 
         buf.append(f"{CYAN}------------------------------------------------------------------------------{RESET}")
         buf.append(f"{BOLD} Live Telemetry Activity Log:{RESET}")
         if not self.log_history:
-            buf.append(f"   {DIM}Listening for serial frames from FPGA UART (Pin D4)...{RESET}")
+            buf.append(f"   {DIM}Listening for serial frames from FPGA USB-UART (Micro-USB J6 / {self.port})...{RESET}")
         else:
             for item in self.log_history:
                 buf.append(f"   {DIM}{item}{RESET}")
@@ -203,6 +213,11 @@ class LOBVisualizer:
                     try:
                         text = line.decode('utf-8', errors='replace').strip()
                         if text:
+                            try:
+                                with open('/tmp/vis_frames.log', 'a') as f:
+                                    f.write(f"{text}\n")
+                            except Exception:
+                                pass
                             self.process_line(text)
                             self.render()
                     except Exception:
