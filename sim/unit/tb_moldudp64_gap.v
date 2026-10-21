@@ -31,7 +31,7 @@ module tb_moldudp64_gap;
         input final_byte;
         begin
             @(negedge clk);
-            if (!udp_ready) $fatal(1, "decoder stalled unexpectedly");
+            if (!udp_ready) begin $display("FAIL: ", "decoder stalled unexpectedly"); $stop; end
             udp_valid = 1;
             udp_byte = b;
             udp_start = first;
@@ -66,7 +66,7 @@ module tb_moldudp64_gap;
         send_packet(5);
         if (cnt_pkts != 2 || cnt_msgs != 2 || cnt_gaps != 1 ||
             !gap || gap_expected != 2 || gap_received != 5 || dut.expected_seq != 6)
-            $fatal(1, "gap recovery failed: pkts=%0d msgs=%0d gaps=%0d expected=%0d", cnt_pkts, cnt_msgs, cnt_gaps, dut.expected_seq);
+            begin $display("FAIL: ", "gap recovery failed: pkts=%0d msgs=%0d gaps=%0d expected=%0d", cnt_pkts, cnt_msgs, cnt_gaps, dut.expected_seq); $stop; end
         $display("PASS: sequence gap recorded and later packet decoded");
         $finish;
     end

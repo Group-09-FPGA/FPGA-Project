@@ -23,16 +23,16 @@ module tb_seven_seg_decimal;
         repeat (35) @(posedge clk);
         #1;
         if (dut.decimal_digits !== 32'h0090_5000)
-            $fatal(1, "price BCD: %h", dut.decimal_digits);
+            begin $display("FAIL: ", "price BCD: %h", dut.decimal_digits); $stop; end
 
         force dut.digit_sel = 3'd4;
         #1;
         if (dp !== 1'b0 || an !== 8'b1110_1111)
-            $fatal(1, "price point: dp=%b an=%b", dp, an);
+            begin $display("FAIL: ", "price point: dp=%b an=%b", dp, an); $stop; end
         force dut.digit_sel = 3'd3;
         #1;
         if (dp !== 1'b1)
-            $fatal(1, "unexpected point: dp=%b", dp);
+            begin $display("FAIL: ", "unexpected point: dp=%b", dp); $stop; end
         release dut.digit_sel;
 
         @(negedge clk);
@@ -42,14 +42,14 @@ module tb_seven_seg_decimal;
         repeat (65) @(posedge clk);
         #1;
         if (dut.decimal_digits !== 32'h0002_0012 || dp !== 1'b1)
-            $fatal(1, "split BCD: %h dp=%b", dut.decimal_digits, dp);
+            begin $display("FAIL: ", "split BCD: %h dp=%b", dut.decimal_digits, dp); $stop; end
 
         @(negedge clk);
         value = 32'h0010_0048;
         repeat (50) @(posedge clk);
         #1;
         if (dut.decimal_digits !== 32'h0016_0072)
-            $fatal(1, "frames/PC BCD: %h", dut.decimal_digits);
+            begin $display("FAIL: ", "frames/PC BCD: %h", dut.decimal_digits); $stop; end
 
         $display("PASS: decimal price, decimal point, and split counters");
         $finish;

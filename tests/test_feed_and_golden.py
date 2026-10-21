@@ -45,7 +45,7 @@ class TestFeedAndGoldenModel(unittest.TestCase):
         self.assertEqual(pkt[46:54], stock.encode('ascii').ljust(8, b' '))
 
     def test_canonical_event_packing(self):
-        """Verify bit packing into 256-bit canonical hardware events matches lob_pkg.sv."""
+        """Verify bit packing into 256-bit canonical hardware events matches lob_defines.vh."""
         evt = lob_golden_adapter.pack_canonical_event(
             ver=1,
             op=1,      # ADD

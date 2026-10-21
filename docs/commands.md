@@ -100,12 +100,12 @@ Runs the top-level integration testbench (`sim/integration/tb_system_top.v`), va
 
 Simulation outputs will be generated in `sim/build_system_top/`.
 
-### Unit-Level Simulations
+### CPU and LOB integration compatibility command
 
-To run dedicated core or MMIO integration testbenches:
+The previous CPU/LOB bench used an obsolete package. This command now runs the maintained full-system Verilog integration bench:
 
 ```bash
-# Run CPU + LOB MMIO Co-simulation
+# Run the maintained full-system integration simulation
 cd sim/integration
 ./run_cpu_lob.sh
 ```

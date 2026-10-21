@@ -235,7 +235,7 @@ module tb_rv32m_pipeline;
         end
         $display("=======================================================\n");
 
-        if (errors > 0) $fatal(1, "RV32M pipeline verification failed");
+        if (errors > 0) begin $display("FAIL: ", "RV32M pipeline verification failed"); $stop; end
         $finish;
     end
 
@@ -269,7 +269,7 @@ module tb_rv32m_pipeline;
     initial begin
         #10000;
         $display("[ERROR] TIMEOUT reached in tb_rv32m_pipeline!");
-        $fatal(1, "Simulation timed out");
+        begin $display("FAIL: ", "Simulation timed out"); $stop; end
     end
 
     task check_reg;

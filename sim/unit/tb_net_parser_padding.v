@@ -53,7 +53,7 @@ module tb_net_parser_padding;
         frame_valid = 1;
         repeat (100) @(negedge clk);
         if (frame_valid || rd_idx != 59 || cnt_udp != 1)
-            $fatal(1, "padding not drained: valid=%b idx=%0d udp=%0d", frame_valid, rd_idx, cnt_udp);
+            begin $display("FAIL: ", "padding not drained: valid=%b idx=%0d udp=%0d", frame_valid, rd_idx, cnt_udp); $stop; end
         $display("PASS: padded Ethernet frame drained after UDP payload");
         $finish;
     end

@@ -45,7 +45,7 @@ jobs:
           echo "| Test Component | Description | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| MoldUDP64 / ITCH 5.0 Packet Encoder | Validated NASDAQ ITCH Type 'A' Add Order packet layout | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
-          echo "| 256-bit Canonical Event Packer | Validated bit-level packing matching \`lob_pkg.sv\` | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 256-bit Canonical Event Packer | Validated bit-level packing matching \`lob_defines.vh\` | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Golden Vector Schema & Validation | 32 pre-computed market vectors verified | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Software LOB Core Engine | 30 unit tests covering BBO tracking, price levels, recovery | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Market Feed Scenarios | 8 end-to-end NASDAQ ITCH trading scenarios | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
