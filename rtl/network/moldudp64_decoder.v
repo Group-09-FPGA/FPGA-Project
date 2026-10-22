@@ -58,6 +58,8 @@ module moldudp64_decoder (
 
     reg [ 4:0] hdr_byte_cnt;
     reg [79:0] session_id;
+    reg [79:0] active_session_id;
+    reg        session_initialized;
     reg [63:0] pkt_seq;
     reg [15:0] msg_count;
     reg [15:0] cur_msg_idx;
@@ -77,6 +79,8 @@ module moldudp64_decoder (
             state              <= MOLD_IDLE;
             hdr_byte_cnt       <= 5'd0;
             session_id         <= 80'd0;
+            active_session_id  <= 80'd0;
+            session_initialized<= 1'b0;
             pkt_seq            <= 64'd0;
             msg_count          <= 16'd0;
             cur_msg_idx        <= 16'd0;
@@ -112,6 +116,7 @@ module moldudp64_decoder (
                 seq_gap_detected <= 1'b0;
             end else if (cfg_seq_reset) begin
                 seq_initialized  <= 1'b0;
+                session_initialized <= 1'b0;
                 seq_gap_detected <= 1'b0;
             end
 
@@ -123,7 +128,8 @@ module moldudp64_decoder (
 
                     if (udp_payload_valid && udp_payload_start) begin
                         state        <= MOLD_HEADER;
-                        session_id   <= {session_id[71:0], udp_payload_byte};
+                        session_id   <= {72'd0, udp_payload_byte};
+                        pkt_seq      <= 64'd0;
                         hdr_byte_cnt <= 5'd1;
                     end
                 end
@@ -147,8 +153,19 @@ module moldudp64_decoder (
                             msg_count[7:0] <= udp_payload_byte;
                             cnt_mold_pkts  <= cnt_mold_pkts + 32'd1;
 
+                            if (!session_initialized) begin
+                                active_session_id <= session_id;
+                                session_initialized <= 1'b1;
+                            end
+
                             // 1. Check for Heartbeat (Message Count == 0)
-                            if ({msg_count[15:8], udp_payload_byte} == 16'h0000) begin
+                            if (session_initialized && session_id != active_session_id) begin
+                                seq_gap_detected <= 1'b1;
+                                cnt_seq_gaps <= cnt_seq_gaps + 32'd1;
+                                gap_expected_seq <= expected_seq;
+                                gap_received_seq <= pkt_seq;
+                                state <= MOLD_DRAIN;
+                            end else if ({msg_count[15:8], udp_payload_byte} == 16'h0000) begin
                                 cnt_heartbeats <= cnt_heartbeats + 32'd1;
                                 state <= MOLD_DRAIN;
                             end
@@ -159,13 +176,26 @@ module moldudp64_decoder (
                             end
                             // 3. Normal Data Packet: Check Sequence Number
                             else begin
-                                if (!seq_initialized) begin
-                                    // First packet after reset: lock onto stream sequence
-                                    expected_seq     <= pkt_seq;
-                                    seq_initialized  <= 1'b1;
-                                    state            <= MOLD_MSG_LEN;
-                                    cur_msg_idx      <= 16'd0;
-                                    cur_msg_byte_cnt <= 16'd0;
+                                if (seq_gap_detected) begin
+                                    // A book with missing messages cannot be repaired by
+                                    // continuing at a later sequence number.
+                                    state <= MOLD_DRAIN;
+                                end else if (!seq_initialized) begin
+                                    // An empty book is valid only from the configured
+                                    // beginning of a complete replay/snapshot stream.
+                                    seq_initialized <= 1'b1;
+                                    if (pkt_seq == cfg_expected_seq) begin
+                                        expected_seq     <= pkt_seq;
+                                        state            <= MOLD_MSG_LEN;
+                                        cur_msg_idx      <= 16'd0;
+                                        cur_msg_byte_cnt <= 16'd0;
+                                    end else begin
+                                        cnt_seq_gaps     <= cnt_seq_gaps + 32'd1;
+                                        seq_gap_detected <= 1'b1;
+                                        gap_expected_seq <= cfg_expected_seq;
+                                        gap_received_seq <= pkt_seq;
+                                        state            <= MOLD_DRAIN;
+                                    end
                                 end else if (pkt_seq == expected_seq) begin
                                     // In-sequence! Proceed to decode messages
                                     state            <= MOLD_MSG_LEN;
@@ -177,12 +207,7 @@ module moldudp64_decoder (
                                     seq_gap_detected <= 1'b1;
                                     gap_expected_seq <= expected_seq;
                                     gap_received_seq <= pkt_seq;
-                                    // The live feed cannot replay missed packets here.
-                                    // Record the gap and resume at this packet.
-                                    expected_seq     <= pkt_seq;
-                                    state            <= MOLD_MSG_LEN;
-                                    cur_msg_idx      <= 16'd0;
-                                    cur_msg_byte_cnt <= 16'd0;
+                                    state            <= MOLD_DRAIN;
                                 end else begin
                                     // Duplicate / stale packet (pkt_seq < expected_seq)
                                     cnt_duplicates <= cnt_duplicates + 32'd1;
@@ -190,11 +215,15 @@ module moldudp64_decoder (
                                 end
                             end
                         end
+                        if (udp_payload_last && hdr_byte_cnt != 5'd19) begin
+                            cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
+                            state <= MOLD_IDLE;
+                        end
                     end
                 end
 
                 MOLD_MSG_LEN: begin
-                    if (udp_payload_valid) begin
+                    if (udp_payload_valid && udp_payload_ready) begin
                         if (cur_msg_byte_cnt == 16'd0) begin
                             cur_msg_len[15:8] <= udp_payload_byte;
                             cur_msg_byte_cnt  <= 16'd1;
@@ -205,11 +234,15 @@ module moldudp64_decoder (
                             itch_msg_len     <= {cur_msg_len[15:8], udp_payload_byte};
                             state            <= MOLD_STREAM_MSG;
                         end
+                        if (udp_payload_last) begin
+                            cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
+                            state <= MOLD_IDLE;
+                        end
                     end
                 end
 
                 MOLD_STREAM_MSG: begin
-                    if (udp_payload_valid) begin
+                    if (udp_payload_valid && udp_payload_ready) begin
                         cur_msg_byte_cnt <= cur_msg_byte_cnt + 16'd1;
 
                         itch_msg_valid <= 1'b1;
@@ -226,6 +259,9 @@ module moldudp64_decoder (
                             if ((cur_msg_idx + 16'd1) == msg_count) begin
                                 // All messages in packet processed
                                 state <= MOLD_IDLE;
+                            end else if (udp_payload_last) begin
+                                cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
+                                state <= MOLD_IDLE;
                             end else begin
                                 cur_msg_idx      <= cur_msg_idx + 16'd1;
                                 cur_msg_byte_cnt <= 16'd0;
@@ -234,7 +270,8 @@ module moldudp64_decoder (
                         end
                     end
 
-                    if (udp_payload_last && (cur_msg_byte_cnt + 16'd1) < itch_msg_len) begin
+                    if (udp_payload_valid && udp_payload_ready && udp_payload_last &&
+                        (cur_msg_byte_cnt + 16'd1) < itch_msg_len) begin
                         // Packet truncated prematurely
                         cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
                         state            <= MOLD_IDLE;
