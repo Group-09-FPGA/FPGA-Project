@@ -20,9 +20,11 @@ set_property IOSTANDARD LVCMOS33 [get_ports reset]
 
 # -----------------------------------------------------------------------------
 # 3. Slide Switches (sw[3:0])
+# Note: sw[0] mapped to SW14 (U11) and sw[1] mapped to SW15 (V10) because
+# physical board switches SW0/SW1 are non-functional.
 # -----------------------------------------------------------------------------
-set_property PACKAGE_PIN J15 [get_ports {sw[0]}]
-set_property PACKAGE_PIN L16 [get_ports {sw[1]}]
+set_property PACKAGE_PIN U11 [get_ports {sw[0]}]
+set_property PACKAGE_PIN V10 [get_ports {sw[1]}]
 set_property PACKAGE_PIN M13 [get_ports {sw[2]}]
 set_property PACKAGE_PIN R15 [get_ports {sw[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {sw[*]}]
