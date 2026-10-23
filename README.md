@@ -10,7 +10,7 @@
 [![System Architecture](https://img.shields.io/badge/Architecture-Specification-blue)](docs/system_architecture.md)
 [![Command Reference](https://img.shields.io/badge/Commands-Cheatsheet-green)](docs/commands.md)
 [![HDL](https://img.shields.io/badge/HDL-Pure%20Verilog%202001-informational)](rtl/)
-[![Core Frequency](https://img.shields.io/badge/Core%20Clock-100%20MHz%20%7C%2050%20MHz%20Eth-purple)](docs/system_architecture.md#2-clock-domains--clock-domain-crossing-cdc-architecture)
+[![Core Frequency](https://img.shields.io/badge/Core%20Clock-50%20MHz%20Core%20%7C%2050%20MHz%20Eth-purple)](docs/system_architecture.md#2-clock-domains--clock-domain-crossing-cdc-architecture)
 
 <p align="center">
   <b>A sub-microsecond, pointer-free Limit Order Book hardware accelerator with an integrated RV32IM softcore processor on the Digilent Nexys A7-100T FPGA.</b>
@@ -59,7 +59,7 @@ Hardware parsing from raw Ethernet bits down to 256-bit canonical order events w
    - **Physical RMII Receiver**: 50.0 MHz MAC RX with parallel IEEE 802.3 CRC-32 verification.
    - **Session & Message Decoders**: Hardware IPv4/UDP filtering (Port 10443), MoldUDP64 sequence tracking, and NASDAQ TotalView-ITCH 5.0 message extraction (`A`, `F`, `E`, `C`, `X`, `D`, `U`).
    - **Division-Free Reciprocal**: Single-cycle price normalization via DSP48 fixed-point reciprocal multiplication: $\text{pidx} = ((\text{price} - \text{base}) \times 274877907) \gg 38$.
-   - **Async CDC FIFO**: 256-bit wide dual-clock FIFO with Gray-coded pointer synchronizers bridging the 50 MHz Ethernet and 100 MHz Core domains.
+   - **Async CDC FIFO**: 256-bit wide dual-clock FIFO with Gray-coded pointer synchronizers bridging the 50 MHz Ethernet (clk_eth) and 50 MHz Core (clk_core) domains (separate MMCM outputs, not phase-aligned).
 
 3. **3-Stage RV32IM RISC-V Supervisor Softcore**:
    - Complete integer arithmetic (RV32I) and hardware multiplication/division (RV32M).

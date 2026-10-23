@@ -302,7 +302,9 @@ module top_system #(
     );
 
     // =========================================================================
-    // 6. Dual-Clock Asynchronous Event FIFO (50 MHz -> 100 MHz CDC)
+    // 6. Asynchronous Event FIFO (Eth 50 MHz -> Core 50 MHz CDC)
+    // Both clk_eth and clk_core are 50 MHz but sourced from separate MMCM
+    // output buffers and are NOT phase-aligned; an async FIFO is required.
     // =========================================================================
     wire         core_evt_valid;
     wire [255:0] core_evt_data;
@@ -363,7 +365,7 @@ module top_system #(
     );
 
     // =========================================================================
-    // 7. Hardware Limit Order Book Accelerator Core (100 MHz Domain)
+    // 7. Hardware Limit Order Book Accelerator Core (50 MHz Core Domain)
     // =========================================================================
     wire        lob_book_valid;
     wire        lob_init_done;
@@ -423,7 +425,7 @@ module top_system #(
     end
 
     // =========================================================================
-    // 8. System Bus Interconnect & CPU Subsystem (100 MHz Domain)
+    // 8. System Bus Interconnect & CPU Subsystem (50 MHz Core Domain)
     // =========================================================================
     wire        bus_req_valid;
     wire        bus_req_write;
