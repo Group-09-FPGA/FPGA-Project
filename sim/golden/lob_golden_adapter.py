@@ -28,7 +28,7 @@ SIDE_MAP = {
 
 def pack_canonical_event(ver=1, op=1, side=0, oid=0, noid=0, shares=0, pidx=0, oow=0, seq=0):
     """
-    Packs fields into a 256-bit canonical event integer matching lob_pkg.sv:
+    Packs fields into a 256-bit canonical event integer matching lob_defines.vh:
     [255:252] ver (4b)
     [251:248] op (4b)
     [247]     side (1b)

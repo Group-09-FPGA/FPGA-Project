@@ -81,11 +81,11 @@ module tb_rmii_rx_queue;
         input [7:0] marker;
         integer n;
         begin
-            if (!valid || len != 60) $fatal(1, "missing queued frame");
+            if (!valid || len != 60) begin $display("FAIL: ", "missing queued frame"); $stop; end
             for (n = 0; n < 60; n = n + 1) begin
                 if (data !== (marker + n) % 256)
-                    $fatal(1, "byte %0d: got %02x expected %02x", n, data, (marker + n) % 256);
-                if (last !== (n == 59)) $fatal(1, "bad last at %0d", n);
+                    begin $display("FAIL: ", "byte %0d: got %02x expected %02x", n, data, (marker + n) % 256); $stop; end
+                if (last !== (n == 59)) begin $display("FAIL: ", "bad last at %0d", n); $stop; end
                 read_en = 1;
                 @(negedge clk);
             end
@@ -99,17 +99,17 @@ module tb_rmii_rx_queue;
         send_frame(8'h10);
         send_frame(8'h80);
         if (rx_count != 2 || overflow_err != 0)
-            $fatal(1, "two frames were not queued: count=%0d overflow=%0d", rx_count, overflow_err);
+            begin $display("FAIL: ", "two frames were not queued: count=%0d overflow=%0d", rx_count, overflow_err); $stop; end
         consume_frame(8'h10);
         consume_frame(8'h80);
-        if (valid) $fatal(1, "queue failed to retire");
+        if (valid) begin $display("FAIL: ", "queue failed to retire"); $stop; end
         // Cross the 2048-byte address wrap with repeated commits and reads.
         for (i = 0; i < 40; i = i + 1) begin
             send_frame(i);
             consume_frame(i);
         end
         if (rx_count != 42 || overflow_err != 0 || valid)
-            $fatal(1, "ring wrap failed: count=%0d overflow=%0d", rx_count, overflow_err);
+            begin $display("FAIL: ", "ring wrap failed: count=%0d overflow=%0d", rx_count, overflow_err); $stop; end
         $display("PASS: queued frames and 2048-byte ring wrap");
         $finish;
     end

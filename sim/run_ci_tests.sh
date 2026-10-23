@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
 # Automated RTL Unit Test Suite Runner for FPGA Limit Order Book System
-# Simulator: Icarus Verilog (iverilog -g2012) + vvp
+# Simulator: Icarus Verilog (iverilog -g2001) + vvp
 # =============================================================================
-set -e
+set -e -o pipefail
 
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BUILD_DIR="${PROJECT_ROOT}/build/ci_sim"
@@ -40,31 +40,31 @@ echo "======================================================================"
 
 # 1. Canonical Event Decoder Unit Test
 run_test "LOB Event Decoder (tb_lob_event_decoder.v)" \
-    "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
      ${PROJECT_ROOT}/rtl/lob/lob_event_decoder.v \
      ${PROJECT_ROOT}/sim/unit/lob/tb_lob_event_decoder.v \
      -o ${BUILD_DIR}/tb_event_decoder.vvp" \
-    "vvp ${BUILD_DIR}/tb_event_decoder.vvp"
+    "vvp -N ${BUILD_DIR}/tb_event_decoder.vvp"
 
 # 2. LOB Free List Stack Unit Test
 run_test "LOB Free List Stack Allocator (tb_lob_free_list.v)" \
-    "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob \
      ${PROJECT_ROOT}/rtl/lob/lob_free_list.v \
      ${PROJECT_ROOT}/sim/unit/lob/tb_lob_free_list.v \
      -o ${BUILD_DIR}/tb_free_list.vvp" \
-    "vvp ${BUILD_DIR}/tb_free_list.vvp"
+    "vvp -N ${BUILD_DIR}/tb_free_list.vvp"
 
 # 3. Ethernet 100M RMII Receiver & CRC-32 Unit Test
-run_test "Ethernet RMII Receiver (tb_rmii_rx.sv)" \
-    "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/ethernet \
+run_test "Ethernet RMII Receiver (tb_rmii_rx.v)" \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/ethernet \
      ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v \
-     ${PROJECT_ROOT}/sim/unit/tb_rmii_rx.sv \
+     ${PROJECT_ROOT}/sim/unit/tb_rmii_rx.v \
      -o ${BUILD_DIR}/tb_rmii.vvp" \
-    "vvp ${BUILD_DIR}/tb_rmii.vvp"
+    "vvp -N ${BUILD_DIR}/tb_rmii.vvp"
 
 # 4. RV32IM CPU Core Full Pipeline & Memory Bus Test
 run_test "RV32IM CPU Pipeline & Hardware Multiplier/Divider (tb_cpu_core.v)" \
-    "iverilog -g2012 -I${PROJECT_ROOT}/rtl/cpu/core \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/cpu/core \
      ${PROJECT_ROOT}/rtl/cpu/core/decoder.v \
      ${PROJECT_ROOT}/rtl/cpu/core/alu.v \
      ${PROJECT_ROOT}/rtl/cpu/core/branch_unit.v \
@@ -79,7 +79,7 @@ run_test "RV32IM CPU Pipeline & Hardware Multiplier/Divider (tb_cpu_core.v)" \
      ${PROJECT_ROOT}/rtl/cpu/core/dmem_slave.v \
      ${PROJECT_ROOT}/sim/unit/core/tb_cpu_core.v \
      -o ${BUILD_DIR}/tb_cpu_core.vvp" \
-    "(cd ${PROJECT_ROOT}/sim/unit/core && vvp ${BUILD_DIR}/tb_cpu_core.vvp | grep -E 'ALL|FAIL|ERRORS')"
+    "(cd ${PROJECT_ROOT}/sim/unit/core && vvp -N ${BUILD_DIR}/tb_cpu_core.vvp | grep -E 'ALL|FAIL|ERRORS')"
 
 echo "======================================================================"
 echo " Simulation Summary: ${PASSED_TESTS}/${TOTAL_TESTS} testbenches passed."

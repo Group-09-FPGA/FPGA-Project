@@ -330,8 +330,8 @@ module tb_rv32m_unit;
             reg [2:0]  rand_op;
             for (r_i = 0; r_i < 160; r_i = r_i + 1) begin
                 rand_op = r_i % 8;
-                rand_a = $urandom();
-                rand_b = $urandom();
+                rand_a = $random;
+                rand_b = $random;
                 check_ref(rand_op, rand_a, rand_b, "RANDOM_TEST");
             end
         end

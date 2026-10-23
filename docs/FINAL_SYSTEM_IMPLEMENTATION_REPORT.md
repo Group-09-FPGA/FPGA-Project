@@ -81,23 +81,23 @@ The system architecture partitions operations across dedicated clock domains to 
 
 ## 2. Protocol Engine & Network Stack
 
-### 2.1 RMII MAC Receiver (`rtl/ethernet/rmii_rx.sv`)
+### 2.1 RMII MAC Receiver (`rtl/ethernet/rmii_rx.v`)
 - **PHY Interface**: Interfaces to SMSC LAN8720A via 2-bit RMII (`eth_rxd[1:0]`, `eth_crsdv`) clocked by a continuous 50.0 MHz reference clock (`eth_refclk`).
 - **Preamble & SFD Detection**: Recovers byte alignment from the `0x55` preamble sequence and detects the Start Frame Delimiter `0xD5`.
 - **FCS Verification**: Computes a hardware parallel IEEE 802.3 CRC-32 on incoming data bytes. Valid frames pass only if the received FCS matches CRC residual `0xDEBB20E3`.
 
-### 2.2 IP/UDP Parser (`rtl/network/net_parser.sv`)
+### 2.2 IP/UDP Parser (`rtl/network/net_parser.v`)
 - **Ethernet II Frame**: Strips destination/source MAC addresses and filters for `EtherType == 0x0800` (IPv4).
 - **IPv4 Verification**: Validates IP Version 4, Internet Header Length (IHL), detects and drops IP fragments (`Flags.MF == 1` or `Fragment Offset != 0`), and checks the one's complement Internet Checksum.
 - **UDP Filter**: Filters for `Protocol == 17` (UDP) and matches destination port `10443`.
 - **Latency Optimization**: Incorporates combinational handshaking (`frame_read_en`) that eliminates byte-skipping latency.
 
-### 2.3 MoldUDP64 Transport Layer (`rtl/network/moldudp64_decoder.sv`)
+### 2.3 MoldUDP64 Transport Layer (`rtl/network/moldudp64_decoder.v`)
 - **Header Parsing**: Extracts 10-byte Session Name, 8-byte Sequence Number (`uint64`), and 2-byte Message Count (`uint16`).
 - **Heartbeat & Session Tracking**: Automatically identifies session heartbeats (`Message Count == 0`), verifies monotonic sequence order, and flags gaps or packet drops.
 - **Message Un-framing**: Extracts individual length-delimited ITCH messages from packet payloads.
 
-### 2.4 NASDAQ TotalView-ITCH 5.0 Decoder (`rtl/itch/itch_decoder.sv`)
+### 2.4 NASDAQ TotalView-ITCH 5.0 Decoder (`rtl/itch/itch_decoder.v`)
 - Supported message types:
   - `A`: Add Order (no MPID, 36 bytes)
   - `F`: Add Order with MPID (40 bytes)
@@ -115,22 +115,22 @@ The system architecture partitions operations across dedicated clock domains to 
 
 ## 3. Clock Domain Crossing & Limit Order Book Accelerator
 
-### 3.1 Asynchronous CDC FIFO (`rtl/common/async_event_fifo.sv`)
+### 3.1 Asynchronous CDC FIFO (`rtl/common/async_event_fifo.v`)
 - **Data Path**: 256-bit wide canonical event crossing between 50 MHz Ethernet clock and 100 MHz Core SoC clock.
 - **Synchronization**: Dual-clock Gray pointer synchronizers (2-stage register chains) with strict `set_max_delay -datapath_only 10.000` constraints.
 - **Memory**: Distributed Dual-Port RAM configured as an asynchronous circular buffer.
 
-### 3.2 Hardware LOB Architecture (`rtl/lob/lob_core.sv`)
-- **4-Way Set-Associative Hash Table (`lob_hash_table.sv`)**:
+### 3.2 Hardware LOB Architecture (`rtl/lob/lob_core.v`)
+- **4-Way Set-Associative Hash Table (`lob_hash_table.v`)**:
   - 1024 sets $\times$ 4 ways + 8 stash entries = 4104 order storage capacity.
   - Constant $O(1)$ single-cycle order lookup by 64-bit Order ID.
-- **Dual-Bank Price Level RAM (`lob_price_ram.sv`)**:
+- **Dual-Bank Price Level RAM (`lob_price_ram.v`)**:
   - Independent 8192-entry price tables for Bid and Ask sides.
   - Aggregates share volumes and order counts per price tick.
-- **Hierarchical Occupancy Bitmaps (`lob_occupancy.sv`)**:
+- **Hierarchical Occupancy Bitmaps (`lob_occupancy.v`)**:
   - 256-word summary bitmasks for single-cycle detection of non-empty price levels.
   - Zero-latency hardware priority encoder for finding Best Bid (highest index) and Best Ask (lowest index).
-- **2-Stage Pipelined DSP48 BBO Engine (`lob_bbo.sv`)**:
+- **2-Stage Pipelined DSP48 BBO Engine (`lob_bbo.v`)**:
   - Stage 1: DSP48 multiplication ($\text{pidx} \times \text{tick}$) registered into multiplier registers.
   - Stage 2: Hardware adder adds $\text{cfg\_price\_base}$ into external output flops.
   - Maintains 100% atomic coherence across `valid`, `pidx`, `price`, and `qty`.
@@ -180,15 +180,12 @@ The system bus interconnect (`rtl/cpu/core/sys_bus_interconnect.v`) connects the
 ### 5.1 Verification Matrix
 | Test Suite | Location | Scope | Result |
 | :--- | :--- | :--- | :--- |
-| **RMII RX Unit** | `sim/unit/tb_rmii_rx.sv` | PHY preamble, SFD, byte deserialization, CRC-32 | **PASS (10/10)** |
-| **Network Unit** | `sim/unit/tb_net_parser.sv`| IPv4 checksum, UDP port filtering, fragments | **PASS (8/8)** |
-| **MoldUDP64 Unit** | `sim/unit/tb_moldudp64.sv` | Message headers, sequence checking, heartbeats | **PASS (12/12)** |
-| **ITCH 5.0 Unit** | `sim/unit/tb_itch_decoder.sv`| Message types A, F, E, C, X, D, U, normalization | **PASS (16/16)** |
-| **Async FIFO Unit** | `sim/unit/tb_async_fifo.sv`| Cross-clock gray pointer integrity, full/empty flags | **PASS (6/6)** |
-| **LOB Golden Model**| `sim/integration/tb_lob_golden.sv`| 10,000 randomized ITCH orders vs SystemVerilog model| **PASS (0 errors)** |
-| **RV32M Hardware Unit**| `sim/unit/core/tb_cpu_core.v`| MUL, MULH, MULHU, MULHSU, DIV, DIVU, REM, REMU | **PASS (14/14)** |
-| **CPU + MMIO + LOB** | `sim/integration/tb_cpu_lob_mmio.sv`| Firmware poll, MMIO register reads, DMEM sentinel | **PASS (0 errors)** |
-| **Full End-to-End System**| `sim/integration/tb_system_top.sv` | Full pipeline: PHY -> MAC -> ITCH -> LOB -> CPU -> VGA/UART | **PASS (0 errors)** |
+| **RMII RX Unit** | `sim/unit/tb_rmii_rx.v` | PHY preamble, deserialization, payload bytes, CRC-32 | **PASS (67/67)** |
+| **LOB Event Decoder** | `sim/unit/lob/tb_lob_event_decoder.v` | Canonical event validation | **PASS (11/11)** |
+| **LOB Free List** | `sim/unit/lob/tb_lob_free_list.v` | Slot initialization and allocation | **PASS (6/6)** |
+| **RV32M Hardware Unit** | `sim/unit/core/tb_cpu_core.v` | CPU pipeline and M extension | **PASS** |
+| **Software Golden Model** | `software_lob/tests/` | Reference model and invariants | **PASS (42/42)** |
+| **Full End-to-End System** | `sim/integration/tb_system_top.v` | PHY -> MAC -> ITCH -> LOB -> CPU -> VGA/UART | **PASS (0 errors)** |
 
 ---
 

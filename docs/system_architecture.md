@@ -147,7 +147,7 @@ The network front-end decodes market packets directly from the physical layer wi
 - Rejects IP fragmentation (`Flags.MF == 1` or `Fragment Offset != 0`).
 - Validates UDP Protocol (`Protocol == 17`) and extracts destination port, dropping non-matching traffic before it consumes downstream buffers.
 
-### 3.3 MoldUDP64 Transport Decoder (`moldudp64_decoder.sv` / `.v`)
+### 3.3 MoldUDP64 Transport Decoder (`moldudp64_decoder.v`)
 - Parses the 20-byte MoldUDP64 session header:
   - `Session Name`: 10 bytes ASCII.
   - `Sequence Number`: 8 bytes (`uint64_t`), monotonic tracking.
