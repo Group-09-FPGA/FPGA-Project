@@ -656,7 +656,7 @@ module top_system #(
     // 9. UART Serial Telemetry Engine (0x6000_0000)
     // =========================================================================
     uart_telemetry #(
-        .CLK_FREQ (100_000_000),
+        .CLK_FREQ (50_000_000),
         .BAUD_RATE(115_200)
     ) u_uart (
         .clk              (clk_core),
