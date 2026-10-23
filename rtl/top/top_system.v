@@ -15,7 +15,9 @@
 module top_system #(
     parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
     parameter [31:0] DEFAULT_TICK       = 32'd1000,
-    parameter [15:0] DEFAULT_LOCATE     = 16'd1
+    parameter [15:0] DEFAULT_LOCATE     = 16'd1,
+    parameter [47:0] DEST_MAC           = 48'd0,
+    parameter [31:0] DEST_IP            = 32'd0
 ) (
     // -------------------------------------------------------------------------
     // 100 MHz Master Board Clock & Reset
@@ -157,6 +159,8 @@ module top_system #(
 
     wire [31:0] cnt_ipv4_frames;
     wire [31:0] cnt_udp_packets;
+    wire [31:0] cnt_udp_len_err;
+    wire [31:0] cnt_udp_csum_err;
 
     net_parser u_net_parser (
         .clk                   (clk_eth),
@@ -167,6 +171,8 @@ module top_system #(
         .frame_byte_in         (rmii_frame_byte),
         .frame_byte_last       (rmii_frame_last),
         .cfg_udp_port          (16'd10443),
+        .cfg_dst_mac           (DEST_MAC),
+        .cfg_dst_ip            (DEST_IP),
         .udp_payload_valid     (udp_valid),
         .udp_payload_len       (udp_len),
         .udp_payload_byte      (udp_byte),
@@ -175,6 +181,8 @@ module top_system #(
         .udp_payload_ready     (udp_ready),
         .cnt_ipv4_frames       (cnt_ipv4_frames),
         .cnt_udp_packets       (cnt_udp_packets),
+        .cnt_udp_len_err       (cnt_udp_len_err),
+        .cnt_udp_csum_err      (cnt_udp_csum_err),
         .cnt_non_ipv4_drop     (),
         .cnt_ip_csum_err       (),
         .cnt_ip_frag_drop      (),
@@ -201,6 +209,7 @@ module top_system #(
     wire [31:0] cnt_mold_msgs;
     wire [31:0] cnt_heartbeats;
     wire [31:0] cnt_seq_gaps;
+    wire [31:0] cnt_mold_trunc;
 
     moldudp64_decoder u_mold_decoder (
         .clk                (clk_eth),
@@ -230,7 +239,7 @@ module top_system #(
         .cnt_end_of_session (),
         .cnt_seq_gaps       (cnt_seq_gaps),
         .cnt_duplicates     (),
-        .cnt_trunc_errors   ()
+        .cnt_trunc_errors   (cnt_mold_trunc)
     );
 
     // =========================================================================
@@ -243,6 +252,25 @@ module top_system #(
     wire [31:0]  cnt_itch_total;
     wire [31:0]  cnt_itch_events;
     wire [31:0]  cnt_itch_filtered;
+    wire         itch_decode_error;
+    wire [31:0] mmio_cfg_price_base;
+    wire [31:0] mmio_cfg_tick;
+    wire [15:0] mmio_cfg_stock_locate;
+    wire        mmio_accel_enable;
+    wire        mmio_cfg_ready;
+    wire [79:0] eth_cfg;
+    wire eth_cfg_update;
+
+    config_cdc #(
+        .WIDTH(80),
+        .RESET_VALUE({DEFAULT_LOCATE, DEFAULT_PRICE_BASE, DEFAULT_TICK})
+    ) u_config_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data({mmio_cfg_stock_locate, mmio_cfg_price_base, mmio_cfg_tick}),
+        .src_busy(), .src_ready(mmio_cfg_ready),
+        .dst_clk(clk_eth), .dst_rst_n(rst_eth_n),
+        .dst_data(eth_cfg), .dst_update(eth_cfg_update)
+    );
 
     itch_decoder #(
         .DEFAULT_PRICE_BASE(DEFAULT_PRICE_BASE),
@@ -258,12 +286,13 @@ module top_system #(
         .itch_msg_start        (itch_msg_start),
         .itch_msg_last         (itch_msg_last),
         .itch_msg_ready        (itch_msg_ready),
-        .cfg_stock_locate      (DEFAULT_LOCATE),
-        .cfg_price_base        (DEFAULT_PRICE_BASE),
-        .cfg_tick              (DEFAULT_TICK),
+        .cfg_stock_locate      (eth_cfg[79:64]),
+        .cfg_price_base        (eth_cfg[63:32]),
+        .cfg_tick              (eth_cfg[31:0]),
         .canon_event_valid     (canon_evt_valid),
         .canon_event_data      (canon_evt_data),
         .canon_event_ready     (canon_evt_ready),
+        .decode_error          (itch_decode_error),
         .cnt_itch_total_msgs   (cnt_itch_total),
         .cnt_itch_order_events (cnt_itch_events),
         .cnt_itch_filtered_msgs(cnt_itch_filtered),
@@ -281,6 +310,32 @@ module top_system #(
     wire         fifo_rd_underflow;
     wire [ 6:0]  fifo_wr_cnt;
     wire [ 6:0]  fifo_rd_cnt;
+    reg          feed_loss_eth;
+    (* ASYNC_REG = "TRUE" *) reg feed_loss_sync1, feed_loss_sync2;
+
+    // Latch short loss indications in their source domain before crossing to
+    // the core. Once a message is lost the book needs a complete reset/replay.
+    always @(posedge clk_eth or negedge rst_eth_n) begin
+        if (!rst_eth_n)
+            feed_loss_eth <= 1'b0;
+        else if (seq_gap_detected || itch_decode_error || fifo_wr_overflow ||
+                 (eth_cfg_update && cnt_mold_msgs != 32'd0) ||
+                 (cnt_crc_err != 32'd0) || (cnt_len_err != 32'd0) ||
+                 (cnt_phy_err != 32'd0) || (cnt_overflow_err != 32'd0) ||
+                 (cnt_mold_trunc != 32'd0) ||
+                 (cnt_udp_len_err != 32'd0) || (cnt_udp_csum_err != 32'd0))
+            feed_loss_eth <= 1'b1;
+    end
+
+    always @(posedge clk_core or negedge rst_core_n) begin
+        if (!rst_core_n) begin
+            feed_loss_sync1 <= 1'b0;
+            feed_loss_sync2 <= 1'b0;
+        end else begin
+            feed_loss_sync1 <= feed_loss_eth;
+            feed_loss_sync2 <= feed_loss_sync1;
+        end
+    end
 
     async_event_fifo #(
         .DATA_WIDTH(256),
@@ -325,10 +380,6 @@ module top_system #(
     wire [31:0] lob_ask_price;
     wire [31:0] lob_ask_qty;
 
-    wire        mmio_cfg_clear;
-    wire        mmio_cfg_fail_stop;
-    wire [31:0] mmio_cfg_price_base;
-    wire [31:0] mmio_cfg_tick;
 
     lob_core #(
         .DEFAULT_PRICE_BASE  (DEFAULT_PRICE_BASE),
@@ -340,8 +391,10 @@ module top_system #(
         .event_valid        (core_evt_valid),
         .event_ready        (core_evt_ready),
         .event_data         (core_evt_data),
-        .cfg_clear          (mmio_cfg_clear),
-        .cfg_fail_stop_en   (mmio_cfg_fail_stop),
+        .cfg_clear          (1'b0),
+        .cfg_fail_stop_en   (1'b1),
+        .run_enable         (mmio_accel_enable),
+        .feed_fault        (feed_loss_sync2),
         .cfg_price_base     (mmio_cfg_price_base),
         .cfg_tick           (mmio_cfg_tick),
         .book_valid         (lob_book_valid),
@@ -411,8 +464,18 @@ module top_system #(
     wire        net_bus_req_valid, net_bus_req_write;
     wire [31:0] net_bus_req_addr, net_bus_req_wdata;
     wire [ 3:0] net_bus_req_wstrb;
-    reg         net_bus_rsp_valid;
-    reg  [31:0] net_bus_rsp_rdata;
+    wire        net_bus_rsp_valid;
+    wire [31:0] net_bus_rsp_rdata;
+    wire [351:0] net_diag_snapshot;
+    config_cdc #(.WIDTH(352), .RESET_VALUE(352'd0)) u_net_diag_cdc (
+        .src_clk(clk_eth), .src_rst_n(rst_eth_n),
+        .src_data({cnt_rx_frames, cnt_crc_err, cnt_mold_msgs, cnt_seq_gaps,
+                   cnt_len_err, cnt_phy_err, cnt_overflow_err, cnt_mold_trunc,
+                   cnt_udp_len_err, cnt_udp_csum_err,
+                   29'd0, itch_decode_error, seq_gap_detected, feed_loss_eth}),
+        .src_busy(), .dst_clk(clk_core), .dst_rst_n(rst_core_n),
+        .dst_data(net_diag_snapshot), .dst_update()
+    );
 
     wire        sys_bus_req_valid, sys_bus_req_write;
     wire [31:0] sys_bus_req_addr, sys_bus_req_wdata;
@@ -538,12 +601,11 @@ module top_system #(
         .bus_req_wstrb      (lob_bus_req_wstrb),
         .bus_rsp_valid      (lob_bus_rsp_valid),
         .bus_rsp_rdata      (lob_bus_rsp_rdata),
-        .cfg_clear_strobe   (mmio_cfg_clear),
-        .cfg_fail_stop_en   (mmio_cfg_fail_stop),
         .cfg_price_base     (mmio_cfg_price_base),
         .cfg_tick           (mmio_cfg_tick),
-        .cfg_stock_locate   (),
-        .accel_enable       (),
+        .cfg_stock_locate   (mmio_cfg_stock_locate),
+        .accel_enable       (mmio_accel_enable),
+        .config_ready       (mmio_cfg_ready),
         .book_valid         (lob_book_valid),
         .init_done          (lob_init_done),
         .busy               (lob_busy),
@@ -557,30 +619,21 @@ module top_system #(
         .best_bid_qty       (lob_bid_qty),
         .best_ask_valid     (lob_ask_valid),
         .best_ask_price     (lob_ask_price),
-        .best_ask_qty       (lob_ask_qty),
-        .inject_valid       (),
-        .inject_event_data  (),
-        .inject_ready       (1'b0)
+        .best_ask_qty       (lob_ask_qty)
     );
 
     // Network Telemetry MMIO Slave (0x5000_0000)
-    always @(posedge clk_core or negedge rst_core_n) begin
-        if (!rst_core_n) begin
-            net_bus_rsp_valid <= 1'b0;
-            net_bus_rsp_rdata <= 32'd0;
-        end else begin
-            net_bus_rsp_valid <= net_bus_req_valid;
-            if (net_bus_req_valid) begin
-                case (net_bus_req_addr[7:0])
-                    8'h00: net_bus_rsp_rdata <= cnt_rx_frames;
-                    8'h04: net_bus_rsp_rdata <= cnt_crc_err;
-                    8'h08: net_bus_rsp_rdata <= cnt_mold_msgs;
-                    8'h0C: net_bus_rsp_rdata <= cnt_seq_gaps;
-                    default: net_bus_rsp_rdata <= 32'd0;
-                endcase
-            end
-        end
-    end
+    // Implemented as a dedicated module to isolate the net_diag_snapshot mux
+    // from the CPU pipeline timing arc (see rtl/bus/net_mmio_slave.v).
+    net_mmio_slave u_net_mmio (
+        .clk             (clk_core),
+        .reset           (rst_core_n),
+        .bus_req_valid   (net_bus_req_valid),
+        .bus_req_addr    (net_bus_req_addr[7:0]),
+        .bus_rsp_valid   (net_bus_rsp_valid),
+        .bus_rsp_rdata   (net_bus_rsp_rdata),
+        .net_diag_snapshot(net_diag_snapshot)
+    );
 
     // System Control / Switches MMIO Slave (0x7000_0000)
     always @(posedge clk_core or negedge rst_core_n) begin
@@ -620,28 +673,46 @@ module top_system #(
         .best_ask_price   (lob_ask_price),
         .best_ask_qty     (lob_ask_qty),
         .active_orders    (lob_active_orders),
+        .book_valid       (lob_book_valid),
+        .error_code       (lob_error_code),
         .uart_txd         (uart_txd_out)
     );
 
     // =========================================================================
     // 10. VGA Market Data & LOB Visualizer (25 MHz Domain)
     // =========================================================================
+    wire [174:0] vga_core_snapshot;
+    wire [127:0] vga_net_snapshot;
+    config_cdc #(.WIDTH(175), .RESET_VALUE(175'd0)) u_vga_core_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data({lob_book_valid, lob_bid_valid, lob_bid_price, lob_bid_qty,
+                   lob_ask_valid, lob_ask_price, lob_ask_qty,
+                   lob_active_orders, core_event_count}),
+        .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(vga_core_snapshot), .dst_update()
+    );
+    config_cdc #(.WIDTH(128), .RESET_VALUE(128'd0)) u_vga_net_cdc (
+        .src_clk(clk_eth), .src_rst_n(rst_eth_n),
+        .src_data({cnt_rx_frames, cnt_crc_err, cnt_mold_msgs, cnt_seq_gaps}),
+        .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(vga_net_snapshot), .dst_update()
+    );
     vga_top u_vga (
         .clk_vga        (clk_vga),
         .rst_n          (rst_vga_n),
-        .book_valid     (lob_book_valid),
-        .best_bid_valid (lob_bid_valid),
-        .best_bid_price (lob_bid_price),
-        .best_bid_qty   (lob_bid_qty),
-        .best_ask_valid (lob_ask_valid),
-        .best_ask_price (lob_ask_price),
-        .best_ask_qty   (lob_ask_qty),
-        .active_orders  (lob_active_orders),
-        .event_count    (core_event_count),
-        .cnt_rx_frames  (cnt_rx_frames),
-        .cnt_crc_err    (cnt_crc_err),
-        .cnt_mold_msgs  (cnt_mold_msgs),
-        .cnt_seq_gaps   (cnt_seq_gaps),
+        .book_valid     (vga_core_snapshot[174]),
+        .best_bid_valid (vga_core_snapshot[173]),
+        .best_bid_price (vga_core_snapshot[172:141]),
+        .best_bid_qty   (vga_core_snapshot[140:109]),
+        .best_ask_valid (vga_core_snapshot[108]),
+        .best_ask_price (vga_core_snapshot[107:76]),
+        .best_ask_qty   (vga_core_snapshot[75:44]),
+        .active_orders  (vga_core_snapshot[43:32]),
+        .event_count    (vga_core_snapshot[31:0]),
+        .cnt_rx_frames  (vga_net_snapshot[127:96]),
+        .cnt_crc_err    (vga_net_snapshot[95:64]),
+        .cnt_mold_msgs  (vga_net_snapshot[63:32]),
+        .cnt_seq_gaps   (vga_net_snapshot[31:0]),
         .vga_hs         (vga_hs),
         .vga_vs         (vga_vs),
         .vga_r          (vga_r),

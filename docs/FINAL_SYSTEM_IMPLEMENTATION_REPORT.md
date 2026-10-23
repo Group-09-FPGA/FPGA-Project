@@ -1,5 +1,7 @@
 # AMD Artix-7 FPGA Market Data Processor: Final System Implementation & Verification Report
 
+**Historical report:** This report contains earlier implementation numbers and claims. See [the current implementation contract](CURRENT_IMPLEMENTATION.md) and a fresh post-route report for release decisions.
+
 **Project Title**: End-to-End FPGA Market Data Processor (LOB Accelerator + RV32IM CPU SoC)  
 **Target Board**: Digilent Nexys A7-100T  
 **Target Device**: AMD Artix-7 `XC7A100T-1CSG324C`  

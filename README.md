@@ -64,7 +64,7 @@ Hardware parsing from raw Ethernet bits down to 256-bit canonical order events w
 3. **3-Stage RV32IM RISC-V Supervisor Softcore**:
    - Complete integer arithmetic (RV32I) and hardware multiplication/division (RV32M).
    - 4-cycle pipelined signed/unsigned multiplier array and 39-cycle iterative restoring divider.
-   - 16 KB Instruction Memory + 16 KB Data Memory connected over a non-blocking crossbar interconnect.
+   - 4 KiB Instruction Memory + 4 KiB Data Memory connected over the system bus.
 
 4. **Multi-Channel Diagnostic Outputs**:
    - **640x480 @ 60Hz VGA**: Visualizes top-of-book prices, market depth bars, and real-time trade activity.
@@ -206,7 +206,10 @@ python3 tools/hardware_test_helper.py --inject --ip 192.168.1.10
 
 ---
 
-## 📊 FPGA Resource Utilization (Artix-7 XC7A100T)
+## 📊 Historical FPGA Resource Snapshot (Artix-7 XC7A100T)
+
+These figures are from an earlier implementation. Use the latest routed build
+reports for the current design; see [Current implementation](docs/CURRENT_IMPLEMENTATION.md).
 
 | Resource | Used | Available | Utilization % |
 | :--- | :---: | :---: | :---: |
@@ -216,7 +219,7 @@ python3 tools/hardware_test_helper.py --inject --ip 192.168.1.10
 | **DSP48E1 Slices** | **18** | 240 | **7.50%** |
 | **Global Clock Buffers (BUFG)** | **4** | 32 | **12.50%** |
 | **Clock Management (MMCM)** | **1** | 6 | **16.67%** |
-| **Timing Closure** | **Operating @ 100 MHz Core / 50 MHz Eth / 25 MHz VGA** | | **MET** |
+| **Timing Closure** | See the latest full-system post-route report | | **Must be checked per build** |
 
 ---
 

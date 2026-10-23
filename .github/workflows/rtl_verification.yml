@@ -41,7 +41,9 @@ jobs:
             rtl/lob/lob_bbo.v \
             rtl/lob/lob_core.v \
             rtl/bus/lob_mmio_slave.v \
+            rtl/bus/net_mmio_slave.v \
             rtl/common/async_event_fifo.v \
+            rtl/common/config_cdc.v \
             rtl/clocking/clk_rst_mgr.v \
             rtl/ethernet/rmii_rx.v \
             rtl/network/net_parser.v \
@@ -66,7 +68,7 @@ jobs:
           echo ">>> Verilator lint clean: 0 syntax or elaboration errors."
 
       - name: Publish Lint Summary
-        if: always()
+        if: success()
         run: |
           echo "### ⚡ RTL Lint & Elaboration Results" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
@@ -93,7 +95,7 @@ jobs:
           ./sim/run_ci_tests.sh
 
       - name: Publish Testbench Summary
-        if: always()
+        if: success()
         run: |
           echo "### 🧪 Hardware Simulation Results" >> $GITHUB_STEP_SUMMARY
           echo "| Testbench Module | Subsystem | Target Specs | Status |" >> $GITHUB_STEP_SUMMARY

@@ -71,12 +71,14 @@ module sys_bus_interconnect (
 );
 
     // Address Decoding
-    wire sel_imem = (cpu_req_addr[31:28] == 4'h0);
-    wire sel_dmem = (cpu_req_addr[31:28] == 4'h2) || (cpu_req_addr[31:28] == 4'hF);
-    wire sel_lob  = (cpu_req_addr[31:28] == 4'h4);
-    wire sel_net  = (cpu_req_addr[31:28] == 4'h5);
-    wire sel_uart = (cpu_req_addr[31:28] == 4'h6);
-    wire sel_sys  = (cpu_req_addr[31:28] == 4'h7);
+    // Memories contain 1024 words each. Decode their actual 4-KiB ranges
+    // instead of silently aliasing every address in a 256-MiB region.
+    wire sel_imem = (cpu_req_addr[31:12] == 20'h00000);
+    wire sel_dmem = (cpu_req_addr[31:12] == 20'h20000);
+    wire sel_lob  = (cpu_req_addr[31:8] == 24'h400000);
+    wire sel_net  = (cpu_req_addr[31:8] == 24'h500000);
+    wire sel_uart = (cpu_req_addr[31:8] == 24'h600000);
+    wire sel_sys  = (cpu_req_addr[31:8] == 24'h700000);
     
     // We only have one outstanding transaction, so we track which slave was selected
     reg [2:0] slave_sel;

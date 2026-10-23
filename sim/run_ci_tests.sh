@@ -8,6 +8,8 @@ set -e -o pipefail
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BUILD_DIR="${PROJECT_ROOT}/build/ci_sim"
 mkdir -p "${BUILD_DIR}"
+ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/imem.hex" "${BUILD_DIR}/imem.hex"
+ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/dmem.hex" "${BUILD_DIR}/dmem.hex"
 
 TOTAL_TESTS=0
 PASSED_TESTS=0
@@ -80,6 +82,30 @@ run_test "RV32IM CPU Pipeline & Hardware Multiplier/Divider (tb_cpu_core.v)" \
      ${PROJECT_ROOT}/sim/unit/core/tb_cpu_core.v \
      -o ${BUILD_DIR}/tb_cpu_core.vvp" \
     "(cd ${PROJECT_ROOT}/sim/unit/core && vvp -N ${BUILD_DIR}/tb_cpu_core.vvp | grep -E 'ALL|FAIL|ERRORS')"
+
+run_test "MoldUDP64 gap fail-stop" \
+    "iverilog -g2001 -s tb_moldudp64_gap ${PROJECT_ROOT}/rtl/network/moldudp64_decoder.v ${PROJECT_ROOT}/sim/unit/tb_moldudp64_gap.v -o ${BUILD_DIR}/tb_mold_gap.vvp" \
+    "vvp -N ${BUILD_DIR}/tb_mold_gap.vvp"
+
+run_test "ITCH configurable tick and input validation" \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/lob -s tb_itch_decoder_config ${PROJECT_ROOT}/rtl/itch/itch_decoder.v ${PROJECT_ROOT}/sim/unit/tb_itch_decoder_config.v -o ${BUILD_DIR}/tb_itch_config.vvp" \
+    "vvp -N ${BUILD_DIR}/tb_itch_config.vvp"
+
+run_test "Bundled configuration clock crossing" \
+    "iverilog -g2001 -s tb_config_cdc ${PROJECT_ROOT}/rtl/common/config_cdc.v ${PROJECT_ROOT}/sim/unit/tb_config_cdc.v -o ${BUILD_DIR}/tb_config_cdc.vvp" \
+    "vvp -N ${BUILD_DIR}/tb_config_cdc.vvp"
+
+run_test "Network parser padding" \
+    "iverilog -g2001 -s tb_net_parser_padding ${PROJECT_ROOT}/rtl/network/net_parser.v ${PROJECT_ROOT}/sim/unit/tb_net_parser_padding.v -o ${BUILD_DIR}/tb_net_padding.vvp" \
+    "vvp -N ${BUILD_DIR}/tb_net_padding.vvp"
+
+run_test "RMII queue and ring wrap" \
+    "iverilog -g2001 -s tb_rmii_rx_queue ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v ${PROJECT_ROOT}/sim/unit/tb_rmii_rx_queue.v -o ${BUILD_DIR}/tb_rmii_queue.vvp" \
+    "vvp -N ${BUILD_DIR}/tb_rmii_queue.vvp"
+
+run_test "Full Ethernet-to-book integration" \
+    "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v' ! -path '*/lab5_baseline/*' ! -name 'top_fpga.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \
+    "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_system_top.vvp)"
 
 echo "======================================================================"
 echo " Simulation Summary: ${PASSED_TESTS}/${TOTAL_TESTS} testbenches passed."

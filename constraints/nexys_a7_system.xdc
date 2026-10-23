@@ -92,6 +92,14 @@ set_property PACKAGE_PIN C11 [get_ports {eth_rxd[0]}]
 set_property PACKAGE_PIN D10 [get_ports {eth_rxd[1]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {eth_rxd[*]}]
 
+# LAN8720A REF_CLK In Mode, Microchip DS00002165B Table 5-10:
+# RX outputs are valid within 14 ns and held for at least 3 ns after the
+# supplied 50-MHz clock edge. The extra +/-1 ns covers board clock/data skew.
+# Capture is on the next clk_eth edge; clk_eth_phy has the 45-degree phase
+# used to forward REF_CLK to the PHY.
+set_input_delay -clock [get_clocks clk_eth_phy_unbuf] -max 15.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
+set_input_delay -clock [get_clocks clk_eth_phy_unbuf] -min 2.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
+
 # -----------------------------------------------------------------------------
 # 7. USB-UART Serial Interface (FTDI FT2232HQ Bridge)
 # -----------------------------------------------------------------------------
@@ -141,8 +149,11 @@ set_false_path -from [get_cells -hier -filter {NAME =~ *u_async_fifo*mem_reg*}] 
 # Global asynchronous reset recovery false paths (deasserted after MMCM lock)
 set_false_path -from [get_cells -hier -filter {NAME =~ *u_clk_mgr*rst_*_sync_reg[3]*}]
 
-# VGA display status register snapshot (quasi-static update during VBLANK)
-set_false_path -to [get_cells -hier -filter {NAME =~ *u_vga*snap_*_reg*}]
+# Bundled-data CDC bridges hold source data until the destination acknowledges
+# it. Only their asynchronous synchronizer first stages and held data buses
+# are exempted; destination-to-VGA snapshot paths are timed normally.
+set_false_path -to [get_cells -hier -filter {NAME =~ *u_*_cdc*req_sync1_reg* || NAME =~ *u_*_cdc*ack_sync1_reg*}]
+set_false_path -from [get_cells -hier -filter {NAME =~ *u_*_cdc*held_data_reg*}] -to [get_cells -hier -filter {NAME =~ *u_*_cdc*dst_data_reg*}]
 
 # Static user input false paths
 set_false_path -from [get_ports {sw[*]}]
@@ -151,6 +162,16 @@ set_false_path -to [get_ports {led[*]}]
 set_false_path -to [get_ports {seg[*]}]
 set_false_path -to [get_ports {an[*]}]
 set_false_path -to [get_ports dp]
+
+# net_mmio_slave: snapshot latching stage.
+# The config_cdc module presents already-stable diagnostic counters in dst_data_reg.
+# net_mmio_slave deliberately re-registers them (snap_* FFs) before the address mux,
+# adding one cycle of intentional latency.  Both stages are in clk_core, so we
+# declare a 2-cycle multicycle setup path from the CDC destination register to the
+# snap_* registers.  Hold is left at 1 cycle (default).
+set_multicycle_path 2 -setup \
+    -from [get_cells -hier -filter {NAME =~ *u_net_diag_cdc*dst_data_reg*}] \
+    -to   [get_cells -hier -filter {NAME =~ *u_net_mmio*snap_*}]
 
 # -----------------------------------------------------------------------------
 # 10. Bitstream Generation Properties

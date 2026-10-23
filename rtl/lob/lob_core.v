@@ -25,6 +25,8 @@ module lob_core #(
     // Runtime Control & Configuration
     input  wire         cfg_clear,
     input  wire         cfg_fail_stop_en,
+    input  wire         run_enable,
+    input  wire         feed_fault,
     input  wire [31:0]  cfg_price_base,
     input  wire [31:0]  cfg_tick,
 
@@ -68,6 +70,7 @@ module lob_core #(
     localparam [7:0] FAIL_QTY_UF      = `FAIL_QTY_UF;
     localparam [7:0] FAIL_PRICE_OOW   = `FAIL_PRICE_OOW;
     localparam [7:0] FAIL_INVALID_OP  = `FAIL_INVALID_OP;
+    localparam [7:0] FAIL_FEED_LOSS   = `FAIL_FEED_LOSS;
 
     function [9:0] hash_oid;
         input [63:0] oid;
@@ -482,7 +485,8 @@ module lob_core #(
     // Output Status Flags
     // -------------------------------------------------------------------------
     assign busy        = (state != ST_IDLE) && (state != ST_FAIL_STOP);
-    assign event_ready = (state == ST_IDLE) && init_done && book_valid;
+    assign event_ready = (state == ST_IDLE) && init_done && book_valid &&
+                         run_enable && !feed_fault;
 
     // Trigger signals for check against current BBO
     assign bbo_check_side = (state == ST_ECD_C8) ? lat_ord_side :
@@ -640,6 +644,13 @@ module lob_core #(
                 error_valid      <= 1'b0;
                 error_code       <= FAIL_NONE;
                 bbo_clear_en     <= 1'b1;
+            end else if (feed_fault) begin
+                // The contents of the book cannot be trusted after a lost feed
+                // event.  A full clear and replay is required before use.
+                state       <= ST_FAIL_STOP;
+                book_valid  <= 1'b0;
+                error_valid <= 1'b1;
+                error_code  <= FAIL_FEED_LOSS;
             end else begin
                 case (state)
                     // ---------------------------------------------------------
