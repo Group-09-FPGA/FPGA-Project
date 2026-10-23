@@ -2,7 +2,7 @@
 // File: clk_rst_mgr.v
 // Description: Clock Generation and Reset Management Module
 //              Generates:
-//                - clk_core: 100.0 MHz (Core CPU, LOB accelerator, memory bus)
+//                - clk_core:  50.0 MHz (Core CPU, LOB accelerator, memory bus)
 //                - clk_eth:   50.0 MHz (RMII PHY refclk and network pipeline)
 //                - clk_vga:   25.0 MHz (VGA 640x480 @ 60Hz pixel clock)
 //              Provides glitch-free asynchronous-assert, synchronous-deassert
@@ -20,7 +20,7 @@ module clk_rst_mgr #(
     input  wire rst_btn_n,           // CPU_RESETN push button (pin C12, active-low)
 
     // Derived Clock Outputs
-    output wire clk_core,            // 100.0 MHz
+    output wire clk_core,            // 50.0 MHz
     output wire clk_eth,             // 50.0 MHz (to RMII internal logic)
     output wire clk_eth_phy,         // 50.0 MHz, 45-deg phase shifted (to pin D5 via ODDR)
     output wire clk_vga,             // 25.0 MHz (to VGA DAC)
@@ -76,7 +76,7 @@ module clk_rst_mgr #(
         .CLKFBOUT_MULT_F(10.000),      // VCO = 100 MHz * 10 = 1000.0 MHz
         .CLKFBOUT_PHASE(0.0),
         .CLKIN1_PERIOD(10.000),        // Input = 100.0 MHz (10.0 ns)
-        .CLKOUT0_DIVIDE_F(10.000),     // CLKOUT0 = 1000 / 10 = 100.0 MHz
+        .CLKOUT0_DIVIDE_F(20.000),     // CLKOUT0 = 1000 / 20 = 50.0 MHz
         .CLKOUT0_DUTY_CYCLE(0.5),
         .CLKOUT0_PHASE(0.0),
         .CLKOUT1_DIVIDE(20),           // CLKOUT1 = 1000 / 20 = 50.0 MHz (Internal MAC)

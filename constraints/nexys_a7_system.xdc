@@ -163,16 +163,6 @@ set_false_path -to [get_ports {seg[*]}]
 set_false_path -to [get_ports {an[*]}]
 set_false_path -to [get_ports dp]
 
-# net_mmio_slave: snapshot latching stage.
-# The config_cdc module presents already-stable diagnostic counters in dst_data_reg.
-# net_mmio_slave deliberately re-registers them (snap_* FFs) before the address mux,
-# adding one cycle of intentional latency.  Both stages are in clk_core, so we
-# declare a 2-cycle multicycle setup path from the CDC destination register to the
-# snap_* registers.  Hold is left at 1 cycle (default).
-set_multicycle_path 2 -setup \
-    -from [get_cells -hier -filter {NAME =~ *u_net_diag_cdc*dst_data_reg*}] \
-    -to   [get_cells -hier -filter {NAME =~ *u_net_mmio*snap_*}]
-
 # -----------------------------------------------------------------------------
 # 10. Bitstream Generation Properties
 # -----------------------------------------------------------------------------
