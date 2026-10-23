@@ -64,6 +64,7 @@
 `define FAIL_QTY_UF                 8'h07
 `define FAIL_PRICE_OOW              8'h08
 `define FAIL_INVALID_OP             8'h09
+`define FAIL_FEED_LOSS              8'h0A
 
 // -----------------------------------------------------------------------------
 // Canonical 256-bit Event Layout Bit-Slices (v7 §10)

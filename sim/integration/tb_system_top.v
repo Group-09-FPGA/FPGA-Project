@@ -318,6 +318,18 @@ module tb_system_top;
 
         // Additional settling cycles for telemetry and MMIO registers
         repeat (50) @(posedge clk);
+        timeout = 0;
+        while ((dut.u_dmem.DMEM.dmem[0] !== 32'd1500000 ||
+                dut.u_dmem.DMEM.dmem[2] !== 32'd1505000) && timeout < 5000) begin
+            @(posedge clk);
+            timeout = timeout + 1;
+        end
+        if (timeout == 5000 || dut.u_dmem.DMEM.dmem[6][1] !== 1'b1) begin
+            $display("[FAIL] Monitor firmware did not publish a valid BBO snapshot");
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] Monitor firmware published BBO and status to DMEM");
+        end
 
         // ---------------------------------------------------------------------
         // Verify Diagnostic and Telemetry Counters
@@ -365,6 +377,8 @@ module tb_system_top;
         $display("   - ITCH Order Events           : %0d", dut.u_itch_decoder.cnt_itch_order_events);
         $display("   - ITCH Filtered Messages      : %0d", dut.u_itch_decoder.cnt_itch_filtered_msgs);
         $display("   - ITCH OOW Events             : %0d", dut.u_itch_decoder.cnt_itch_oow_events);
+        $display("   - ITCH Decode Error           : %0d (length=%0d bytes=%0d)",
+                 dut.itch_decode_error, dut.u_itch_decoder.length, dut.u_itch_decoder.count);
         $display("   - ITCH Msg Type Latched       : %0c (0x%02X)", dut.u_itch_decoder.msg_type, dut.u_itch_decoder.msg_type);
         $display("   - ITCH Locate Latched         : %0d", dut.u_itch_decoder.msg_locate);
         $display("   - FIFO Count (wr/rd)          : %0d / %0d", dut.fifo_wr_cnt, dut.fifo_rd_cnt);
@@ -417,6 +431,7 @@ module tb_system_top;
         end else begin
             $display("[FAIL] INTEGRATION TEST FAILED WITH %0d ERRORS", test_errors);
             $display("==================================================================");
+            $fatal(1, "Full-system integration failed");
         end
 
         $finish;

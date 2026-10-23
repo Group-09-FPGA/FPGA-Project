@@ -15,8 +15,17 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "sim", "golden"))
 
 import hardware_test_helper
 import lob_golden_adapter
+from lob_telemetry_visualizer import LOBVisualizer
 
 class TestFeedAndGoldenModel(unittest.TestCase):
+
+    def test_telemetry_invalidates_stale_quotes(self):
+        view = LOBVisualizer(demo=True)
+        self.assertTrue(view.process_line("[BBO] B:000DC2B0 | A:000DE2A0 | V:1 | E:00"))
+        self.assertTrue(view.book_valid)
+        self.assertTrue(view.process_line("[BBO] B:000DC2B0 | A:000DE2A0 | V:0 | E:0A"))
+        self.assertFalse(view.book_valid)
+        self.assertEqual(view.error_code, 0x0A)
 
     def test_moldudp64_packet_formatting(self):
         """Verify NASDAQ ITCH 5.0 Type 'A' Add Order message serialization inside MoldUDP64."""

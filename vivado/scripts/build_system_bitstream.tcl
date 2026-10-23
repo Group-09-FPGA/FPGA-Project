@@ -7,7 +7,11 @@
 
 set SCRIPT_DIR [file normalize [file dirname [info script]]]
 set REPO_ROOT  [file normalize "$SCRIPT_DIR/../.."]
-set BUILD_DIR  [file normalize "$REPO_ROOT/build_system"]
+if {[info exists ::env(FPGA_BUILD_DIR)]} {
+    set BUILD_DIR [file normalize $::env(FPGA_BUILD_DIR)]
+} else {
+    set BUILD_DIR [file normalize "$REPO_ROOT/build_system"]
+}
 
 file mkdir $BUILD_DIR
 
@@ -59,7 +63,9 @@ read_verilog "$REPO_ROOT/rtl/lob/lob_occupancy.v"
 read_verilog "$REPO_ROOT/rtl/lob/lob_bbo.v"
 read_verilog "$REPO_ROOT/rtl/lob/lob_core.v"
 read_verilog "$REPO_ROOT/rtl/bus/lob_mmio_slave.v"
+read_verilog "$REPO_ROOT/rtl/bus/net_mmio_slave.v"
 read_verilog "$REPO_ROOT/rtl/common/async_event_fifo.v"
+read_verilog "$REPO_ROOT/rtl/common/config_cdc.v"
 read_verilog "$REPO_ROOT/rtl/clocking/clk_rst_mgr.v"
 read_verilog "$REPO_ROOT/rtl/ethernet/rmii_rx.v"
 read_verilog "$REPO_ROOT/rtl/network/net_parser.v"
@@ -135,10 +141,14 @@ if {$wns < 0.0} {
 }
 
 if {$wns < 0.0} {
-    puts "CRITICAL WARNING: Setup timing violated! WNS = $wns ns"
+    puts "ERROR: Setup timing violated! WNS = $wns ns"
 }
 if {$whs < 0.0} {
-    puts "CRITICAL WARNING: Hold timing violated! WHS = $whs ns"
+    puts "ERROR: Hold timing violated! WHS = $whs ns"
+}
+if {$wns < 0.0 || $whs < 0.0} {
+    puts "Build failed timing checks. No candidate bitstream will be generated."
+    exit 1
 }
 
 # 8. Bitstream Generation

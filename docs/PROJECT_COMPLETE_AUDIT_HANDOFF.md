@@ -1,4 +1,5 @@
 # Exhaustive Technical Audit & Architecture Handoff Report
+**Historical audit from October 11, 2026.** Its missing-module findings no longer describe the repository. See [the current implementation](CURRENT_IMPLEMENTATION.md).
 **FPGA-Based RV32IM Hardware Limit Order Book (LOB) Accelerator**
 
 **Audit Date:** October 11, 2026  

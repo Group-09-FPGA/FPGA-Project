@@ -24,6 +24,7 @@ xvlog -d SIMULATION \
     "$PROJECT_ROOT/rtl/lob/lob_core.v" \
     "$PROJECT_ROOT/rtl/bus/lob_mmio_slave.v" \
     "$PROJECT_ROOT/rtl/common/async_event_fifo.v" \
+    "$PROJECT_ROOT/rtl/common/config_cdc.v" \
     "$PROJECT_ROOT/rtl/clocking/clk_rst_mgr.v" \
     "$PROJECT_ROOT/rtl/ethernet/rmii_rx.v" \
     "$PROJECT_ROOT/rtl/network/net_parser.v" \

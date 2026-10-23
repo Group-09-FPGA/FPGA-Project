@@ -64,10 +64,11 @@ module tb_moldudp64_gap;
         rst_n = 1;
         send_packet(1);
         send_packet(5);
-        if (cnt_pkts != 2 || cnt_msgs != 2 || cnt_gaps != 1 ||
-            !gap || gap_expected != 2 || gap_received != 5 || dut.expected_seq != 6)
-            begin $display("FAIL: ", "gap recovery failed: pkts=%0d msgs=%0d gaps=%0d expected=%0d", cnt_pkts, cnt_msgs, cnt_gaps, dut.expected_seq); $stop; end
-        $display("PASS: sequence gap recorded and later packet decoded");
+        send_packet(6);
+        if (cnt_pkts != 3 || cnt_msgs != 1 || cnt_gaps != 1 ||
+            !gap || gap_expected != 2 || gap_received != 5 || dut.expected_seq != 2)
+            begin $display("FAIL: ", "feed did not halt: pkts=%0d msgs=%0d gaps=%0d expected=%0d", cnt_pkts, cnt_msgs, cnt_gaps, dut.expected_seq); $stop; end
+        $display("PASS: sequence gap halts subsequent message decoding");
         $finish;
     end
 endmodule

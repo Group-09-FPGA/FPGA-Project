@@ -25,12 +25,11 @@ module lob_mmio_slave #(
     output wire [31:0] bus_rsp_rdata,
 
     // LOB Core Control Outputs
-    output reg         cfg_clear_strobe,
-    output reg         cfg_fail_stop_en,
     output reg  [31:0] cfg_price_base,
     output reg  [31:0] cfg_tick,
     output reg  [15:0] cfg_stock_locate,
     output reg         accel_enable,
+    input  wire        config_ready,
 
     // LOB Core State Inputs
     input  wire        book_valid,
@@ -48,16 +47,11 @@ module lob_mmio_slave #(
     input  wire [31:0] best_bid_qty,
     input  wire        best_ask_valid,
     input  wire [31:0] best_ask_price,
-    input  wire [31:0] best_ask_qty,
-
-    // CPU Event Injection Interface (optional debug)
-    output reg         inject_valid,
-    output reg  [255:0] inject_event_data,
-    input  wire        inject_ready
+    input  wire [31:0] best_ask_qty
 );
 
     // Register Offsets
-    localparam [7:0] REG_LOB_CTRL        = 8'h00; // R/W: [0]=enable, [1]=clear(W1P), [2]=snap_req(W1P), [3]=fail_stop_en
+    localparam [7:0] REG_LOB_CTRL        = 8'h00; // R/W: [0]=enable, [2]=snap_req(W1P); full reset/replay uses board reset
     localparam [7:0] REG_LOB_STATUS      = 8'h04; // RO:  [0]=init_done, [1]=book_valid, [2]=busy, [3]=fail_stop, [4]=bid_valid, [5]=ask_valid, [6]=event_ready
     localparam [7:0] REG_LOB_ERROR_CODE  = 8'h08; // RO/W1C: [7:0]=error_code, [16]=error_valid
     localparam [7:0] REG_LOB_ACTIVE_ORD  = 8'h0C; // RO:  [11:0]=active_order_count
@@ -82,9 +76,7 @@ module lob_mmio_slave #(
         if (!reset) begin
             event_counter <= 32'd0;
         end else begin
-            if (cfg_clear_strobe) begin
-                event_counter <= 32'd0;
-            end else if (event_done) begin
+            if (event_done) begin
                 event_counter <= event_counter + 32'd1;
             end
         end
@@ -134,10 +126,7 @@ module lob_mmio_slave #(
             latched_error_code  <= 8'd0;
             latched_error_valid <= 1'b0;
         end else begin
-            if (cfg_clear_strobe) begin
-                latched_error_code  <= 8'd0;
-                latched_error_valid <= 1'b0;
-            end else if (error_valid) begin
+            if (error_valid) begin
                 latched_error_code  <= error_code;
                 latched_error_valid <= 1'b1;
             end else if (bus_req_valid && bus_req_write && (bus_req_addr[7:0] == REG_LOB_ERROR_CODE)) begin
@@ -161,43 +150,34 @@ module lob_mmio_slave #(
     // Bus Write and Control Logic
     always @(posedge clk or negedge reset) begin
         if (!reset) begin
-            cfg_clear_strobe <= 1'b0;
-            cfg_fail_stop_en <= 1'b1;
             cfg_price_base   <= DEFAULT_PRICE_BASE;
             cfg_tick         <= DEFAULT_TICK;
             cfg_stock_locate <= DEFAULT_LOCATE;
-            accel_enable     <= 1'b1;
-            inject_valid     <= 1'b0;
-            inject_event_data<= 256'd0;
+            accel_enable     <= 1'b0;
         end else begin
-            cfg_clear_strobe <= 1'b0; // default 1-cycle pulse
-            inject_valid     <= 1'b0;
-
             if (bus_req_valid && bus_req_write) begin
                 case (bus_req_addr[7:0])
                     REG_LOB_CTRL: begin
                         if (bus_req_wstrb[0]) begin
                             accel_enable     <= bus_req_wdata[0];
-                            cfg_clear_strobe <= bus_req_wdata[1];
-                            cfg_fail_stop_en <= bus_req_wdata[3];
                         end
                     end
 
-                    REG_LOB_PRICE_BASE: begin
+                    REG_LOB_PRICE_BASE: if (!accel_enable && event_counter == 0 && active_order_count == 0) begin
                         if (bus_req_wstrb[0]) cfg_price_base[ 7: 0] <= bus_req_wdata[ 7: 0];
                         if (bus_req_wstrb[1]) cfg_price_base[15: 8] <= bus_req_wdata[15: 8];
                         if (bus_req_wstrb[2]) cfg_price_base[23:16] <= bus_req_wdata[23:16];
                         if (bus_req_wstrb[3]) cfg_price_base[31:24] <= bus_req_wdata[31:24];
                     end
 
-                    REG_LOB_TICK: begin
+                    REG_LOB_TICK: if (!accel_enable && event_counter == 0 && active_order_count == 0) begin
                         if (bus_req_wstrb[0]) cfg_tick[ 7: 0] <= bus_req_wdata[ 7: 0];
                         if (bus_req_wstrb[1]) cfg_tick[15: 8] <= bus_req_wdata[15: 8];
                         if (bus_req_wstrb[2]) cfg_tick[23:16] <= bus_req_wdata[23:16];
                         if (bus_req_wstrb[3]) cfg_tick[31:24] <= bus_req_wdata[31:24];
                     end
 
-                    REG_LOB_LOCATE: begin
+                    REG_LOB_LOCATE: if (!accel_enable && event_counter == 0 && active_order_count == 0) begin
                         if (bus_req_wstrb[0]) cfg_stock_locate[ 7:0] <= bus_req_wdata[ 7:0];
                         if (bus_req_wstrb[1]) cfg_stock_locate[15:8] <= bus_req_wdata[15:8];
                     end
@@ -226,8 +206,8 @@ module lob_mmio_slave #(
     reg [31:0] rdata_comb;
     always @(*) begin
         case (latched_read_addr)
-            6'h00: rdata_comb = {28'd0, cfg_fail_stop_en, 1'b0, 1'b0, accel_enable}; // 0x00 CTRL
-            6'h01: rdata_comb = {25'd0, event_ready, best_ask_valid, best_bid_valid, latched_error_valid, busy, book_valid, init_done}; // 0x04 STATUS
+            6'h00: rdata_comb = {31'd0, accel_enable}; // 0x00 CTRL
+            6'h01: rdata_comb = {24'd0, config_ready, event_ready, best_ask_valid, best_bid_valid, latched_error_valid, busy, book_valid, init_done}; // 0x04 STATUS
             6'h02: rdata_comb = {15'd0, latched_error_valid, 8'd0, latched_error_code}; // 0x08 ERR
             6'h03: rdata_comb = {20'd0, active_order_count}; // 0x0C ACTIVE_ORD
             6'h04: rdata_comb = snap_bid_price_reg; // 0x10 SNAP_BID_P

@@ -36,10 +36,10 @@ jobs:
 
       - name: Run Software LOB Reference Model Tests
         run: |
-          pytest software_lob/tests/unit software_lob/tests/scenarios -v
+          pytest software_lob/tests -v
 
       - name: Publish Python Test Summary
-        if: always()
+        if: success()
         run: |
           echo "### 🐍 Software & Feed Verification Results" >> $GITHUB_STEP_SUMMARY
           echo "| Test Component | Description | Status |" >> $GITHUB_STEP_SUMMARY

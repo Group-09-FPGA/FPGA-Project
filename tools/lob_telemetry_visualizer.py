@@ -45,6 +45,7 @@ CLEAR   = "\033[2J\033[H"
 BBO_PATTERN = re.compile(
     r"\[BBO\]\s+B:([0-9A-Fa-f]+)\s*\|\s*A:([0-9A-Fa-f]+)(?:\s*\|\s*O:([0-9A-Fa-f]+))?"
 )
+STATUS_PATTERN = re.compile(r"\|\s*V:([01])\s*\|\s*E:([0-9A-Fa-f]{2})")
 
 class LOBVisualizer:
     def __init__(self, port="/dev/ttyUSB1", baud=115200, demo=False, raw=False):
@@ -59,6 +60,8 @@ class LOBVisualizer:
         self.prev_bid = 0.0
         self.prev_ask = 0.0
         self.active_orders = 0
+        self.book_valid = False
+        self.error_code = 0
         self.event_count = 0
         self.quote_changes = 0
         self.start_time = time.time()
@@ -84,6 +87,17 @@ class LOBVisualizer:
     def process_line(self, line):
         m = BBO_PATTERN.search(line)
         if m:
+            status_match = STATUS_PATTERN.search(line)
+            previous_valid = self.book_valid
+            if status_match:
+                self.book_valid = status_match.group(1) == "1"
+                self.error_code = int(status_match.group(2), 16)
+            else:
+                # Compatibility with the original 31-byte telemetry frame.
+                self.book_valid = True
+                self.error_code = 0
+            if previous_valid and not self.book_valid:
+                self.add_log(f"BOOK INVALID: error 0x{self.error_code:02X}; reset and replay required")
             self.prev_bid = self.best_bid
             self.prev_ask = self.best_ask
             self.best_bid = self.format_price(m.group(1))
@@ -92,7 +106,7 @@ class LOBVisualizer:
                 self.active_orders = int(m.group(3), 16)
             self.event_count += 1
             self.last_update_time = time.time()
-            if self.best_bid != self.prev_bid or self.best_ask != self.prev_ask:
+            if self.book_valid and (self.best_bid != self.prev_bid or self.best_ask != self.prev_ask):
                 self.quote_changes += 1
                 self.add_log(f"BBO CHANGED: BID=${self.best_bid:.4f} | ASK=${self.best_ask:.4f}")
             return True
@@ -121,13 +135,17 @@ class LOBVisualizer:
         status_color = GREEN if (self.demo or (self.last_update_time and time.time() - self.last_update_time < 3.0)) else YELLOW
         mode_str = f"{MAGENTA}[DEMO MODE]{RESET}" if self.demo else f"{GREEN}[LIVE /dev/ttyUSB]{RESET}"
         buf.append(f" Status: {mode_str} | Port: {BOLD}{self.port}{RESET} | Frames: {BOLD}{self.event_count}{RESET} | Quote changes: {BOLD}{self.quote_changes}{RESET} | Rate: {BOLD}{hz:.1f} Hz{RESET}")
+        if not self.book_valid and self.event_count:
+            buf.append(f" {RED}{BOLD}BOOK INVALID — error 0x{self.error_code:02X}; reset and replay the feed{RESET}")
         buf.append(f"{CYAN}------------------------------------------------------------------------------{RESET}")
 
         # Order Book Ladder (BBO Display)
         buf.append(f"{BOLD}{WHITE}                           TOP OF BOOK (BBO){RESET}\n")
         
-        bid_str = f"${self.best_bid:8.4f}" if self.best_bid > 0 else "   --.----"
-        ask_str = f"${self.best_ask:8.4f}" if self.best_ask > 0 else "   --.----"
+        bid_str = f"${self.best_bid:8.4f}" if self.book_valid and self.best_bid > 0 else "   --.----"
+        ask_str = f"${self.best_ask:8.4f}" if self.book_valid and self.best_ask > 0 else "   --.----"
+        if not self.book_valid:
+            bid_arrow = ask_arrow = " "
 
         buf.append(f"       {GREEN}{BOLD}┌──────────────────────┐{RESET}          {RED}{BOLD}┌──────────────────────┐{RESET}")
         buf.append(f"       {GREEN}{BOLD}│   BEST BID (BUY)     │{RESET}          {RED}{BOLD}│   BEST ASK (SELL)    │{RESET}")
@@ -136,7 +154,9 @@ class LOBVisualizer:
         buf.append(f"       {GREEN}{BOLD}└──────────────────────┘{RESET}          {RED}{BOLD}└──────────────────────┘{RESET}")
 
         # Spread Banner
-        if self.best_bid > 0 and self.best_ask > 0:
+        if not self.book_valid and self.event_count:
+            buf.append(f"\n                        {BOLD}Spread: {RED}Unavailable (invalid book){RESET}\n")
+        elif self.best_bid > 0 and self.best_ask > 0:
             if spread >= 0:
                 spread_str = f"${spread:.4f} ({spread_ticks} ticks)"
                 buf.append(f"\n                        {BOLD}Spread: {YELLOW}{spread_str}{RESET}\n")
