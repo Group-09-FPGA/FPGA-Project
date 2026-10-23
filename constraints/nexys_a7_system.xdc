@@ -99,8 +99,8 @@ set_property IOSTANDARD LVCMOS33 [get_ports {eth_rxd[*]}]
 # supplied 50-MHz clock edge. The extra +/-1 ns covers board clock/data skew.
 # Capture is on the next clk_eth edge; clk_eth_phy has the 45-degree phase
 # used to forward REF_CLK to the PHY.
-set_input_delay -clock [get_clocks clk_eth_phy_unbuf] -max 15.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
-set_input_delay -clock [get_clocks clk_eth_phy_unbuf] -min 2.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_mgr/u_mmcm/CLKOUT3]] -max 15.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_mgr/u_mmcm/CLKOUT3]] -min 2.000 [get_ports {eth_crsdv eth_rxerr eth_rxd[*]}]
 
 # -----------------------------------------------------------------------------
 # 7. USB-UART Serial Interface (FTDI FT2232HQ Bridge)
@@ -145,8 +145,9 @@ set_property IOSTANDARD LVCMOS33 [get_ports vga_vs]
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_sync1_reg*}] 10.000
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_sync1_reg*}] 10.000
 
-# Async FIFO dual-clock distributed RAM memory cross-clock false path (pointer synchronizer protected)
-set_false_path -from [get_cells -hier -filter {NAME =~ *u_async_fifo*mem_reg*}] -to [get_clocks -include_generated_clocks clk_core_unbuf]
+# The FIFO storage now infers asynchronous-read distributed RAM. Its output
+# pins are combinational and are not valid timing startpoints; the Gray-pointer
+# paths above and destination-domain read logic remain constrained.
 
 # Global asynchronous reset recovery false paths (deasserted after MMCM lock)
 set_false_path -from [get_cells -hier -filter {NAME =~ *u_clk_mgr*rst_*_sync_reg[3]*}]
@@ -155,7 +156,7 @@ set_false_path -from [get_cells -hier -filter {NAME =~ *u_clk_mgr*rst_*_sync_reg
 # it. Only their asynchronous synchronizer first stages and held data buses
 # are exempted; destination-to-VGA snapshot paths are timed normally.
 set_false_path -to [get_cells -hier -filter {NAME =~ *u_*_cdc*req_sync1_reg* || NAME =~ *u_*_cdc*ack_sync1_reg*}]
-set_false_path -from [get_cells -hier -filter {NAME =~ *u_*_cdc*held_data_reg*}] -to [get_cells -hier -filter {NAME =~ *u_*_cdc*dst_data_reg*}]
+set_false_path -from [get_cells -hier -filter {NAME =~ *u_*_cdc*held_data_reg* && NAME !~ *_i_*}] -to [get_cells -hier -filter {NAME =~ *u_*_cdc*dst_data_reg* && NAME !~ *_i_*}]
 
 # Static user input false paths
 set_false_path -from [get_ports {sw[*]}]

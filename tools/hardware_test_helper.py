@@ -87,7 +87,7 @@ def create_moldudp64_replace_pair(seq_num, old_bid_ref, new_bid_ref,
             create_itch_replace_order(old_ask_ref, new_ask_ref,
                                       ask_shares, ask_price))
 
-def send_market_orders(target_ip="192.168.1.10", target_port=10443, count=5):
+def send_market_orders(target_ip="192.168.1.255", target_port=10443, count=5):
     print(f"[*] Crafting and transmitting test market orders to {target_ip}:{target_port}...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -102,7 +102,7 @@ def send_market_orders(target_ip="192.168.1.10", target_port=10443, count=5):
     sock.close()
     print("[*] Injection complete. Observe board LEDs, 7-Segment display, and UART!")
 
-def stream_market_orders(target_ip="192.168.1.10", target_port=10443, delay=0.5):
+def stream_market_orders(target_ip="192.168.1.255", target_port=10443, delay=0.5):
     import random
     print(f"[*] Continuously streaming live market orders to {target_ip}:{target_port}...")
     print("    (Press Ctrl+C to stop)")
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--inject", action="store_true", help="Inject sample MoldUDP64/ITCH packets")
     parser.add_argument("--stream", action="store_true", help="Continuously stream market orders (live feed)")
     parser.add_argument("--delay", type=float, default=0.5, help="Delay between stream updates in seconds (default: 0.5)")
-    parser.add_argument("--ip", default="192.168.1.10", help="Target IP for Ethernet injection")
+    parser.add_argument("--ip", default="192.168.1.255", help="Broadcast IP of the FPGA link subnet (default: 192.168.1.255)")
     parser.add_argument("--port", type=int, default=10443, help="Target UDP Port (default: 10443)")
     args = parser.parse_args()
 

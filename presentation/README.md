@@ -1,32 +1,10 @@
-# React + TypeScript + Vite
+# FPGA LOB presentation
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This Vite/React deck records an earlier design phase. Some slides and the
+exported PowerPoint retain projected 100 MHz timing and reciprocal price
+conversion; these are historical claims, not the implemented RTL. Check
+`rtl/clocking/clk_rst_mgr.v`, `rtl/itch/itch_decoder.v`, and a fresh Vivado
+post-route report before using the deck to describe current hardware.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Run `pnpm install` and `pnpm dev` to view the deck. Run `pnpm build` to check
+the TypeScript and web build.

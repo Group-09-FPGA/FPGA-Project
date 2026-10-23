@@ -28,7 +28,7 @@ export function Frame({ n, kicker, title, children, compactHeader }: FrameProps)
       <h1 className={`title rise${compactHeader ? ' compact' : ''}`} style={delay(0.08)}>{title}</h1>
       {children}
       <div className="foot">
-        <span>{String(current).padStart(3, '0')} · GROUP 09 · FPGA LOB</span>
+        <span>{String(current).padStart(3, '0')} · GROUP 09 · FPGA LOB · HISTORICAL DESIGN</span>
         <span className="dots">
           {Array.from({ length: TOTAL }, (_, i) => (
             <i

@@ -138,6 +138,12 @@ module lob_mmio_slave #(
 
     // Live Spread Calculation (Registered for timing closure)
     reg [31:0] live_spread;
+    wire [31:0] tick_after_write = {
+        bus_req_wstrb[3] ? bus_req_wdata[31:24] : cfg_tick[31:24],
+        bus_req_wstrb[2] ? bus_req_wdata[23:16] : cfg_tick[23:16],
+        bus_req_wstrb[1] ? bus_req_wdata[15:8]  : cfg_tick[15:8],
+        bus_req_wstrb[0] ? bus_req_wdata[7:0]   : cfg_tick[7:0]
+    };
     always @(posedge clk or negedge reset) begin
         if (!reset) begin
             live_spread <= 32'd0;
@@ -170,12 +176,9 @@ module lob_mmio_slave #(
                         if (bus_req_wstrb[3]) cfg_price_base[31:24] <= bus_req_wdata[31:24];
                     end
 
-                    REG_LOB_TICK: if (!accel_enable && event_counter == 0 && active_order_count == 0) begin
-                        if (bus_req_wstrb[0]) cfg_tick[ 7: 0] <= bus_req_wdata[ 7: 0];
-                        if (bus_req_wstrb[1]) cfg_tick[15: 8] <= bus_req_wdata[15: 8];
-                        if (bus_req_wstrb[2]) cfg_tick[23:16] <= bus_req_wdata[23:16];
-                        if (bus_req_wstrb[3]) cfg_tick[31:24] <= bus_req_wdata[31:24];
-                    end
+                    REG_LOB_TICK: if (!accel_enable && event_counter == 0 &&
+                                      active_order_count == 0 && tick_after_write != 32'd0)
+                        cfg_tick <= tick_after_write;
 
                     REG_LOB_LOCATE: if (!accel_enable && event_counter == 0 && active_order_count == 0) begin
                         if (bus_req_wstrb[0]) cfg_stock_locate[ 7:0] <= bus_req_wdata[ 7:0];

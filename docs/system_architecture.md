@@ -1,5 +1,9 @@
 # End-to-End FPGA Limit Order Book (LOB) Accelerator & RV32IM SoC
-## Authoritative System Architecture Specification
+## Historical System Architecture Specification
+
+This document records an earlier design and contains superseded clock,
+memory, price-conversion, and timing claims. Consult the RTL and fresh
+post-route reports for the implemented system.
 
 **Target Platform**: Digilent Nexys A7-100T (AMD Artix-7 `XC7A100T-1CSG324C`)  
 **EDA Toolchain**: AMD Vivado Design Suite 2026.1 (lin64) & XSim  

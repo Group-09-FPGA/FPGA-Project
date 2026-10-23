@@ -30,8 +30,8 @@ module itch_decoder #(
     localparam [1:0] COLLECT=0, DECODE=1, DIVIDE=2, SEND=3;
     reg [1:0] state;
     assign itch_msg_ready = state == COLLECT;
-    wire [15:0] locate = cfg_stock_locate != 0 ? cfg_stock_locate : DEFAULT_LOCATE;
-    wire [31:0] base = cfg_price_base != 0 ? cfg_price_base : DEFAULT_PRICE_BASE;
+    wire [15:0] locate = cfg_stock_locate;
+    wire [31:0] base = cfg_price_base;
     wire [31:0] tick = cfg_tick != 0 ? cfg_tick : DEFAULT_TICK;
 
     reg [7:0] msg_buffer [0:47];

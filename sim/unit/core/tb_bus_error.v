@@ -107,12 +107,14 @@ module tb_bus_error;
 
     reg error_detected;
     initial error_detected = 0;
+    reg targeted_request;
+    initial targeted_request = 0;
+    reg exception_seen;
+    initial exception_seen = 0;
 
     initial begin
         reset = 0;
         #100;
-        reset = 1;
-
         // Populate instruction memory with code that accesses unmapped address 0x30000000:
         // PC 0: lui x6, 0x30000      (30000337)
         // PC 4: lw  x5, 0(x6)        (00032283)
@@ -120,23 +122,28 @@ module tb_bus_error;
         imem_u.IMEM.imem[0] = 32'h30000337;
         imem_u.IMEM.imem[1] = 32'h00032283;
         imem_u.IMEM.imem[2] = 32'h00000013;
+        reset = 1;
 
         #300;
-        if (error_detected) begin
+        if (error_detected && targeted_request && exception_seen) begin
             $display("[PASS] Bus error correctly triggered and CPU asserted exception!");
         end else begin
             $display("[FAIL] Bus error not detected!");
+            $fatal(1);
         end
         $finish;
     end
 
     always @(posedge clk) begin
         if (reset) begin
+            if (bus_req_valid && bus_req_addr == 32'h30000000)
+                targeted_request <= 1;
             if (bus_rsp_valid && bus_rsp_error) begin
-                $display("time: %10t [INTERCONNECT] bus_rsp_error received for unmapped access (addr=%08x)!", $time, bus_req_addr);
-                error_detected <= 1;
+                if (targeted_request)
+                    error_detected <= 1;
             end
             if (exception) begin
+                exception_seen <= 1;
                 $display("time: %10t [CPU] Exception signal asserted!", $time);
             end
         end

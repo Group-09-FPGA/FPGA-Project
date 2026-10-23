@@ -31,11 +31,11 @@ jobs:
           test -s "$FPGA_BUILD_DIR/post_route_timing.rpt"
           test -s "$FPGA_BUILD_DIR/post_route_drc.rpt"
 
-      - name: Upload verified implementation reports
+      - name: Upload routed candidate and reports
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: fpga-lob-routed-build
+          name: fpga-lob-routed-candidate
           path: |
             ${{ runner.temp }}/fpga-lob-build/top_system.bit
             ${{ runner.temp }}/fpga-lob-build/post_route_timing.rpt

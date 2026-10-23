@@ -16,6 +16,7 @@ module tb_net_parser_padding;
     wire [31:0] cnt_udp;
     wire [31:0] cnt_csum;
     wire [31:0] cnt_len;
+    wire [31:0] cnt_ip_csum;
     integer delivered = 0;
     integer i;
     reg [31:0] ip_sum;
@@ -28,7 +29,8 @@ module tb_net_parser_padding;
         .udp_payload_len(udp_len), .udp_payload_byte(udp_byte),
         .udp_payload_start(udp_start), .udp_payload_last(udp_last),
         .udp_payload_ready(1'b1), .cnt_udp_packets(cnt_udp),
-        .cnt_udp_csum_err(cnt_csum), .cnt_udp_len_err(cnt_len)
+        .cnt_udp_csum_err(cnt_csum), .cnt_udp_len_err(cnt_len),
+        .cnt_ip_csum_err(cnt_ip_csum)
     );
 
     always @(posedge clk) if (udp_valid) delivered = delivered + 1;
@@ -78,6 +80,12 @@ module tb_net_parser_padding;
         repeat (100) @(negedge clk);
         if (cnt_udp != 2 || delivered != 2 || cnt_len != 1)
             begin $display("FAIL: inconsistent IP/UDP length accepted"); $fatal(1); end
+        frame[39] = 9;
+        frame[24] = frame[24] ^ 8'h01;
+        @(negedge clk); rd_idx = 0; frame_valid = 1;
+        repeat (100) @(negedge clk);
+        if (cnt_udp != 2 || delivered != 2 || cnt_ip_csum != 1)
+            begin $display("FAIL: bad IPv4 checksum accepted"); $fatal(1); end
         $display("PASS: padding, UDP checksum, and length validation");
         $finish;
     end

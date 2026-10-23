@@ -2,7 +2,7 @@
 // File: async_event_fifo.v
 // Description: Dual-clock Asynchronous FIFO for Clock Domain Crossing (CDC)
 //              Crosses 256-bit canonical market data events from 50 MHz RMII/Network
-//              domain to 100 MHz Core/LOB domain with Gray pointer synchronizers
+//              domain to the independent Core/LOB domain with Gray pointer synchronizers
 //              and First-Word Fall-Through (FWFT) ready/valid handshaking.
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
 // =============================================================================
@@ -26,7 +26,7 @@ module async_event_fifo #(
     output reg                   wr_overflow,
 
     // -------------------------------------------------------------------------
-    // Read Clock Domain (100 MHz Core / LOB Engine)
+    // Read Clock Domain (Core / LOB Engine)
     // -------------------------------------------------------------------------
     input  wire                  rd_clk,
     input  wire                  rd_rst_n,
@@ -117,6 +117,13 @@ module async_event_fifo #(
     assign wr_full  = full_reg;
     assign wr_ready = ~full_reg;
 
+    // The storage array has no reset. Keep its write port in a clock-only
+    // process so Vivado can infer distributed RAM for the FWFT async read.
+    always @(posedge wr_clk) begin
+        if (wr_rst_n && wr_valid && wr_ready)
+            mem[wptr_bin[ADDR_WIDTH-1:0]] <= wr_data;
+    end
+
     always @(posedge wr_clk or negedge wr_rst_n) begin
         if (!wr_rst_n) begin
             wptr_bin    <= {ADDR_WIDTH+1{1'b0}};
@@ -125,7 +132,6 @@ module async_event_fifo #(
             wr_overflow <= 1'b0;
         end else begin
             if (wr_valid && wr_ready) begin
-                mem[wptr_bin[ADDR_WIDTH-1:0]] <= wr_data;
                 wptr_bin  <= wptr_bin_next;
                 wptr_gray <= wptr_gray_next;
             end

@@ -10,7 +10,8 @@ const OFF = 14 // top border of the stage, in css px
 const P = (v) => v / 144 // 1920 css px -> 13.333 in
 
 const pptx = new PptxGenJS()
-pptx.layout = 'LAYOUT_16x9'
+pptx.defineLayout({ name: 'LOB_WIDE', width: P(1920), height: P(1080) })
+pptx.layout = 'LOB_WIDE'
 pptx.title = 'RV32IM + Hardware Limit Order Book'
 pptx.author = 'Group 09'
 
@@ -95,7 +96,7 @@ function frame(n, kicker, title) {
   s.addShape(S.rect, { x: 0, y: P(1080 - OFF), w: P(1920), h: P(OFF), fill: { color: NAVY }, line: { type: 'none' } })
   T(s, kicker.toUpperCase(), 96, 56, 1500, 30, { size: 22, bold: true, color: INK3, cs: 2 })
   T(s, title, 96, 88, 1500, title.includes('\n') ? 150 : 80, { size: 66, bold: true, ls: 0.9 })
-  T(s, `${String(n).padStart(3, '0')} \u00b7 GROUP 09 \u00b7 FPGA LOB`, 96, 1004, 700, 28, { size: 20, mono: true, color: INK3 })
+  T(s, `${String(n).padStart(3, '0')} \u00b7 GROUP 09 \u00b7 FPGA LOB \u00b7 HISTORICAL DESIGN`, 96, 1004, 1150, 28, { size: 20, mono: true, color: INK3 })
   for (let i = 0; i < 7; i++) {
     R(s, 1694 + i * 20, 1012, 10, 10, { shape: S.ellipse, fill: i + 1 === n ? NAVY : undefined, line: i + 1 === n ? NAVY : INK3, lw: 1 })
   }

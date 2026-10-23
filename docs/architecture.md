@@ -1,5 +1,9 @@
 # System Architecture: RV32IM Hardware Limit Order Book Accelerator
 
+> Historical design document. Some clock, memory, and recovery details below
+> were superseded by the RTL. Use the source and a fresh build report for the
+> implemented system.
+
 ## 1. System Overview
 
 This project implements a complete hardware-software co-design platform on the Digilent Nexys A7-100T FPGA board. The system integrates:

@@ -2,7 +2,7 @@
 // File: lob_core.v
 // Description: Top-level sequencer and transaction controller for LOB accelerator
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// Authoritative spec: docs/phase1_architecture_final_v7.md §10-18
+// Behavior is defined by this RTL and its regression tests.
 // =============================================================================
 
 `timescale 1ns / 1ps
@@ -95,7 +95,7 @@ module lob_core #(
             eff_price_base <= DEFAULT_PRICE_BASE;
             eff_tick       <= DEFAULT_TICK;
         end else begin
-            eff_price_base <= (cfg_price_base != 32'd0) ? cfg_price_base : DEFAULT_PRICE_BASE;
+            eff_price_base <= cfg_price_base;
             eff_tick       <= (cfg_tick != 32'd0) ? cfg_tick : DEFAULT_TICK;
         end
     end

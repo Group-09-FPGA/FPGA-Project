@@ -1,5 +1,10 @@
 # Memory-Mapped I/O (MMIO) Specification
 
+> Historical proposed address map. The RTL implements 4 KiB instruction and
+> data memories, 256-byte peripheral windows, and no CPU event injector.
+> Use `rtl/cpu/core/sys_bus_interconnect.v` and the slave modules for the
+> implemented register map.
+
 ## 1. MMIO Architecture & Design Requirements
 
 The Memory-Mapped I/O (MMIO) subsystem allows the RV32IM CPU to monitor and configure the hardware LOB accelerator and its peripheral environment.

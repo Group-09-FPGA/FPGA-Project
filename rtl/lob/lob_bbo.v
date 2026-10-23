@@ -139,7 +139,7 @@ module lob_bbo (
     end
 
     // -------------------------------------------------------------------------
-    // 2-Stage Pipelined Price DSP Multiplier & Adder for 100 MHz Timing Closure
+    // 2-Stage Pipelined Price DSP Multiplier & Adder
     // -------------------------------------------------------------------------
     reg        s1_bid_valid;
     reg [12:0] s1_bid_pidx;

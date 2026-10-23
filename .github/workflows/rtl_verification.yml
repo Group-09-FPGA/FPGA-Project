@@ -9,7 +9,7 @@ on:
 
 jobs:
   verilator-lint:
-    name: RTL Lint & Syntax (Verilator)
+    name: RTL Syntax & Elaboration (Verilator)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -65,15 +65,15 @@ jobs:
             rtl/cpu/core/dmem_slave.v \
             rtl/cpu/core/seven_seg_driver.v \
             rtl/top/top_system.v
-          echo ">>> Verilator lint clean: 0 syntax or elaboration errors."
+          echo ">>> Verilator elaboration passed with configured warning exclusions."
 
       - name: Publish Lint Summary
         if: success()
         run: |
-          echo "### ⚡ RTL Lint & Elaboration Results" >> $GITHUB_STEP_SUMMARY
+          echo "### RTL Syntax & Elaboration Results" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Linter** | Verilator 5.x | Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Elaboration** | Verilator 5.x with listed warning exclusions | Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| **RTL Modules** | Verilog-2001 modules | Passed |" >> $GITHUB_STEP_SUMMARY
           echo "| **SoC Coverage** | RV32IM Core + Hardware LOB + RMII Ethernet + ITCH Parser + Bus MMIO | Passed |" >> $GITHUB_STEP_SUMMARY
 

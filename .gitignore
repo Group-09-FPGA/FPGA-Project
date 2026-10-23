@@ -1,6 +1,8 @@
 # Vivado build outputs & checkpoints
 build/
 build_system/
+build_system_candidate/
+sim/build/
 sim/build_*/
 sim/build_system_top/
 .Xil/
@@ -31,6 +33,9 @@ xelab*.pb
 # Simulation waveforms & transient artifacts
 *.wdb
 *.vcd
+*.elf
+*.bin
+*.dis
 *.pb
 xsim.dir/
 

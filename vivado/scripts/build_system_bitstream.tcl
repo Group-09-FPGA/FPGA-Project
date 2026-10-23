@@ -15,15 +15,36 @@ if {[info exists ::env(FPGA_BUILD_DIR)]} {
 
 file mkdir $BUILD_DIR
 
+# A failed rebuild must not leave an older bitstream or routed report looking
+# like the result of the current sources. Keep only final implementation output.
+foreach output_name {
+    top_system.bit post_route.dcp post_route_timing.rpt
+    post_route_utilization.rpt post_route_drc.rpt post_route_clock_util.rpt
+    post_route_methodology.rpt post_route_clock_interaction.rpt
+} {
+    file delete -force "$BUILD_DIR/$output_name"
+}
+
 # Optimize thread count for Intel Core Ultra 8-core host
 set_param general.maxThreads 4
 set_param synth.maxThreads 4
+
+set PLACE_DIRECTIVE Default
+set ROUTE_DIRECTIVE Default
+if {[info exists ::env(FPGA_PLACE_DIRECTIVE)]} {
+    set PLACE_DIRECTIVE $::env(FPGA_PLACE_DIRECTIVE)
+}
+if {[info exists ::env(FPGA_ROUTE_DIRECTIVE)]} {
+    set ROUTE_DIRECTIVE $::env(FPGA_ROUTE_DIRECTIVE)
+}
 
 puts "=========================================================="
 puts "Starting FPGA Market Data Processor Implementation"
 puts "Repository Root : $REPO_ROOT"
 puts "Build Directory : $BUILD_DIR"
 puts "Max Threads Set : 4"
+puts "Place Directive : $PLACE_DIRECTIVE"
+puts "Route Directive : $ROUTE_DIRECTIVE"
 puts "=========================================================="
 
 # 1. Prepare Memory Hex Payloads
@@ -84,9 +105,6 @@ read_xdc "$REPO_ROOT/constraints/nexys_a7_system.xdc"
 # 3. Synthesis
 puts "=== [1/5] RUNNING SYNTH_DESIGN ==="
 synth_design -top $TOP -part $PART -include_dirs [list "$REPO_ROOT/rtl/cpu/core" "$REPO_ROOT/rtl/lob"]
-write_checkpoint -force "$BUILD_DIR/post_synth.dcp"
-report_utilization -file "$BUILD_DIR/post_synth_utilization.rpt"
-report_timing_summary -file "$BUILD_DIR/post_synth_timing.rpt"
 
 set readmem_warnings [get_msg_config -count -id {Synth 8-4445}]
 if {$readmem_warnings > 0} {
@@ -97,30 +115,20 @@ if {$readmem_warnings > 0} {
 # 4. Logic Optimization
 puts "=== [2/5] RUNNING OPT_DESIGN ==="
 opt_design
-write_checkpoint -force "$BUILD_DIR/post_opt.dcp"
 
 # 5. Placement
 puts "=== [3/5] RUNNING PLACE_DESIGN ==="
-place_design -directive Explore
-write_checkpoint -force "$BUILD_DIR/post_place.dcp"
+place_design -directive $PLACE_DIRECTIVE
 
 # 5b. Physical Optimization
 puts "=== [3b/5] RUNNING PHYS_OPT_DESIGN ==="
 phys_opt_design -directive Explore
-write_checkpoint -force "$BUILD_DIR/post_phys_opt.dcp"
 
 # 6. Routing
 puts "=== [4/5] RUNNING ROUTE_DESIGN ==="
-route_design -directive Explore
-write_checkpoint -force "$BUILD_DIR/post_route.dcp"
+route_design -directive $ROUTE_DIRECTIVE
 
-# 7. Post-Route Analysis & Reports
-puts "=== [5/5] POST-ROUTE TIMING & UTILIZATION REPORTS ==="
-report_timing_summary -file "$BUILD_DIR/post_route_timing.rpt"
-report_utilization -file "$BUILD_DIR/post_route_utilization.rpt"
-report_drc -file "$BUILD_DIR/post_route_drc.rpt"
-report_clock_utilization -file "$BUILD_DIR/post_route_clock_util.rpt"
-
+# 7. Post-route timing, including recovery if needed
 set wns [get_property SLACK [get_timing_paths -max_paths 1 -setup]]
 set whs [get_property SLACK [get_timing_paths -max_paths 1 -hold]]
 
@@ -133,8 +141,7 @@ puts "=========================================================="
 if {$wns < 0.0} {
     puts "Setup timing negative ($wns ns). Running post-route phys_opt_design to recover slack..."
     phys_opt_design -directive Explore
-    route_design
-    report_timing_summary -file "$BUILD_DIR/post_route_timing.rpt"
+    route_design -directive $ROUTE_DIRECTIVE
     set wns [get_property SLACK [get_timing_paths -max_paths 1 -setup]]
     set whs [get_property SLACK [get_timing_paths -max_paths 1 -hold]]
     puts "After post-route optimization: WNS = $wns ns, WHS = $whs ns"
@@ -151,6 +158,15 @@ if {$wns < 0.0 || $whs < 0.0} {
     exit 1
 }
 
+puts "=== [5/5] POST-ROUTE TIMING & UTILIZATION REPORTS ==="
+write_checkpoint -force "$BUILD_DIR/post_route.dcp"
+report_timing_summary -file "$BUILD_DIR/post_route_timing.rpt"
+report_utilization -file "$BUILD_DIR/post_route_utilization.rpt"
+report_drc -file "$BUILD_DIR/post_route_drc.rpt"
+report_clock_utilization -file "$BUILD_DIR/post_route_clock_util.rpt"
+report_methodology -file "$BUILD_DIR/post_route_methodology.rpt"
+report_clock_interaction -file "$BUILD_DIR/post_route_clock_interaction.rpt"
+
 # 8. Bitstream Generation
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
@@ -159,6 +175,9 @@ set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 
 puts "=== GENERATING BITSTREAM ==="
 write_bitstream -force "$BUILD_DIR/top_system.bit"
+foreach staged_name {imem.hex dmem.hex clockInfo.txt} {
+    file delete -force "$BUILD_DIR/$staged_name"
+}
 
 puts "=========================================================="
 puts "BUILD COMPLETE!"

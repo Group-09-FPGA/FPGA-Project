@@ -162,6 +162,7 @@ module top_system #(
     wire [31:0] cnt_udp_packets;
     wire [31:0] cnt_udp_len_err;
     wire [31:0] cnt_udp_csum_err;
+    wire [31:0] cnt_ip_csum_err;
 
     net_parser u_net_parser (
         .clk                   (clk_eth),
@@ -185,7 +186,7 @@ module top_system #(
         .cnt_udp_len_err       (cnt_udp_len_err),
         .cnt_udp_csum_err      (cnt_udp_csum_err),
         .cnt_non_ipv4_drop     (),
-        .cnt_ip_csum_err       (),
+        .cnt_ip_csum_err       (cnt_ip_csum_err),
         .cnt_ip_frag_drop      (),
         .cnt_non_udp_drop      (),
         .cnt_port_mismatch_drop()
@@ -302,9 +303,7 @@ module top_system #(
     );
 
     // =========================================================================
-    // 6. Asynchronous Event FIFO (Eth 50 MHz -> Core 50 MHz CDC)
-    // Both clk_eth and clk_core are 50 MHz but sourced from separate MMCM
-    // output buffers and are NOT phase-aligned; an async FIFO is required.
+    // 6. Dual-Clock Asynchronous Event FIFO (separate 50 MHz clock domains)
     // =========================================================================
     wire         core_evt_valid;
     wire [255:0] core_evt_data;
@@ -326,7 +325,8 @@ module top_system #(
                  (cnt_crc_err != 32'd0) || (cnt_len_err != 32'd0) ||
                  (cnt_phy_err != 32'd0) || (cnt_overflow_err != 32'd0) ||
                  (cnt_mold_trunc != 32'd0) ||
-                 (cnt_udp_len_err != 32'd0) || (cnt_udp_csum_err != 32'd0))
+                 (cnt_udp_len_err != 32'd0) || (cnt_udp_csum_err != 32'd0) ||
+                 (cnt_ip_csum_err != 32'd0))
             feed_loss_eth <= 1'b1;
     end
 
@@ -365,7 +365,7 @@ module top_system #(
     );
 
     // =========================================================================
-    // 7. Hardware Limit Order Book Accelerator Core (50 MHz Core Domain)
+    // 7. Hardware Limit Order Book Accelerator Core (50 MHz Domain)
     // =========================================================================
     wire        lob_book_valid;
     wire        lob_init_done;
@@ -425,7 +425,7 @@ module top_system #(
     end
 
     // =========================================================================
-    // 8. System Bus Interconnect & CPU Subsystem (50 MHz Core Domain)
+    // 8. System Bus Interconnect & CPU Subsystem (50 MHz Domain)
     // =========================================================================
     wire        bus_req_valid;
     wire        bus_req_write;
@@ -751,11 +751,11 @@ module top_system #(
             2'b00: display_val = lob_bid_price;                                     // Best Bid Price
             2'b01: display_val = lob_ask_price;                                     // Best Ask Price
             2'b10: display_val = {4'h0, lob_active_orders, core_event_count[15:0]}; // Orders & Events
-            2'b11: display_val = {cnt_rx_frames[15:0], cpu_pc[15:0]};              // Net Frames & CPU PC
+            2'b11: display_val = {net_diag_snapshot[351:336], cpu_pc[15:0]};      // Net Frames & CPU PC
         endcase
     end
 
-    seven_seg_driver u_seven_seg (
+    seven_seg_driver #(.CLK_FREQ_HZ(50_000_000)) u_seven_seg (
         .clk   (clk_core),
         .reset (rst_core_n),
         .value (display_val),

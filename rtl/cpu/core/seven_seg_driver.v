@@ -5,11 +5,10 @@
 // Displays a 32-bit value as hexadecimal, eight decimal digits, or
 // two four-digit decimal fields on the Nexys A7 7-segment display.
 // Decimal conversion runs over 32 clock cycles to keep the logic small.
-// Needs the fast board clock (100 MHz)
-// for proper multiplexed refresh (~1 kHz per digit).
+// Refresh interval is derived from CLK_FREQ_HZ (~1 kHz per digit).
 //
 // Ports:
-//   clk    - fast board clock (100 MHz)
+//   clk    - display clock
 //   reset  - active-low reset
 //   value  - raw 32-bit value to display
 //   format - 0: hex, 1: eight decimal digits, 2: two decimal 16-bit fields
@@ -19,7 +18,9 @@
 //   dp     - decimal point, active-low
 ////////////////////////////////////////////////////////////
 
-module seven_seg_driver (
+module seven_seg_driver #(
+    parameter CLK_FREQ_HZ = 100_000_000
+) (
     input  wire        clk,
     input  wire        reset,
     input  wire [31:0] value,
@@ -82,9 +83,10 @@ module seven_seg_driver (
 
     ////////////////////////////////////////////////////////////
     // Refresh counter
-    // At 100 MHz, count to 100,000 -> each digit held for 1 ms
+    // Hold each digit for 1 ms regardless of the selected core clock.
     // -> full 8-digit refresh every 8 ms = 125 Hz (flicker-free)
     ////////////////////////////////////////////////////////////
+    localparam [16:0] REFRESH_RELOAD = CLK_FREQ_HZ / 1000 - 1;
     reg [16:0] refresh_cnt;
     reg [2:0]  digit_sel;
     assign dp = ~point_mask[digit_sel];
@@ -94,7 +96,7 @@ module seven_seg_driver (
             refresh_cnt <= 17'd0;
             digit_sel   <= 3'd0;
         end else begin
-            if (refresh_cnt == 17'd99_999) begin
+            if (refresh_cnt == REFRESH_RELOAD) begin
                 refresh_cnt <= 17'd0;
                 digit_sel   <= digit_sel + 1'b1;
             end else begin

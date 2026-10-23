@@ -12,12 +12,14 @@ module tb_seven_seg_decimal;
 
     always #5 clk = ~clk;
 
-    seven_seg_driver dut (
+    seven_seg_driver #(.CLK_FREQ_HZ(50_000_000)) dut (
         .clk(clk), .reset(reset), .value(value), .format(format),
         .point_mask(point_mask), .an(an), .seg(seg), .dp(dp)
     );
 
     initial begin
+        if (dut.REFRESH_RELOAD !== 17'd49_999)
+            begin $display("FAIL: incorrect 50 MHz digit refresh interval"); $fatal(1); end
         #12 reset = 1'b1;
         value = 32'd905000;
         repeat (35) @(posedge clk);

@@ -215,8 +215,14 @@ module moldudp64_decoder (
                                 end
                             end
                         end
-                        if (udp_payload_last && hdr_byte_cnt != 5'd19) begin
-                            cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
+                        if (udp_payload_last) begin
+                            // A header-only heartbeat/end marker is complete now.
+                            // Otherwise the packet promises message bytes that are
+                            // absent, so report truncation before accepting another.
+                            if (hdr_byte_cnt != 5'd19 ||
+                                ({msg_count[15:8], udp_payload_byte} != 16'd0 &&
+                                 {msg_count[15:8], udp_payload_byte} != 16'hFFFF))
+                                cnt_trunc_errors <= cnt_trunc_errors + 32'd1;
                             state <= MOLD_IDLE;
                         end
                     end

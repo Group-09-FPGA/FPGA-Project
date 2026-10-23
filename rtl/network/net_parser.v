@@ -74,6 +74,7 @@ module net_parser #(
     reg [11:0] replay_idx;
     reg replay_allowed;
     (* ram_style = "block" *) reg [7:0] payload_mem [0:1471];
+    wire [11:0] payload_read_idx = udp_payload_valid ? replay_idx + 12'd1 : 12'd0;
     reg [31:0] pseudo_acc, udp_sum;
     reg [7:0] udp_hi_byte, udp_checksum_hi;
     reg [15:0] udp_checksum;
@@ -105,6 +106,13 @@ module net_parser #(
                            (state == ST_STREAM_UDP) ||
                            (state == ST_DRAIN_DROP) ||
                            (state == ST_DRAIN_PAD);
+
+    // Keep RAM writes in a clock-only process; reset gating in the main FSM
+    // otherwise makes Vivado implement the 1472-byte payload buffer as flops.
+    always @(posedge clk) begin
+        if (rst_n && state == ST_STREAM_UDP)
+            payload_mem[udp_bytes_streamed] <= frame_byte_in;
+    end
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -294,7 +302,6 @@ module net_parser #(
 
                 ST_STREAM_UDP: begin
                     byte_idx <= byte_idx + 12'd1;
-                    payload_mem[udp_bytes_streamed] <= frame_byte_in;
                     udp_bytes_streamed <= udp_bytes_streamed + 12'd1;
                     if (udp_bytes_streamed[0])
                         udp_sum <= udp_sum + {udp_hi_byte, frame_byte_in};
@@ -323,7 +330,6 @@ module net_parser #(
                 ST_REPLAY_UDP: begin
                     if (!udp_payload_valid) begin
                         replay_idx <= 12'd0;
-                        udp_payload_byte <= payload_mem[0];
                         udp_payload_start <= 1'b1;
                         udp_payload_last <= udp_payload_len == 12'd1;
                         udp_payload_valid <= 1'b1;
@@ -335,11 +341,13 @@ module net_parser #(
                             state <= ST_IDLE;
                         end else begin
                             replay_idx <= replay_idx + 12'd1;
-                            udp_payload_byte <= payload_mem[replay_idx + 12'd1];
                             udp_payload_start <= 1'b0;
                             udp_payload_last <= replay_idx + 12'd2 == udp_payload_len;
                         end
                     end
+                    // One synchronous read site allows a single RAM read port.
+                    if (!udp_payload_valid || (udp_payload_ready && !udp_payload_last))
+                        udp_payload_byte <= payload_mem[payload_read_idx];
                 end
 
                 ST_DRAIN_DROP: begin

@@ -34,9 +34,10 @@ def create_moldudp64_order_pair(seq_num, bid_ref, bid_shares, bid_price,
     return struct.pack(">10sQH", b"SESSION001", seq_num, 2) + bid[20:] + ask[20:]
 
 def main():
-    target_ip = "192.168.1.10"
+    target_ip = "192.168.1.255"
     target_port = 10443
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     seq = 1
     ref = 1000
@@ -47,7 +48,7 @@ def main():
 
     print("==========================================================")
     print("   LOB Live Market Feed Generator (Streaming to FPGA)")
-    print("   Target: 192.168.1.10:10443 (MoldUDP64 / ITCH 5.0)")
+    print("   Target: 192.168.1.255:10443 (MoldUDP64 / ITCH 5.0)")
     print("==========================================================")
 
     while True:

@@ -421,6 +421,25 @@ module tb_system_top;
             $display("   -> [PASS] Diagnostic Peripherals Verified.");
         end
 
+        // A frame with a valid Ethernet FCS but bad IPv4 checksum must
+        // invalidate the previously published book, even if no later
+        // sequence number arrives to expose the lost market packet.
+        pkt[24] = pkt[24] ^ 8'h01;
+        send_rmii_packet(pkt_len);
+        timeout = 0;
+        while (dut.cnt_ip_csum_err == 0 && timeout < 5000) begin
+            @(posedge clk);
+            timeout = timeout + 1;
+        end
+        repeat (20) @(posedge clk);
+        if (timeout == 5000 || dut.lob_book_valid !== 1'b0 ||
+            dut.lob_error_code !== 8'h0A || dut.core_event_count !== 32'd2) begin
+            $display("[FAIL] Bad IPv4 checksum did not fail-stop the book");
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] Bad IPv4 checksum invalidated the book");
+        end
+
         // ---------------------------------------------------------------------
         // Final Summary
         // ---------------------------------------------------------------------

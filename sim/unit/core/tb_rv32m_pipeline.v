@@ -235,7 +235,7 @@ module tb_rv32m_pipeline;
         end
         $display("=======================================================\n");
 
-        if (errors > 0) begin $display("FAIL: ", "RV32M pipeline verification failed"); $stop; end
+        if (errors > 0) begin $display("FAIL: ", "RV32M pipeline verification failed"); $fatal(1); end
         $finish;
     end
 

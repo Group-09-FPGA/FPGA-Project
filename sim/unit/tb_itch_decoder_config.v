@@ -8,6 +8,8 @@ module tb_itch_decoder_config;
     wire msg_ready, event_valid, decode_error;
     wire [255:0] event_data;
     reg [7:0] msg [0:35];
+    reg [15:0] cfg_locate = 7;
+    reg [31:0] cfg_base = 900000, cfg_tick = 500;
     integer i;
 
     itch_decoder dut (
@@ -15,8 +17,8 @@ module tb_itch_decoder_config;
         .itch_msg_len(length), .itch_msg_byte(byte_in),
         .itch_msg_seq(64'd1), .itch_msg_start(start),
         .itch_msg_last(last), .itch_msg_ready(msg_ready),
-        .cfg_stock_locate(16'd7), .cfg_price_base(32'd900000),
-        .cfg_tick(32'd500), .canon_event_valid(event_valid),
+        .cfg_stock_locate(cfg_locate), .cfg_price_base(cfg_base),
+        .cfg_tick(cfg_tick), .canon_event_valid(event_valid),
         .canon_event_data(event_data), .canon_event_ready(ready),
         .decode_error(decode_error)
     );
@@ -65,6 +67,15 @@ module tb_itch_decoder_config;
         repeat (5) @(negedge clk);
         if (!decode_error || event_valid) begin
             $display("FAIL: malformed order length accepted"); $fatal;
+        end
+        cfg_locate = 0;
+        cfg_base = 0;
+        msg[2] = 0;
+        msg[32] = 0; msg[33] = 0; msg[34] = 8'h09; msg[35] = 8'hc4; // 2500
+        send_add(36);
+        wait (event_valid);
+        if (event_data[79:67] !== 13'd5 || event_data[66] !== 0) begin
+            $display("FAIL: zero-valued base or locate was replaced by a default"); $fatal(1);
         end
         $display("PASS: configurable tick, output backpressure, malformed length");
         $finish;

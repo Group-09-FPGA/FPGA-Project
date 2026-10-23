@@ -1,5 +1,9 @@
 # CPU Architecture & Refactoring Specification: RV32IM
 
+> Historical CPU design notes. The integrated system currently clocks the CPU
+> at 50 MHz; standalone 100 MHz projections below are not a routed
+> full-system result.
+
 ## 1. Baseline Lab 5 Processor Review
 
 The baseline processor is an academic 3-stage pipelined RV32I softcore originally targeted for the Nexys A7 FPGA.

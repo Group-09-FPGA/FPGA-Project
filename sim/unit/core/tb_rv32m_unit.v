@@ -420,6 +420,7 @@ module tb_rv32m_unit;
             $display("ALL RV32M UNIT TESTS PASSED!");
         end else begin
             $display("SOME TESTS FAILED!");
+            $fatal(1);
         end
         $finish;
     end

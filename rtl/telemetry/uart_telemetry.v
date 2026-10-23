@@ -12,7 +12,7 @@ module uart_telemetry #(
     parameter BAUD_RATE          = 115200,
     parameter DEFAULT_AUTO_TELEM = 1'b1
 ) (
-    input  wire        clk,              // Core 100 MHz clock
+    input  wire        clk,              // Core clock (50 MHz in top_system)
     input  wire        rst_n,            // Active-low synchronous reset
 
     // MMIO Bus Slave Interface (decoded at 0x6000_0000)

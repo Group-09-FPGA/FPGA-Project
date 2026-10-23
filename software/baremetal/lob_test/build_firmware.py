@@ -45,8 +45,6 @@ def main() -> None:
         words = code.ljust(4096, b"\0")
         hex_text = "".join(f"{word:08x}\n" for (word,) in struct.iter_unpack("<I", words))
         (HERE / "imem.hex").write_text(hex_text)
-        shutil.copyfile(elf, HERE / "firmware_lob_test.elf")
-        shutil.copyfile(binary, HERE / "imem.bin")
         print(f"Built {len(code)} bytes of RV32IM monitor firmware")
 
 
