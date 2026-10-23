@@ -6,8 +6,11 @@ limit order book, and an RV32IM supervisor. UART, VGA, LEDs, and a seven-segment
 display expose status. The Ethernet and core domains both run at 50 MHz.
 
 The implementation is the code under `rtl/`. Older design reports and slides
-are historical material; they do not define the current behavior. Physical
-board operation has not been verified.
+are historical material; they do not define the current behavior. Ethernet
+ingest, book operations, fail-stop, recovery by reprogramming, UART, and basic
+LED/display behavior were checked on a physical board on 2026-10-24. VGA,
+deliberately bad Ethernet FCS, and internal diagnostic values remain unverified;
+see [HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
 
 ## Verify
 

@@ -5,7 +5,7 @@ also contains reports and slides from earlier project phases; those are
 historical and may describe different clocks, resource counts, or latency.
 
 - [Commands](commands.md): tests, firmware, the one full-system build, and board bringup.
-- [Hardware validation](HARDWARE_VALIDATION.md): physical test record, still unfilled because no board was available.
+- [Hardware validation](HARDWARE_VALIDATION.md): physical test results and remaining checks.
 - [Audit follow-up](AUDIT_FOLLOWUP.md): remaining evidence and engineering limits.
 - [Routed DRC review](DRC_REVIEW.md): rule-by-rule warning assessment.
 

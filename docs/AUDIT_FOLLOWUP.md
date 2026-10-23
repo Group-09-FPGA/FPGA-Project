@@ -4,9 +4,11 @@ This records the remaining physical validation and the evidence from the
 October 2026 source audit. It is based on RTL and tool results, not earlier
 architecture descriptions.
 
-The sole outstanding validation is **physical board operation**. Program the
-bitstream identified in `HARDWARE_VALIDATION.md` and record Ethernet, UART,
-VGA, error handling, and reset/replay behavior there.
+The 2026-10-24 board run validated Ethernet ingest, UART, visible book changes,
+several fail-stop paths, and recovery by both JTAG reprogramming and the
+CPU RESETN pushbutton followed by replay. The remaining physical checks are
+VGA output, deliberately bad Ethernet FCS, and exact quantity and internal diagnostic values.
+The tested bitstream and observations are identified in `HARDWARE_VALIDATION.md`.
 
 The implementation evidence is complete for the available tools:
 
