@@ -8,8 +8,10 @@ display expose status. The Ethernet and core domains both run at 50 MHz.
 The implementation is the code under `rtl/`. Older design reports and slides
 are historical material; they do not define the current behavior. Ethernet
 ingest, book operations, fail-stop, recovery by reprogramming, UART, and basic
-LED/display behavior were checked on a physical board on 2026-10-24. VGA,
-deliberately bad Ethernet FCS, and internal diagnostic values remain unverified;
+LED/display behavior were checked on a physical board on 2026-10-24. Exact
+book quantities, active counts, and IP/UDP checksum counters were also checked
+with an extended UART build. VGA, a deliberately bad FCS on the physical link,
+and CPU MMIO counter readback remain unverified on the physical board;
 see [HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
 
 ## Verify

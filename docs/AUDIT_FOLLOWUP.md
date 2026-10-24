@@ -7,16 +7,19 @@ architecture descriptions.
 The 2026-10-24 board run validated Ethernet ingest, UART, visible book changes,
 several fail-stop paths, and recovery by both JTAG reprogramming and the
 CPU RESETN pushbutton followed by replay. The remaining physical checks are
-VGA output, deliberately bad Ethernet FCS, and exact quantity and internal diagnostic values.
+VGA output, deliberately bad Ethernet FCS on the physical link, and CPU MMIO
+counter readback. The telemetry timing fix, exact quantities, active counts,
+and IP/UDP checksum counters passed through the
+extended UART readout described in `HARDWARE_VALIDATION.md`.
 The tested bitstream and observations are identified in `HARDWARE_VALIDATION.md`.
 
 The implementation evidence is complete for the available tools:
 
-- The Explore route produced +0.673 ns setup and +0.025 ns hold slack. The
-  final Default route, with corrected clock references, produced +0.817 ns
-  setup and +0.030 ns hold slack. Both had zero failing endpoints. These two
-  runs do not establish operation at every process, voltage, and temperature
-  corner.
+- The original Explore route produced +0.673 ns setup and +0.025 ns hold
+  slack. Its Default route produced +0.817 ns setup and +0.030 ns hold slack.
+  The latest extended-telemetry Default route produced +1.317 ns setup and
+  +0.012 ns hold slack. All had zero failing endpoints. These runs do not
+  establish operation at every process, voltage, and temperature corner.
 - The final routed DRC has zero errors. Its warnings and the methodology
   findings are assessed in `DRC_REVIEW.md`; repeat that review if reset,
   memory write, or timing constraints change.

@@ -2,15 +2,58 @@
 
 This records the 2026-10-24 physical run. The UART, Ethernet ingest, book
 operations, fail-stop, and recovery checks below were observed on the board.
-VGA and a deliberately bad Ethernet FCS were not tested. The local raw UART
-and programming logs are in `build_system/hardware_validation/` beside the
-tested bitstream; this directory is intentionally ignored by Git.
+VGA and a deliberately bad Ethernet FCS were not tested. The original raw
+UART captures are local `/tmp/fpga-lob-board-uart-*.log` files and are not
+tracked by Git; the recorded observations below remain the durable summary.
 
-## Build identity
+## Extended telemetry run
+
+An extended UART build was programmed later on 2026-10-24 to expose bid/ask
+quantity (`QB`/`QA`), active orders (`N`), and CRC, UDP checksum, and IPv4
+checksum counters. Its bitstream SHA-256 was
+`67f11e96a924e0414de2034353840dc1c1ad29c3efd12408e40cad417f2d8e9a`.
+The routed build had +0.862 ns setup slack, +0.023 ns hold slack, and zero DRC
+errors. Board UART observations:
+
+| Check | Observed UART values | Result |
+| --- | --- | --- |
+| Add pair | Bid 905000 × 500, ask 910000 × 300, `N:002`, all checksum counters zero | Pass |
+| Replace pair | Bid 906000 × 450, ask 911000 × 250, `N:002` | Pass |
+| Partial execute/cancel | Executing 100 bid shares gave 400; canceling 50 ask shares gave 250; `N:002` | Pass |
+| Delete each order | Bid then ask cleared; active count fell to 1 then 0 | Pass for settled values |
+| Bad IPv4 checksum | `IP:00000001`, `UDP:00000000`, `CRC:00000000`, `V:0 E:0A` | Pass |
+| Bad UDP checksum after reset | `UDP:00000001`, `IP:00000000`, `CRC:00000000`, `V:0 E:0A` | Pass |
+
+Those counters were observed at the source through the UART telemetry path;
+the CPU's MMIO readback of them was not checked on the physical board. The
+first extended build briefly reported active count before its pipelined BBO
+price had settled. A six-cycle telemetry delay was added. The resulting
+bitstream SHA-256 is
+`bd5f2c2a4f577670a8c02ed726552a8e3c00455b0228f24034673243541c8d9e`;
+it routed with +1.317 ns setup slack, +0.012 ns hold slack, and zero DRC
+errors. The board disconnected before this revised bitstream could be
+programmed. After reconnecting, the revised bitstream was programmed and
+retested on the board. Captured `uart-settled-retest.log` contains the expected
+Add, partial Execute, partial Cancel, and Delete states with no mismatched
+price/quantity/active-count lines. Separate resets followed by bad IPv4 and
+UDP checksum packets again produced the respective counter increment from
+zero to one and `V:0 E:0A` (`uart-final-ip-counter.log` and
+`uart-final-udp-counter.log`). A final reset and sequence-1 replay restored
+bid 905000 × 500 and ask 910000 × 300, `N:002 V:1 E:00`, with all checksum
+counters zero (`uart-final-valid.log`). The board was left in that valid state.
+These final run logs are in the ignored local `build_system/hardware_validation/`
+directory.
+
+The RMII unit test transmitted a frame with a deliberately corrupt FCS and
+confirmed rejection plus a CRC error count of one (67/67 assertions passed).
+The connected USB Ethernet adapter does not allow host control of transmitted
+FCS, so the bad-FCS case remains untested on the physical Ethernet link.
+
+## Original build identity
 
 - Git commit and working-tree status before programming: `d092cff`, clean
 - Firmware image SHA-256 (`software/baremetal/lob_test/imem.hex`): `9b2d0b0ffb81993e2aced3f5790cc3fc14ee468cb4a723ad2726ca0aaff54a62`
-- Bitstream SHA-256 (`build_system/top_system.bit`): `25c6c83d46bdbcc336b2e38e74a2e0d28a10fe0498edf00d65afce75735dde5b`
+- Original bitstream SHA-256 (then `build_system/top_system.bit`): `25c6c83d46bdbcc336b2e38e74a2e0d28a10fe0498edf00d65afce75735dde5b`
 - Vivado version and device: 2026.1, `xc7a100tcsg324-1`
 - Routed WNS, WHS, and DRC error count: +0.817 ns, +0.030 ns, 0 errors
 - Board and host: Digilent JTAG target `210292AD33B0A`, `xc7a100t_0`;
@@ -28,7 +71,7 @@ tested bitstream; this directory is intentionally ignored by Git.
 3. Start the UART monitor before transmitting. Reset the board and wait for
    initialization and firmware configuration acknowledgement.
 
-## Tests to record
+## Original run observations
 
 | Test | Observation and captured evidence | Result |
 | --- | --- | --- |

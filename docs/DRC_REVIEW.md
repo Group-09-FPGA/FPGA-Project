@@ -20,8 +20,8 @@ asynchronous reset sources feeding the same RAM controls; the broad variant
 also reduced routed setup margin. Those experimental RTL changes were
 reverted. The reset manager intentionally asserts reset asynchronously and
 releases it synchronously, and the design's initialization protocols discard
-state during reset. The board reset/recovery sequence remains the physical
-check in `HARDWARE_VALIDATION.md`.
+state during reset. The board reset/recovery sequence was checked as recorded
+in `HARDWARE_VALIDATION.md`.
 
 This review does not waive or suppress the warnings. Any future change to
 memory write enables, initialization, or reset sequencing must repeat the DRC
