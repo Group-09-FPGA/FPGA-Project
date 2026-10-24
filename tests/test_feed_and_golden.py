@@ -27,6 +27,15 @@ class TestFeedAndGoldenModel(unittest.TestCase):
         self.assertFalse(view.book_valid)
         self.assertEqual(view.error_code, 0x0A)
 
+    def test_extended_telemetry_quantities_and_active_count(self):
+        view = LOBVisualizer(demo=True)
+        line = ("[BBO] B:000DCF28 | A:000DE2B0 | V:1 | E:00 | "
+                "QB:000001F4 | QA:0000012C | N:002 | "
+                "CRC:00000000 | UDP:00000000 | IP:00000000")
+        self.assertTrue(view.process_line(line))
+        self.assertEqual((view.best_bid_qty, view.best_ask_qty, view.active_orders),
+                         (500, 300, 2))
+
     def test_moldudp64_packet_formatting(self):
         """Verify NASDAQ ITCH 5.0 Type 'A' Add Order message serialization inside MoldUDP64."""
         seq = 42

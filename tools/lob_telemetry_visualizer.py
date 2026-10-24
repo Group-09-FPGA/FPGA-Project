@@ -46,6 +46,8 @@ BBO_PATTERN = re.compile(
     r"\[BBO\]\s+B:([0-9A-Fa-f]+)\s*\|\s*A:([0-9A-Fa-f]+)(?:\s*\|\s*O:([0-9A-Fa-f]+))?"
 )
 STATUS_PATTERN = re.compile(r"\|\s*V:([01])\s*\|\s*E:([0-9A-Fa-f]{2})")
+QUANTITY_PATTERN = re.compile(r"\|\s*QB:([0-9A-Fa-f]{8})\s*\|\s*QA:([0-9A-Fa-f]{8})")
+ACTIVE_PATTERN = re.compile(r"\|\s*N:([0-9A-Fa-f]{3})")
 
 class LOBVisualizer:
     def __init__(self, port="/dev/ttyUSB1", baud=115200, demo=False, raw=False):
@@ -60,6 +62,8 @@ class LOBVisualizer:
         self.prev_bid = 0.0
         self.prev_ask = 0.0
         self.active_orders = 0
+        self.best_bid_qty = None
+        self.best_ask_qty = None
         self.book_valid = False
         self.error_code = 0
         self.event_count = 0
@@ -102,6 +106,13 @@ class LOBVisualizer:
             self.prev_ask = self.best_ask
             self.best_bid = self.format_price(m.group(1))
             self.best_ask = self.format_price(m.group(2))
+            quantity_match = QUANTITY_PATTERN.search(line)
+            if quantity_match:
+                self.best_bid_qty = int(quantity_match.group(1), 16)
+                self.best_ask_qty = int(quantity_match.group(2), 16)
+            active_match = ACTIVE_PATTERN.search(line)
+            if active_match:
+                self.active_orders = int(active_match.group(1), 16)
             if m.group(3):
                 self.active_orders = int(m.group(3), 16)
             self.event_count += 1
@@ -152,6 +163,8 @@ class LOBVisualizer:
         buf.append(f"       {GREEN}{BOLD}├──────────────────────┤{RESET}          {RED}{BOLD}├──────────────────────┤{RESET}")
         buf.append(f"       {GREEN}{BOLD}│  {bid_str}  {bid_arrow}     │{RESET}  {YELLOW}◀SPREAD▶{RESET} {RED}{BOLD}│  {ask_str}  {ask_arrow}     │{RESET}")
         buf.append(f"       {GREEN}{BOLD}└──────────────────────┘{RESET}          {RED}{BOLD}└──────────────────────┘{RESET}")
+        if self.book_valid and self.best_bid_qty is not None and self.best_ask_qty is not None:
+            buf.append(f"        Bid shares: {self.best_bid_qty}                 Ask shares: {self.best_ask_qty}  |  Active orders: {self.active_orders}")
 
         # Spread Banner
         if not self.book_valid and self.event_count:
