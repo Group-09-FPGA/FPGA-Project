@@ -241,7 +241,11 @@ class LOBVisualizer:
         
         try:
             while True:
-                line = ser.readline()
+                try:
+                    line = ser.readline()
+                except (serial.SerialException, OSError):
+                    time.sleep(0.05)
+                    continue
                 if line:
                     try:
                         text = line.decode('utf-8', errors='replace').strip()

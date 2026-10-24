@@ -417,6 +417,21 @@ module top_system #(
 
     // Event counter
     reg [31:0] core_event_count;
+    reg [31:0] fifo_event_count;
+    wire [159:0] pipe_eth_snapshot;
+    config_cdc #(.WIDTH(160), .RESET_VALUE(160'd0)) u_pipe_trace_cdc (
+        .src_clk(clk_eth), .src_rst_n(rst_eth_n),
+        .src_data({cnt_rx_frames, cnt_udp_packets, cnt_mold_msgs,
+                   cnt_itch_events, fifo_event_count}), .src_busy(),
+        .dst_clk(clk_core), .dst_rst_n(rst_core_n),
+        .dst_data(pipe_eth_snapshot), .dst_update()
+    );
+    always @(posedge clk_eth or negedge rst_eth_n) begin
+        if (!rst_eth_n)
+            fifo_event_count <= 32'd0;
+        else if (canon_evt_valid && canon_evt_ready)
+            fifo_event_count <= fifo_event_count + 32'd1;
+    end
     always @(posedge clk_core or negedge rst_core_n) begin
         if (!rst_core_n)
             core_event_count <= 32'd0;
@@ -688,6 +703,12 @@ module top_system #(
         .crc_errors       (net_diag_snapshot[319:288]),
         .udp_checksum_errors(net_diag_snapshot[63:32]),
         .ip_checksum_errors(ip_checksum_errors_core),
+        .pipe_rx_frames   (pipe_eth_snapshot[159:128]),
+        .pipe_udp_packets (pipe_eth_snapshot[127:96]),
+        .pipe_mold_msgs   (pipe_eth_snapshot[95:64]),
+        .pipe_itch_events (pipe_eth_snapshot[63:32]),
+        .pipe_fifo_events (pipe_eth_snapshot[31:0]),
+        .pipe_done_events (core_event_count),
         .uart_txd         (uart_txd_out)
     );
 

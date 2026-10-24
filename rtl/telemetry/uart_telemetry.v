@@ -35,6 +35,13 @@ module uart_telemetry #(
     input  wire [31:0] crc_errors,
     input  wire [31:0] udp_checksum_errors,
     input  wire [31:0] ip_checksum_errors,
+    // Cumulative, board-observed boundaries for the narrated order journey.
+    input  wire [31:0] pipe_rx_frames,
+    input  wire [31:0] pipe_udp_packets,
+    input  wire [31:0] pipe_mold_msgs,
+    input  wire [31:0] pipe_itch_events,
+    input  wire [31:0] pipe_fifo_events,
+    input  wire [31:0] pipe_done_events,
 
     // Physical Serial Pin (Nexys A7 pin D4)
     output reg         uart_txd
@@ -134,13 +141,14 @@ module uart_telemetry #(
     // 3. Hardware Automated BBO String Formatter FSM
     // -------------------------------------------------------------------------
     reg auto_telem_en;
-    reg [6:0] telem_step;
+    reg [7:0] telem_step;
     reg       telem_busy;
     reg [31:0] lat_bid_p, lat_bid_q, lat_ask_p, lat_ask_q;
     reg lat_book_valid;
     reg [7:0] lat_error_code;
     reg [11:0] lat_active_orders;
     reg [31:0] lat_crc_errors, lat_udp_checksum_errors, lat_ip_checksum_errors;
+    reg [31:0] lat_rx, lat_udp, lat_mold, lat_itch, lat_fifo, lat_done;
 
     function [7:0] hex2ascii;
         input [3:0] nibble;
@@ -245,8 +253,16 @@ module uart_telemetry #(
                 7'd111: hw_char = "I";
                 7'd112: hw_char = "P";
                 7'd113: hw_char = ":";
-                7'd122: hw_char = 8'h0D;
-                7'd123: hw_char = 8'h0A;
+                8'd125, 8'd138, 8'd151, 8'd164, 8'd177, 8'd190: hw_char = "|";
+                8'd127: hw_char = "R";
+                8'd128, 8'd141, 8'd154, 8'd167, 8'd180, 8'd193: hw_char = ":";
+                8'd140: hw_char = "U";
+                8'd153: hw_char = "M";
+                8'd166: hw_char = "I";
+                8'd179: hw_char = "F";
+                8'd192: hw_char = "D";
+                8'd202: hw_char = 8'h0D;
+                8'd203: hw_char = 8'h0A;
                 default: hw_char = " ";
             endcase
             if (telem_step >= 7'd48 && telem_step <= 7'd55)
@@ -261,6 +277,18 @@ module uart_telemetry #(
                 hw_char = hex_digit(lat_udp_checksum_errors, telem_step - 7'd100);
             else if (telem_step >= 7'd114 && telem_step <= 7'd121)
                 hw_char = hex_digit(lat_ip_checksum_errors, telem_step - 7'd114);
+            else if (telem_step >= 8'd129 && telem_step <= 8'd136)
+                hw_char = hex_digit(lat_rx, telem_step - 8'd129);
+            else if (telem_step >= 8'd142 && telem_step <= 8'd149)
+                hw_char = hex_digit(lat_udp, telem_step - 8'd142);
+            else if (telem_step >= 8'd155 && telem_step <= 8'd162)
+                hw_char = hex_digit(lat_mold, telem_step - 8'd155);
+            else if (telem_step >= 8'd168 && telem_step <= 8'd175)
+                hw_char = hex_digit(lat_itch, telem_step - 8'd168);
+            else if (telem_step >= 8'd181 && telem_step <= 8'd188)
+                hw_char = hex_digit(lat_fifo, telem_step - 8'd181);
+            else if (telem_step >= 8'd194 && telem_step <= 8'd201)
+                hw_char = hex_digit(lat_done, telem_step - 8'd194);
         end
     end
 
@@ -270,6 +298,7 @@ module uart_telemetry #(
     reg [7:0] pend_error_code;
     reg [11:0] pend_active_orders;
     reg [31:0] pend_crc_errors, pend_udp_checksum_errors, pend_ip_checksum_errors;
+    reg [31:0] pend_rx, pend_udp, pend_mold, pend_itch, pend_fifo, pend_done;
     reg prev_book_valid;
     reg [7:0] prev_error_code;
 
@@ -314,7 +343,7 @@ module uart_telemetry #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             telem_busy     <= 1'b0;
-            telem_step     <= 7'd0;
+            telem_step     <= 8'd0;
             lat_bid_p      <= 32'd0;
             lat_bid_q      <= 32'd0;
             lat_ask_p      <= 32'd0;
@@ -325,6 +354,8 @@ module uart_telemetry #(
             lat_crc_errors <= 32'd0;
             lat_udp_checksum_errors <= 32'd0;
             lat_ip_checksum_errors <= 32'd0;
+            lat_rx <= 0; lat_udp <= 0; lat_mold <= 0;
+            lat_itch <= 0; lat_fifo <= 0; lat_done <= 0;
             pending_update <= 1'b0;
             pend_bid_p     <= 32'd0;
             pend_bid_q     <= 32'd0;
@@ -336,6 +367,8 @@ module uart_telemetry #(
             pend_crc_errors <= 32'd0;
             pend_udp_checksum_errors <= 32'd0;
             pend_ip_checksum_errors <= 32'd0;
+            pend_rx <= 0; pend_udp <= 0; pend_mold <= 0;
+            pend_itch <= 0; pend_fifo <= 0; pend_done <= 0;
         end else begin
             if (!telem_busy && auto_telem_en && telem_trigger) begin
                 lat_bid_p      <= best_bid_price;
@@ -348,7 +381,10 @@ module uart_telemetry #(
                 lat_crc_errors <= crc_errors;
                 lat_udp_checksum_errors <= udp_checksum_errors;
                 lat_ip_checksum_errors <= ip_checksum_errors;
-                telem_step     <= 7'd0;
+                lat_rx <= pipe_rx_frames; lat_udp <= pipe_udp_packets;
+                lat_mold <= pipe_mold_msgs; lat_itch <= pipe_itch_events;
+                lat_fifo <= pipe_fifo_events; lat_done <= pipe_done_events;
+                telem_step     <= 8'd0;
                 telem_busy     <= 1'b1;
                 pending_update <= 1'b0;
             end else if (telem_busy) begin
@@ -365,9 +401,12 @@ module uart_telemetry #(
                     pend_crc_errors <= crc_errors;
                     pend_udp_checksum_errors <= udp_checksum_errors;
                     pend_ip_checksum_errors <= ip_checksum_errors;
+                    pend_rx <= pipe_rx_frames; pend_udp <= pipe_udp_packets;
+                    pend_mold <= pipe_mold_msgs; pend_itch <= pipe_itch_events;
+                    pend_fifo <= pipe_fifo_events; pend_done <= pipe_done_events;
                 end
                 if (hw_wr_en) begin
-                    if (telem_step == 7'd123) begin
+                    if (telem_step == 8'd203) begin
                         if (pending_update) begin
                             lat_bid_p      <= pend_bid_p;
                             lat_bid_q      <= pend_bid_q;
@@ -379,14 +418,17 @@ module uart_telemetry #(
                             lat_crc_errors <= pend_crc_errors;
                             lat_udp_checksum_errors <= pend_udp_checksum_errors;
                             lat_ip_checksum_errors <= pend_ip_checksum_errors;
-                            telem_step     <= 7'd0;
+                            lat_rx <= pend_rx; lat_udp <= pend_udp;
+                            lat_mold <= pend_mold; lat_itch <= pend_itch;
+                            lat_fifo <= pend_fifo; lat_done <= pend_done;
+                            telem_step     <= 8'd0;
                             pending_update <= 1'b0;
                             telem_busy     <= 1'b1;
                         end else begin
                             telem_busy <= 1'b0;
                         end
                     end else begin
-                        telem_step <= telem_step + 7'd1;
+                        telem_step <= telem_step + 8'd1;
                     end
                 end
             end

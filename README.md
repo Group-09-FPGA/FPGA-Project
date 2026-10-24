@@ -47,9 +47,16 @@ ignored by Git; run the script to reproduce it.
 
 ```bash
 vivado -mode batch -source vivado/scripts/program_fpga.tcl
-python3 tools/hardware_test_helper.py --uart
-python3 tools/hardware_test_helper.py --inject --ip 192.168.1.255
+python3 tools/order_journey.py --target-ip 192.168.1.255 --uart-port /dev/ttyUSB1 --interval 10 --count 10
 ```
+
+Program or reset the current trace-enabled bitstream to start with an empty
+book. Use `--interval 1` for one order per second, or `--demo` for a clearly labelled
+software walkthrough without hardware. Each UDP datagram contains one ITCH
+message. The terminal displays the message bytes and waits for UART counters
+from the RMII receiver, UDP parser, Mold decoder, ITCH decoder, event FIFO,
+and LOB completion, then verifies the returned BBO, quantities, and order count.
+This is also available from `python3 control_center.py` as menu item 3.
 
 The FPGA does not answer ARP. Configure the host Ethernet interface on
 `192.168.1.0/24` and use the subnet broadcast address for injection. Record

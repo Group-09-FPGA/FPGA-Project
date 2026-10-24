@@ -3,7 +3,11 @@
 # Description: Programs the Digilent Nexys A7-100T (xc7a100t_0) with top_system.bit
 # =============================================================================
 
-set BIT_FILE [file normalize [file join [file dirname [info script]] "../../build_system/top_system.bit"]]
+if {$argc > 0} {
+    set BIT_FILE [file normalize [lindex $argv 0]]
+} else {
+    set BIT_FILE [file normalize [file join [file dirname [info script]] "../../build_system/top_system.bit"]]
+}
 
 if {![file exists $BIT_FILE]} {
     puts "ERROR: Bitstream not found at $BIT_FILE"

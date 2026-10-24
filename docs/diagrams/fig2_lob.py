@@ -1,5 +1,5 @@
 """Figure 2 - LOB system architecture (target design, v6 candidate sizes).
-Sources: architecture context (sec. 3, 4, 8), docs/phase1_architecture_final_v6.md,
+Sources: architecture context (sec. 3, 4, 8), earlier phase-one draft in Git history,
 docs/mmio.md. Only rv32m_unit / CPU / bus / IMEM / DMEM exist in RTL today."""
 from dg import Fig, NAVY
 

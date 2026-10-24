@@ -45,8 +45,7 @@ checks pass. A timing pass does not establish operation on a physical board.
 
 ```bash
 vivado -mode batch -source vivado/scripts/program_fpga.tcl
-python3 tools/hardware_test_helper.py --uart
-python3 tools/hardware_test_helper.py --inject --ip 192.168.1.255 --port 10443
+python3 tools/order_journey.py --target-ip 192.168.1.255 --uart-port /dev/ttyUSB1 --interval 10 --count 10
 ```
 
 The FPGA has a receive-only Ethernet interface and does not answer ARP. For a
