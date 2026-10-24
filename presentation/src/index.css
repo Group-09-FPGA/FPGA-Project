@@ -12,6 +12,20 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; background: #0d0e14; overflow: hidden; }
+
+/* ── journey mode: allow page scroll ───────────────────────────────────────── */
+html[data-mode="journey"],
+html[data-mode="journey"] body {
+  height: auto !important;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  background: #060810 !important;
+}
+html[data-mode="journey"] #root {
+  height: auto !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
 body { font-family: var(--font); color: var(--ink); -webkit-font-smoothing: antialiased; }
 
 .stage {
@@ -248,3 +262,249 @@ body { font-family: var(--font); color: var(--ink); -webkit-font-smoothing: anti
 .nodeNew text.t { fill: #101234; }
 .slide-fade { animation: fade .4s both; }
 .pad-top { padding-top: 22px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JOURNEY PAGE  —  dark scrollytelling experience
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --j-bg:        #060810;
+  --j-white:     #EDEFF2;
+  --j-dim:       rgba(237,239,242,.60);
+  --j-faint:     rgba(237,239,242,.35);
+  --j-green:     #22c55e;
+  --j-amber:     #f59e0b;
+  --j-cyan:      #67e8f9;
+  --j-navy-br:   #6d75f5;   /* brighter navy for dark bg */
+  --j-signal-bg: rgba(6,8,16,.72);
+  --j-mono:      'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* root container — defines scroll height via inner track div */
+.journey-root {
+  position: relative;
+  background: var(--j-bg);
+}
+
+/* WebGL canvas — fixed, fills viewport, sits behind all overlays */
+.journey-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+  display: block;
+}
+
+/* ── loading indicator ─────────────────────────────────────────────────────── */
+.journey-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: var(--j-bg);
+  color: var(--j-dim);
+  font: 600 13px var(--j-mono);
+  letter-spacing: .14em;
+}
+.journey-loading-ring {
+  width: 36px; height: 36px;
+  border: 2.5px solid rgba(109,117,245,.25);
+  border-top-color: var(--j-navy-br);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+/* ── progress bar (top edge) ──────────────────────────────────────────────── */
+.journey-progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: rgba(255,255,255,.08);
+  z-index: 10;
+}
+.journey-progress-fill {
+  height: 100%;
+  background: var(--j-navy-br);
+  transition: width 0.12s linear;
+  box-shadow: 0 0 8px var(--j-navy-br);
+}
+
+/* ── scene counter (top-right) ─────────────────────────────────────────────── */
+.journey-counter {
+  position: fixed;
+  top: 22px; right: 28px;
+  z-index: 10;
+  font: 600 13px var(--j-mono);
+  letter-spacing: .10em;
+  color: var(--j-faint);
+  user-select: none;
+}
+.journey-counter-idx { color: var(--j-dim); }
+
+/* ── overlay wrapper (fixed, pointer-events go to children) ────────────────── */
+.journey-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px 6vw 80px 7vw;
+}
+
+/* ── text content block ────────────────────────────────────────────────────── */
+.journey-content {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  pointer-events: auto;
+}
+
+/* kicker */
+.journey-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 12px var(--j-mono);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--j-faint);
+  margin-bottom: 14px;
+}
+.journey-kicker-num  { color: var(--j-dim); }
+.journey-kicker-dot  { opacity: .5; }
+.journey-kicker-label { color: var(--j-dim); }
+
+/* accent overrides for kicker label */
+.journey-accent--green  .journey-kicker-label { color: var(--j-green); }
+.journey-accent--amber  .journey-kicker-label { color: var(--j-amber); }
+.journey-accent--cyan   .journey-kicker-label { color: var(--j-cyan);  }
+.journey-accent--navy   .journey-kicker-label { color: var(--j-navy-br); }
+
+/* title */
+.journey-title {
+  font-family: 'Inter', 'Helvetica Neue', system-ui, sans-serif;
+  font-size: clamp(28px, 3.6vw, 52px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -.03em;
+  color: var(--j-white);
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+
+/* body */
+.journey-body {
+  font-size: clamp(15px, 1.4vw, 19px);
+  line-height: 1.6;
+  color: var(--j-dim);
+  margin: 0 0 26px;
+  max-width: 44ch;
+}
+
+/* ── signal badges ─────────────────────────────────────────────────────────── */
+.journey-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+.journey-signal {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  font: 500 12.5px var(--j-mono);
+  background: var(--j-signal-bg);
+  border: 1px solid rgba(255,255,255,.07);
+  border-left: 2.5px solid rgba(255,255,255,.18);
+  padding: 6px 12px;
+  backdrop-filter: blur(8px);
+  line-height: 1.4;
+}
+.journey-accent--green .journey-signal { border-left-color: var(--j-green); }
+.journey-accent--amber .journey-signal { border-left-color: var(--j-amber); }
+.journey-accent--cyan  .journey-signal { border-left-color: var(--j-cyan);  }
+.journey-accent--navy  .journey-signal { border-left-color: var(--j-navy-br); }
+
+.journey-sig-name { color: var(--j-dim); flex-shrink: 0; }
+.journey-sig-sep  { color: var(--j-faint); margin: 0 4px; }
+.journey-sig-val  { color: var(--j-white); word-break: break-all; }
+
+/* ── CTA button ────────────────────────────────────────────────────────────── */
+.journey-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 13px var(--j-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #08090b;
+  background: var(--j-white);
+  border: none;
+  padding: 14px 28px;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.12s;
+  position: relative;
+  pointer-events: auto;
+  align-self: flex-start;
+}
+.journey-cta::before,
+.journey-cta::after {
+  content: '';
+  position: absolute;
+  width: 7px; height: 7px;
+  border: 1px solid rgba(0,0,0,.3);
+}
+.journey-cta::before { left: -5px; top: -5px; border-right: 0; border-bottom: 0; }
+.journey-cta::after  { right: -5px; bottom: -5px; border-left: 0; border-top: 0; }
+.journey-cta:hover   { background: #a5b4fc; transform: translateY(-1px); }
+.journey-cta:active  { transform: translateY(0); }
+
+/* ── step dots (bottom centre) ─────────────────────────────────────────────── */
+.journey-dots {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 9px;
+  z-index: 10;
+  pointer-events: auto;
+}
+.journey-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(237,239,242,.30);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.journey-dot:hover   { border-color: var(--j-dim); transform: scale(1.25); }
+.journey-dot.on      { background: var(--j-white); border-color: var(--j-white); }
+
+/* ── scroll hint ───────────────────────────────────────────────────────────── */
+.journey-hint {
+  position: fixed;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 11px var(--j-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--j-faint);
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+/* ── reuse .rise for staggered text animation on dark bg ───────────────────── */
+/* .rise is already defined globally — works here because it targets opacity+translateY */
