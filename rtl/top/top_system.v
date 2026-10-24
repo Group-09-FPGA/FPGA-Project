@@ -470,6 +470,7 @@ module top_system #(
     wire        net_bus_rsp_valid;
     wire [31:0] net_bus_rsp_rdata;
     wire [351:0] net_diag_snapshot;
+    wire [31:0] ip_checksum_errors_core;
     config_cdc #(.WIDTH(352), .RESET_VALUE(352'd0)) u_net_diag_cdc (
         .src_clk(clk_eth), .src_rst_n(rst_eth_n),
         .src_data({cnt_rx_frames, cnt_crc_err, cnt_mold_msgs, cnt_seq_gaps,
@@ -478,6 +479,12 @@ module top_system #(
                    29'd0, itch_decode_error, seq_gap_detected, feed_loss_eth}),
         .src_busy(), .dst_clk(clk_core), .dst_rst_n(rst_core_n),
         .dst_data(net_diag_snapshot), .dst_update()
+    );
+    config_cdc #(.WIDTH(32), .RESET_VALUE(32'd0)) u_ip_checksum_cdc (
+        .src_clk(clk_eth), .src_rst_n(rst_eth_n),
+        .src_data(cnt_ip_csum_err), .src_busy(),
+        .dst_clk(clk_core), .dst_rst_n(rst_core_n),
+        .dst_data(ip_checksum_errors_core), .dst_update()
     );
 
     wire        sys_bus_req_valid, sys_bus_req_write;
@@ -678,6 +685,9 @@ module top_system #(
         .active_orders    (lob_active_orders),
         .book_valid       (lob_book_valid),
         .error_code       (lob_error_code),
+        .crc_errors       (net_diag_snapshot[319:288]),
+        .udp_checksum_errors(net_diag_snapshot[63:32]),
+        .ip_checksum_errors(ip_checksum_errors_core),
         .uart_txd         (uart_txd_out)
     );
 

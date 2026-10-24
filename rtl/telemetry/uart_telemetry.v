@@ -32,6 +32,9 @@ module uart_telemetry #(
     input  wire [11:0] active_orders,
     input  wire        book_valid,
     input  wire [7:0]  error_code,
+    input  wire [31:0] crc_errors,
+    input  wire [31:0] udp_checksum_errors,
+    input  wire [31:0] ip_checksum_errors,
 
     // Physical Serial Pin (Nexys A7 pin D4)
     output reg         uart_txd
@@ -131,16 +134,26 @@ module uart_telemetry #(
     // 3. Hardware Automated BBO String Formatter FSM
     // -------------------------------------------------------------------------
     reg auto_telem_en;
-    reg [5:0] telem_step;
+    reg [6:0] telem_step;
     reg       telem_busy;
     reg [31:0] lat_bid_p, lat_bid_q, lat_ask_p, lat_ask_q;
     reg lat_book_valid;
     reg [7:0] lat_error_code;
+    reg [11:0] lat_active_orders;
+    reg [31:0] lat_crc_errors, lat_udp_checksum_errors, lat_ip_checksum_errors;
 
     function [7:0] hex2ascii;
         input [3:0] nibble;
         begin
             hex2ascii = (nibble < 4'd10) ? (8'h30 + {4'd0, nibble}) : (8'h41 + {4'd0, nibble - 4'd10});
+        end
+    endfunction
+
+    function [7:0] hex_digit;
+        input [31:0] value;
+        input [2:0] index;
+        begin
+            hex_digit = hex2ascii(value[31 - (index * 4) -: 4]);
         end
     endfunction
 
@@ -195,10 +208,59 @@ module uart_telemetry #(
                 6'd39: hw_char = ":";
                 6'd40: hw_char = hex2ascii(lat_error_code[7:4]);
                 6'd41: hw_char = hex2ascii(lat_error_code[3:0]);
-                6'd42: hw_char = 8'h0D;
-                6'd43: hw_char = 8'h0A;
-                default: begin hw_char = " "; hw_wr_en = 1'b0; end
+                7'd42: hw_char = " ";
+                7'd43: hw_char = "|";
+                7'd44: hw_char = " ";
+                7'd45: hw_char = "Q";
+                7'd46: hw_char = "B";
+                7'd47: hw_char = ":";
+                7'd56: hw_char = " ";
+                7'd57: hw_char = "|";
+                7'd58: hw_char = " ";
+                7'd59: hw_char = "Q";
+                7'd60: hw_char = "A";
+                7'd61: hw_char = ":";
+                7'd70: hw_char = " ";
+                7'd71: hw_char = "|";
+                7'd72: hw_char = " ";
+                7'd73: hw_char = "N";
+                7'd74: hw_char = ":";
+                7'd78: hw_char = " ";
+                7'd79: hw_char = "|";
+                7'd80: hw_char = " ";
+                7'd81: hw_char = "C";
+                7'd82: hw_char = "R";
+                7'd83: hw_char = "C";
+                7'd84: hw_char = ":";
+                7'd93: hw_char = " ";
+                7'd94: hw_char = "|";
+                7'd95: hw_char = " ";
+                7'd96: hw_char = "U";
+                7'd97: hw_char = "D";
+                7'd98: hw_char = "P";
+                7'd99: hw_char = ":";
+                7'd108: hw_char = " ";
+                7'd109: hw_char = "|";
+                7'd110: hw_char = " ";
+                7'd111: hw_char = "I";
+                7'd112: hw_char = "P";
+                7'd113: hw_char = ":";
+                7'd122: hw_char = 8'h0D;
+                7'd123: hw_char = 8'h0A;
+                default: hw_char = " ";
             endcase
+            if (telem_step >= 7'd48 && telem_step <= 7'd55)
+                hw_char = hex_digit(lat_bid_q, telem_step - 7'd48);
+            else if (telem_step >= 7'd62 && telem_step <= 7'd69)
+                hw_char = hex_digit(lat_ask_q, telem_step - 7'd62);
+            else if (telem_step >= 7'd75 && telem_step <= 7'd77)
+                hw_char = hex2ascii(lat_active_orders[11 - ((telem_step - 7'd75) * 4) -: 4]);
+            else if (telem_step >= 7'd85 && telem_step <= 7'd92)
+                hw_char = hex_digit(lat_crc_errors, telem_step - 7'd85);
+            else if (telem_step >= 7'd100 && telem_step <= 7'd107)
+                hw_char = hex_digit(lat_udp_checksum_errors, telem_step - 7'd100);
+            else if (telem_step >= 7'd114 && telem_step <= 7'd121)
+                hw_char = hex_digit(lat_ip_checksum_errors, telem_step - 7'd114);
         end
     end
 
@@ -206,11 +268,25 @@ module uart_telemetry #(
     reg [31:0] pend_bid_p, pend_bid_q, pend_ask_p, pend_ask_q;
     reg pend_book_valid;
     reg [7:0] pend_error_code;
+    reg [11:0] pend_active_orders;
+    reg [31:0] pend_crc_errors, pend_udp_checksum_errors, pend_ip_checksum_errors;
     reg prev_book_valid;
     reg [7:0] prev_error_code;
 
     reg [26:0] heartbeat_cnt;
     wire heartbeat_pulse = (heartbeat_cnt >= (CLK_FREQ - 1));
+    // lob_core pulses event_done before lob_bbo's tracking and two price
+    // pipeline stages have all committed. Wait six clocks before sampling a
+    // new telemetry frame so active-order count, price, and quantity agree.
+    reg [5:0] event_settle;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            event_settle <= 6'd0;
+        else
+            event_settle <= {event_settle[4:0], hw_telem_trigger};
+    end
+    wire settled_event = event_settle[5];
+    wire bbo_settling = hw_telem_trigger || (|event_settle[4:0]);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -222,7 +298,8 @@ module uart_telemetry #(
     end
 
     wire status_changed = book_valid != prev_book_valid || error_code != prev_error_code;
-    wire telem_trigger = hw_telem_trigger || heartbeat_pulse || status_changed;
+    wire telem_trigger = (settled_event && !bbo_settling) ||
+                         ((heartbeat_pulse || status_changed) && !bbo_settling);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -237,13 +314,17 @@ module uart_telemetry #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             telem_busy     <= 1'b0;
-            telem_step     <= 6'd0;
+            telem_step     <= 7'd0;
             lat_bid_p      <= 32'd0;
             lat_bid_q      <= 32'd0;
             lat_ask_p      <= 32'd0;
             lat_ask_q      <= 32'd0;
             lat_book_valid <= 1'b0;
             lat_error_code <= 8'd0;
+            lat_active_orders <= 12'd0;
+            lat_crc_errors <= 32'd0;
+            lat_udp_checksum_errors <= 32'd0;
+            lat_ip_checksum_errors <= 32'd0;
             pending_update <= 1'b0;
             pend_bid_p     <= 32'd0;
             pend_bid_q     <= 32'd0;
@@ -251,6 +332,10 @@ module uart_telemetry #(
             pend_ask_q     <= 32'd0;
             pend_book_valid <= 1'b0;
             pend_error_code <= 8'd0;
+            pend_active_orders <= 12'd0;
+            pend_crc_errors <= 32'd0;
+            pend_udp_checksum_errors <= 32'd0;
+            pend_ip_checksum_errors <= 32'd0;
         end else begin
             if (!telem_busy && auto_telem_en && telem_trigger) begin
                 lat_bid_p      <= best_bid_price;
@@ -259,11 +344,16 @@ module uart_telemetry #(
                 lat_ask_q      <= best_ask_qty;
                 lat_book_valid <= book_valid;
                 lat_error_code <= error_code;
-                telem_step     <= 6'd0;
+                lat_active_orders <= active_orders;
+                lat_crc_errors <= crc_errors;
+                lat_udp_checksum_errors <= udp_checksum_errors;
+                lat_ip_checksum_errors <= ip_checksum_errors;
+                telem_step     <= 7'd0;
                 telem_busy     <= 1'b1;
                 pending_update <= 1'b0;
             end else if (telem_busy) begin
-                if (auto_telem_en && (hw_telem_trigger || status_changed)) begin
+                if (auto_telem_en && ((settled_event && !bbo_settling) ||
+                                      (status_changed && !bbo_settling))) begin
                     pending_update <= 1'b1;
                     pend_bid_p     <= best_bid_price;
                     pend_bid_q     <= best_bid_qty;
@@ -271,9 +361,13 @@ module uart_telemetry #(
                     pend_ask_q     <= best_ask_qty;
                     pend_book_valid <= book_valid;
                     pend_error_code <= error_code;
+                    pend_active_orders <= active_orders;
+                    pend_crc_errors <= crc_errors;
+                    pend_udp_checksum_errors <= udp_checksum_errors;
+                    pend_ip_checksum_errors <= ip_checksum_errors;
                 end
                 if (hw_wr_en) begin
-                    if (telem_step == 6'd43) begin
+                    if (telem_step == 7'd123) begin
                         if (pending_update) begin
                             lat_bid_p      <= pend_bid_p;
                             lat_bid_q      <= pend_bid_q;
@@ -281,14 +375,18 @@ module uart_telemetry #(
                             lat_ask_q      <= pend_ask_q;
                             lat_book_valid <= pend_book_valid;
                             lat_error_code <= pend_error_code;
-                            telem_step     <= 6'd0;
+                            lat_active_orders <= pend_active_orders;
+                            lat_crc_errors <= pend_crc_errors;
+                            lat_udp_checksum_errors <= pend_udp_checksum_errors;
+                            lat_ip_checksum_errors <= pend_ip_checksum_errors;
+                            telem_step     <= 7'd0;
                             pending_update <= 1'b0;
                             telem_busy     <= 1'b1;
                         end else begin
                             telem_busy <= 1'b0;
                         end
                     end else begin
-                        telem_step <= telem_step + 6'd1;
+                        telem_step <= telem_step + 7'd1;
                     end
                 end
             end
