@@ -45,10 +45,11 @@ checks pass. A timing pass does not establish operation on a physical board.
 
 ```bash
 vivado -mode batch -source vivado/scripts/program_fpga.tcl
-python3 tools/order_journey.py --target-ip 192.168.1.255 --uart-port /dev/ttyUSB1 --interval 10 --count 10
+python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 10 --count 10
 ```
 
-The FPGA has a receive-only Ethernet interface and does not answer ARP. For a
-direct link, configure the host interface on `192.168.1.0/24` and use its
-broadcast address. Follow [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) when
-a board is available.
+The FPGA has a receive-only Ethernet interface and does not answer ARP. The
+script detects the active Wi-Fi broadcast by default. The FPGA must be on the
+same LAN; for a direct link, configure the host Ethernet interface and pass
+its broadcast address with `--target-ip`. Follow
+[HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) when a board is available.

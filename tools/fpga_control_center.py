@@ -229,16 +229,16 @@ def choose_serial_port():
 
 
 def choose_network_target():
-    """Interactive prompt to select network interface or broadcast IP."""
+    """Return an optional explicit target; None uses the sender's live Wi-Fi detection."""
     ifaces = get_network_interfaces()
     active_ifaces = [i for i in ifaces if i["is_active"]]
 
     print(f"\n{BOLD}Select Network Interface / Target IP for Market Feed (MoldUDP64):{RESET}")
     options = []
 
-    # Common FPGA subnet broadcast defaults
+    # Explicit overrides for direct links and local simulation.
     presets = [
-        {"desc": "Standard FPGA Subnet Broadcast (Default Nexys IP 192.168.1.10)", "ip": "192.168.1.255"},
+        {"desc": "Direct Ethernet example broadcast (192.168.1.0/24)", "ip": "192.168.1.255"},
         {"desc": "Local Loopback (127.0.0.1 - for local testbench & simulation)", "ip": "127.0.0.1"}
     ]
 
@@ -250,7 +250,8 @@ def choose_network_target():
         options.append(bcast)
         opt_idx += 1
 
-    print(f"  {CYAN}Standard Presets:{RESET}")
+    print(f"  {CYAN}Press Enter to detect the active Wi-Fi broadcast when sending.{RESET}")
+    print(f"  {CYAN}Other targets:{RESET}")
     for p in presets:
         is_rec = " (Recommended for Direct Ethernet Cable)" if "192.168.1" in p['ip'] else ""
         print(f"    [{opt_idx}] {p['desc']} -> {YELLOW}{p['ip']}{RESET}{GREEN}{is_rec}{RESET}")
@@ -262,15 +263,15 @@ def choose_network_target():
 
     while True:
         try:
-            choice = input(f"\n{BOLD}Enter choice [1-{custom_idx}] (default 192.168.1.255): {RESET}").strip()
+            choice = input(f"\n{BOLD}Enter choice [1-{custom_idx}] (default: active Wi-Fi): {RESET}").strip()
             if not choice:
-                return "192.168.1.255"
+                return None
             ch = int(choice)
             if 1 <= ch <= len(options):
                 return options[ch - 1]
             elif ch == custom_idx:
                 manual = input("Enter target IP address: ").strip()
-                return manual if manual else "192.168.1.255"
+                return manual or None
             else:
                 print(f"{RED}Invalid option, try again.{RESET}")
         except ValueError:
@@ -418,8 +419,9 @@ def action_send_packets():
     interval = input("Seconds between orders [10; use 1 for faster demo]: ").strip() or "10"
     count = input("Number of orders [10; 0 for continuous]: ").strip() or "10"
     cmd = [sys.executable, str(TOOLS_DIR / "order_journey.py"),
-           "--target-ip", target_ip, "--uart-port", uart_port,
-           "--interval", interval, "--count", count]
+           "--uart-port", uart_port, "--interval", interval, "--count", count]
+    if target_ip:
+        cmd.extend(["--target-ip", target_ip])
     if is_demo:
         cmd.append("--demo")
     launch_in_terminal(cmd, mode="inplace")
@@ -470,8 +472,9 @@ def action_full_pipeline():
     print(f"\n{BOLD}[Step 3/3] Starting narrated single-order feed...{RESET}")
     interval = input("Seconds between orders [10]: ").strip() or "10"
     journey_cmd = [sys.executable, str(TOOLS_DIR / "order_journey.py"),
-                   "--target-ip", target_ip, "--uart-port", port,
-                   "--interval", interval]
+                   "--uart-port", port, "--interval", interval]
+    if target_ip:
+        journey_cmd.extend(["--target-ip", target_ip])
     if is_demo:
         journey_cmd.append("--demo")
     launch_in_terminal(journey_cmd, mode="inplace")

@@ -5,19 +5,19 @@ This is a guided, one-message-at-a-time demonstration of the Nexys A7 limit orde
 ## Start the live demo
 
 1. Stop any other feed sender or serial reader. Press the board's **CPU RESET** button, then wait for clock lock, LOB initialization, and a valid empty book.
-2. From the repository root, run:
+2. For the fixed 13-event sequence described below, run:
 
    ```bash
-   python3 tools/order_journey.py --advanced --interactive --count 13
+   python3 tools/order_journey.py --advanced --count 13 --interval 10
    ```
 
-3. Press **Enter** to release each event. You can explain the current result and switch between the bid and ask displays before sending the next event. `Ctrl+C` stops the demo. The `--interval` value is ignored in interactive mode.
+3. For a guided demonstration where you choose each action and its order, run `python3 tools/order_journey.py --advanced --interactive` instead. The menu offers all seven ITCH types. It lists active orders for execute, priced execute, cancel, delete, and replace, then asks for the required fields. Press **Enter** on the final event summary to send it; `b` goes back and `q` finishes. You can explain the current result and switch between bid and ask displays before choosing the next action.
 
-For automatic pacing, omit `--interactive` and use `--interval 10`. For a clearly labelled simulation without Ethernet or UART, add `--demo`. Use `--count 0` for continuous 13-event cycles; in automatic mode, the interval remains the minimum time between event starts.
+For a clearly labelled simulation without Ethernet or UART, add `--demo`. Use `--count 0` for continuous fixed 13-event cycles; in automatic mode, the interval remains the minimum time between event starts. Guided interactive mode defaults to no event limit and ignores `--interval`.
 
 The live script requires an empty, valid FPGA book at startup. Reset the board before starting again from sequence 1; reprogramming is only necessary if the configured bitstream is lost or changed.
 
-## What each Enter demonstrates
+## What the fixed 13-event sequence demonstrates
 
 Prices are shown in dollars; quantities are shares at the best price. A dash means that side has no orders. `Active` counts stored orders, not shares.
 

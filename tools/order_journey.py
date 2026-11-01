@@ -2,12 +2,16 @@
 """Narrated, one-message-at-a-time FPGA order-book demonstration."""
 
 import argparse
+import json
+import os
 import re
 import socket
 import struct
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 try:
     import serial
@@ -21,6 +25,69 @@ FRAME = re.compile(
     r"(?:\s*\|\s*QB:([0-9A-Fa-f]{8})\s*\|\s*QA:([0-9A-Fa-f]{8})"
     r"\s*\|\s*N:([0-9A-Fa-f]{3}))?"
 )
+
+COLOR = sys.stdout.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb"
+
+
+def active_wifi_broadcast():
+    """Return (interface, address, broadcast) for the connected IPv4 Wi-Fi LAN."""
+    try:
+        result = subprocess.run(
+            ["ip", "-j", "-4", "addr", "show"],
+            check=True, capture_output=True, text=True,
+        )
+        interfaces = json.loads(result.stdout)
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not inspect network interfaces: {exc}") from exc
+
+    candidates = []
+    for interface in interfaces:
+        name = interface.get("ifname", "")
+        if (not os.path.isdir(f"/sys/class/net/{name}/wireless")
+                or "LOWER_UP" not in interface.get("flags", [])):
+            continue
+        for address in interface.get("addr_info", []):
+            if (address.get("family") == "inet"
+                    and address.get("scope") == "global"
+                    and address.get("broadcast")):
+                candidates.append((name, address["local"], address["broadcast"]))
+
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"Expected one connected Wi-Fi IPv4 broadcast address, found {len(candidates)}. "
+            "Use --target-ip ADDRESS to choose the board-facing LAN broadcast."
+        )
+    return candidates[0]
+
+
+def tint(value, code):
+    return f"\033[{code}m{value}\033[0m" if COLOR else str(value)
+
+
+def heading(title):
+    print(f"\n  {tint(title, '1;36')}\n  {tint('─' * 74, '2')}", flush=True)
+
+
+def field(label, value):
+    print(f"    {tint(f'{label:<18}', '2')} {value}", flush=True)
+
+
+def selector(key, label):
+    return f"{tint(f'[{key}]', '1;36')} {label}"
+
+
+def ask(label):
+    return input(f"    {tint('›', '1;36')} {label}: ").strip()
+
+
+def hint(message):
+    print(f"    {tint('!', '1;33')} {message}")
+
+
+def bbo(label, book):
+    bid = f"BID {money(book['bid'])} × {book['bid_qty']}"
+    ask = f"ASK {money(book['ask'])} × {book['ask_qty']}"
+    print(f"    {tint(label, '1')}  {tint(bid, '1;32')}   │   {tint(ask, '1;35')}   │   active {book['active']}", flush=True)
 
 
 def create_moldudp64_add_order(seq, order_ref, side, shares, stock, price):
@@ -128,7 +195,7 @@ def stage(number, title, detail, delay, animate=True):
             print(f"\r  {number:02d}  {progress} {title:<23} {detail}", end="", flush=True)
             time.sleep(delay / 3)
         print("\r" + " " * 130 + "\r", end="", flush=True)
-    print(f"  {number:02d}  ✓  {title:<23} {detail}", flush=True)
+    print(f"    {tint(f'{number:02d}', '2')}  {tint('✓', '1;32')}  {title:<23} {tint(detail, '2')}", flush=True)
 
 
 def next_order(index, book):
@@ -183,6 +250,121 @@ def apply_advanced_order(book, event):
         del book[event.ref]
 
 
+def prompt_number(label, low, high=None, default=None):
+    while True:
+        suffix = f" [{default}]" if default is not None else ""
+        raw = ask(f"{label}{suffix}")
+        if not raw and default is not None:
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            hint("Enter a whole number.")
+            continue
+        if value >= low and (high is None or value <= high):
+            return value
+        hint(f"Enter {low}–{high}." if high is not None else f"Enter at least {low}.")
+
+
+def prompt_price(default):
+    while True:
+        raw = ask(f"Price in dollars [{default / 10000:.2f}]")
+        try:
+            cents = Decimal(raw) if raw else Decimal(default) / 10000
+            ticks = cents * 10000
+            if ticks == ticks.to_integral_value() and 900000 <= ticks <= 9091000 and ticks % 1000 == 0:
+                return int(ticks)
+        except InvalidOperation:
+            pass
+        hint("Use $90.00–$909.10 in $0.10 steps (example: 90.70).")
+
+
+def choose_existing_order(book, display_only=False):
+    if not book:
+        hint("No active orders yet. Add an order first.")
+        return None
+    orders = sorted(book.values(), key=lambda order: (order.side, -order.price if order.side == "B" else order.price, order.ref))
+    heading("ACTIVE ORDERS · REMAINING SHARES")
+    for number, order in enumerate(orders, 1):
+        side = tint('BUY ', '1;32') if order.side == 'B' else tint('SELL', '1;35')
+        print(f"    {selector(number, f'ID {order.ref:<6}')}  {side}  {order.shares:>6} shares  {money(order.price)}")
+    if display_only:
+        return None
+    print(f"\n    {selector(0, 'Back to actions')}")
+    while True:
+        raw = ask("Select order number")
+        if raw.isdecimal() and 0 <= int(raw) <= len(orders):
+            return orders[int(raw) - 1] if int(raw) else None
+        hint(f"Choose 0–{len(orders)} from the list.")
+
+
+def choose_interactive_order(book, used_refs):
+    """Build one valid event from a guided terminal menu; None ends the session."""
+    actions = {"1": "A", "2": "F", "3": "E", "4": "C", "5": "X", "6": "D", "7": "U"}
+    while True:
+        expected = quote(book)
+        heading("INTERACTIVE ORDER MENU")
+        bbo("Current", expected)
+        print(f"\n    {selector(1, 'Add order'.ljust(20))} {selector(2, 'Attributed add')}")
+        print(f"    {selector(3, 'Execute'.ljust(20))} {selector(4, 'Priced execute')}")
+        print(f"    {selector(5, 'Cancel shares'.ljust(20))} {selector(6, 'Delete order')}")
+        print(f"    {selector(7, 'Replace order'.ljust(20))} {selector(8, 'Show orders')}")
+        print(f"    {selector(0, 'Finish')}\n")
+        choice = ask("Choose action").lower()
+        if choice in ("0", "q", "quit", "exit"):
+            return None
+        if choice == "8":
+            choose_existing_order(book, display_only=True)
+            continue
+        kind = actions.get(choice, choice.upper() if choice.upper() in actions.values() else None)
+        if kind is None:
+            hint("Choose a menu number or ITCH letter A/F/E/C/X/D/U.")
+            continue
+        if kind in ("A", "F"):
+            while True:
+                side = ask("Side [B] Buy / [S] Sell").upper()
+                if side in ("B", "S"):
+                    break
+                hint("Enter B or S.")
+            shares = prompt_number("Shares", 1, 0xffffffff, 100)
+            price = prompt_price(905000 if side == "B" else 949000)
+            ref = max(used_refs, default=999) + 1
+            event = Order(kind, ref, side, shares, price)
+        else:
+            old = choose_existing_order(book)
+            if old is None:
+                continue
+            if kind in ("E", "C", "X"):
+                shares = prompt_number("Shares to execute" if kind in ("E", "C") else "Shares to cancel", 1, old.shares, old.shares)
+                price = prompt_price(old.price) if kind == "C" else old.price
+                event = Order(kind, old.ref, old.side, shares, price)
+            elif kind == "U":
+                shares = prompt_number("New remaining shares", 1, 0xffffffff, old.shares)
+                price = prompt_price(old.price)
+                event = Order(kind, old.ref, old.side, shares, price, max(used_refs, default=999) + 1)
+            else:
+                event = Order(kind, old.ref, old.side, 0, old.price)
+        summary = f"{kind} · ID {event.ref} · {'BUY' if event.side == 'B' else 'SELL'}"
+        if kind == "U":
+            summary += f" → ID {event.new_ref} · {event.shares} shares at {money(event.price)}"
+        elif kind in ("A", "F", "C"):
+            summary += f" · {event.shares} shares at {money(event.price)}"
+        elif kind in ("E", "X"):
+            summary += f" · {event.shares} shares"
+        heading("REVIEW ORDER")
+        field("Ready to send", summary)
+        print(f"\n    {selector('Enter', 'Send')}   {selector('b', 'Back to actions')}   {selector('q', 'Finish')}")
+        confirm = ask("Confirm").lower()
+        if confirm in ("q", "quit", "exit"):
+            return None
+        if confirm in ("b", "back"):
+            continue
+        if confirm:
+            hint("Press Enter, b, or q.")
+            continue
+        return event
+
+
 def read_until(port, expected, timeout, counter_target=None):
     deadline = time.monotonic() + timeout
     last = None
@@ -205,31 +387,78 @@ def read_until(port, expected, timeout, counter_target=None):
     return last, False
 
 
+class SocketLineReader:
+    """Read FPGA UART lines relayed by the display-only dashboard."""
+
+    def __init__(self, path):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.settimeout(0.15)
+        try:
+            self.sock.connect(path)
+        except OSError:
+            self.sock.close()
+            raise
+        self.buffer = bytearray()
+
+    def readline(self):
+        while True:
+            end = self.buffer.find(b"\n")
+            if end >= 0:
+                line = bytes(self.buffer[:end + 1])
+                del self.buffer[:end + 1]
+                return line
+            try:
+                chunk = self.sock.recv(4096)
+            except socket.timeout:
+                return b""
+            if not chunk:
+                raise OSError("UART dashboard relay disconnected")
+            self.buffer.extend(chunk)
+
+    def close(self):
+        self.sock.close()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target-ip", default="192.168.1.255")
+    parser.add_argument("--target-ip", metavar="ADDRESS",
+                        help="IPv4 destination (default: active Wi-Fi broadcast address)")
     parser.add_argument("--port", type=int, default=10443)
     parser.add_argument("--uart-port", default="/dev/ttyUSB1")
+    parser.add_argument("--uart-socket", metavar="PATH",
+                        help="read board UART from a running dashboard relay instead of opening --uart-port")
     parser.add_argument("--interval", type=float, default=10.0, help="minimum seconds between orders")
-    parser.add_argument("--count", type=int, default=10, help="orders to send; 0 means continuous")
+    parser.add_argument("--count", type=int, default=None, help="orders to send; 0 means continuous (interactive defaults to unlimited)")
     parser.add_argument("--advanced", action="store_true",
                         help="13-event A/F/E/C/X/U/D showcase; ends with an empty book")
     parser.add_argument("--interactive", action="store_true",
-                        help="press Enter before each message; ignores --interval")
+                        help="choose each action and its fields from prompts; ignores --interval")
     parser.add_argument("--stage-delay", type=float, default=0.22)
     parser.add_argument("--timeout", type=float, default=3.0, help="UART confirmation timeout")
     parser.add_argument("--demo", action="store_true", help="clearly labelled simulated board, no network or UART")
     args = parser.parse_args(argv)
+    if args.count is None:
+        args.count = 0 if args.interactive else (13 if args.advanced else 10)
     if args.interval <= 0 or args.count < 0 or args.stage_delay < 0 or args.timeout <= 0:
         parser.error("interval and timeout must be positive; count and stage-delay cannot be negative")
-    if not args.demo and serial is None:
+    if not args.demo and not args.uart_socket and serial is None:
         parser.error("pyserial is required for live board confirmation (pip install pyserial)")
+    if args.target_ip is None:
+        if args.demo:
+            args.target_ip = "auto"
+        else:
+            try:
+                wifi_interface, wifi_address, args.target_ip = active_wifi_broadcast()
+            except RuntimeError as exc:
+                parser.error(str(exc))
+            print(f"Wi-Fi {wifi_interface} ({wifi_address}) → broadcast {args.target_ip}:{args.port}", flush=True)
 
     uart = None
     sock = None
     try:
         if not args.demo:
-            uart = serial.Serial(args.uart_port, 115200, timeout=0.15)
+            uart = (SocketLineReader(args.uart_socket) if args.uart_socket
+                    else serial.Serial(args.uart_port, 115200, timeout=0.15))
             print("Waiting for an empty, valid FPGA book on UART...", flush=True)
             baseline, ok = read_until(uart, quote({}), 3.0)
             if not ok or baseline is None or any(baseline[key] is None for key in ("R", "U", "M", "I", "F", "D")):
@@ -240,22 +469,30 @@ def main(argv=None):
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
         mode = "SIMULATED WALKTHROUGH" if args.demo else "LIVE FPGA + UART CONFIRMATION"
-        if args.advanced:
+        if args.advanced or args.interactive:
             mode += " · ADVANCED A/F/E/C/X/U/D"
-        pacing = "press Enter for each message" if args.interactive else f"{args.interval:g}s minimum spacing"
+        pacing = "choose each event" if args.interactive else f"{args.interval:g}s minimum spacing"
         print(f"\n{'═' * 78}\n  NEXYS A7 · LIMIT ORDER BOOK · ORDER JOURNEY\n  {mode}  |  one ITCH message per UDP packet  |  {pacing}\n{'═' * 78}", flush=True)
-        print("  Legend: ✓ host generated; FPGA stage counters and BBO come from board UART.\n", flush=True)
+        legend = ("SIMULATED stages and BBO; no hardware is contacted."
+                  if args.demo else "✓ host generated; FPGA stage counters and BBO come from board UART.")
+        print(f"  Legend: {legend}\n", flush=True)
         book = {}
+        used_refs = set()
         index = 0
         while args.count == 0 or index < args.count:
             if args.interactive:
-                input(f"\nPress Enter to send event {index + 1:03d} (Ctrl+C to stop)... ")
+                order = choose_interactive_order(book, used_refs)
+                if order is None:
+                    break
+            else:
+                order = next_advanced_order(index) if args.advanced else next_order(index, book)
             started = time.monotonic()
-            order = next_advanced_order(index) if args.advanced else next_order(index, book)
             seq = index + 1
-            if args.advanced:
+            advanced_event = args.advanced or args.interactive
+            if advanced_event:
                 packet = create_moldudp64_event(seq, order)
                 apply_advanced_order(book, order)
+                used_refs.add(order.new_ref if order.kind == "U" else order.ref)
             elif order.kind == "ADD":
                 packet = create_moldudp64_add_order(seq, order.ref, order.side, order.shares, "AAPL", order.price)
                 book[order.ref] = order
@@ -268,18 +505,24 @@ def main(argv=None):
                 "A": "ADD", "F": "ADD WITH ATTRIBUTION", "E": "EXECUTE",
                 "C": "EXECUTE WITH PRICE", "X": "CANCEL", "D": "DELETE", "U": "REPLACE",
             }.get(order.kind, order.kind)
-            print(f"\n{'─' * 78}\n  ORDER {seq:03d}  ·  {operation}  ·  {'BUY' if order.side == 'B' else 'SELL'}  ·  ID {order.ref}")
+            print(f"\n{tint('═' * 78, '1;36')}\n  {tint(f'ORDER {seq:03d}', '1;36')}  ·  {tint(operation, '1')}  ·  {tint('BUY' if order.side == 'B' else 'SELL', '1;32' if order.side == 'B' else '1;35')}  ·  ID {order.ref}")
+            heading("ORDER DETAILS")
             if order.kind in ("ADD", "A", "F"):
                 print(f"  AAPL  |  {order.shares} shares  |  {money(order.price)}  |  ITCH type {'F' if order.kind == 'F' else 'A'}")
-            elif args.advanced and order.kind == "U":
+            elif advanced_event and order.kind == "U":
                 print(f"  Replace ID {order.ref} → {order.new_ref}; {order.shares} shares at {money(order.price)}  |  ITCH type U")
-            elif args.advanced and order.kind in ("E", "C", "X"):
-                print(f"  Reduce ID {order.ref} by {order.shares} shares  |  ITCH type {order.kind}")
+            elif advanced_event and order.kind in ("E", "C", "X"):
+                detail = f"  Reduce ID {order.ref} by {order.shares} shares"
+                if order.kind == "C":
+                    detail += f"; execution price {money(order.price)} (resting book price unchanged)"
+                print(f"{detail}  |  ITCH type {order.kind}")
             else:
                 print(f"  Remove order {order.ref} at {money(order.price)}  |  ITCH type D")
-            print(f"  ITCH bytes: {payload.hex(' ')}", flush=True)
-            print(f"  Mold header: {packet[:20].hex(' ')}  |  ITCH length prefix: {packet[20:22].hex(' ')}")
-            if args.advanced:
+            heading("PACKET ON THE WIRE")
+            field("ITCH bytes", payload.hex(' '))
+            field("Mold header", packet[:20].hex(' '))
+            field("Length prefix", packet[20:22].hex(' '))
+            if advanced_event:
                 op = {"A": "ADD", "F": "ADD", "E": "EXECUTE", "C": "EXECUTE",
                       "X": "CANCEL", "D": "DELETE", "U": "REPLACE"}[order.kind]
                 detail = f"OP={op} OID={order.ref} SEQ={seq}"
@@ -289,12 +532,13 @@ def main(argv=None):
                     detail += f" NEW_OID={order.new_ref} SHARES={order.shares} PRICE_INDEX={(order.price - 900000) // 1000}"
                 elif order.kind != "D":
                     detail += f" SHARES={order.shares}"
-                print(f"  Expected canonical event: {detail}")
+                field("Canonical event", detail)
             elif order.kind == "ADD":
                 price_index = (order.price - 900000) // 1000
-                print(f"  Expected canonical event: OP=ADD SIDE={order.side} OID={order.ref} SHARES={order.shares} PRICE_INDEX={price_index} SEQ={seq}")
+                field("Canonical event", f"OP=ADD SIDE={order.side} OID={order.ref} SHARES={order.shares} PRICE_INDEX={price_index} SEQ={seq}")
             else:
-                print(f"  Expected canonical event: OP=DELETE OID={order.ref} SEQ={seq}")
+                field("Canonical event", f"OP=DELETE OID={order.ref} SEQ={seq}")
+            heading("ORDER JOURNEY")
             d = args.stage_delay
             stage(1, "Order ingestion", "one exchange order selected", d)
             stage(2, "ITCH encoding", f"type {chr(payload[0])}; message length {len(payload)} B; locate 1", d)
@@ -304,19 +548,23 @@ def main(argv=None):
                 sent = sock.sendto(packet, (args.target_ip, args.port))
                 if sent != len(packet):
                     raise OSError(f"short UDP send: {sent}/{len(packet)} bytes")
-            print(f"  Expected BBO: BID {money(expected['bid'])} × {expected['bid_qty']}  |  ASK {money(expected['ask'])} × {expected['ask_qty']}  |  active {expected['active']}")
+            heading("EXPECTED BOOK")
+            bbo("Expected", expected)
+            heading("FPGA PATH")
             if args.demo:
                 stage(5, "Ethernet → RMII", "simulated accepted frame", d)
                 stage(6, "Network parser", "simulated accepted UDP payload", d)
                 stage(7, "Mold → ITCH", "simulated decoded order event", d)
                 stage(8, "Event FIFO", "simulated crossing to core clock", d)
                 stage(9, "LOB accelerator", "simulated order and BBO update", d)
-                print("  BOARD RESULT: SIMULATED (no packet sent, no hardware observation)", flush=True)
+                heading("RESULT")
+                print(f"    {tint('SIMULATED', '1;33')}  No packet sent; no hardware observation.\n", flush=True)
             else:
                 target = {key: baseline[key] + 1 for key in ("R", "U", "M", "I", "F", "D")}
                 frame, ok = read_until(uart, expected, args.timeout, target)
                 if not ok:
-                    print(f"  BOARD RESULT: NOT CONFIRMED  |  last UART: {frame}", flush=True)
+                    heading("RESULT")
+                    print(f"    {tint('NOT CONFIRMED', '1;31')}  Last UART: {frame}", flush=True)
                     print("  Feed stopped to avoid a misleading demonstration. Check link/UART, reset FPGA and replay from sequence 1.", file=sys.stderr)
                     return 1
                 stage(5, "Ethernet → RMII", f"board accepted frame #{frame['R']} (CRC checked)", d)
@@ -324,11 +572,14 @@ def main(argv=None):
                 stage(7, "Mold → ITCH", f"Mold message #{frame['M']}; ITCH event #{frame['I']}", d)
                 stage(8, "Event FIFO", f"canonical event accepted #{frame['F']}", d)
                 storage = (f"hash set {hash_set(order.ref)} → {hash_set(order.new_ref)}"
-                           if args.advanced and order.kind == "U"
+                           if advanced_event and order.kind == "U"
                            else f"hash set {hash_set(order.ref)}")
                 stage(9, "LOB accelerator", f"{storage}; event completed #{frame['D']}", d)
-                print(f"  BOARD VERIFIED via UART: BID {money(frame['bid'])} × {frame['bid_qty']}  |  ASK {money(frame['ask'])} × {frame['ask_qty']}  |  active {frame['active']}  |  V=1 E=00", flush=True)
-                print("  Board output mapping: LD3=book valid, LD4/5=bid/ask; seven-segment SW=00 bid, SW=01 ask; CPU MMIO and VGA read BBO.", flush=True)
+                heading("RESULT")
+                bbo("Board UART", frame)
+                print(f"    {tint('BOARD VERIFIED', '1;32')}  V=1 E=00", flush=True)
+                field("Board outputs", "LD3=valid, LD4/5=bid/ask; seven-segment SW=00 bid, SW=01 ask")
+                field("Other readers", "CPU MMIO and VGA read BBO")
                 baseline = frame
             index += 1
             if not args.interactive and (args.count == 0 or index < args.count):
