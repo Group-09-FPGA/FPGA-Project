@@ -152,6 +152,11 @@ def parse_frame(line):
     for key in ("R", "U", "M", "I", "F", "D"):
         counter = re.search(r"\|\s*" + key + r":([0-9A-Fa-f]{8})", line)
         frame[key] = int(counter.group(1), 16) if counter else None
+    storage = re.search(r"\|\s*T:([0-9A-Fa-f]{79})(?=\s|$)", line)
+    frame["storage_trace"] = storage.group(1) if storage else None
+    for key in ("BASE", "TICK"):
+        setting = re.search(r"\|\s*" + key + r":([0-9A-Fa-f]{8})", line)
+        frame[key.lower()] = int(setting.group(1), 16) if setting else None
     return frame
 
 
@@ -419,6 +424,18 @@ class SocketLineReader:
         self.sock.close()
 
 
+def publish_confirmed_event(socket_path, event, sequence, frame):
+    """Give the dashboard a host-side event record after FPGA confirmation."""
+    payload = json.dumps({
+        "kind": event.kind, "ref": event.ref, "side": event.side,
+        "shares": event.shares, "price": event.price, "new_ref": event.new_ref,
+        "seq": sequence, "board": {key: frame[key] for key in
+                                    ("bid", "ask", "bid_qty", "ask_qty", "active", "D")},
+    }).encode("ascii")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as event_sock:
+        event_sock.sendto(payload, socket_path + ".events")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target-ip", metavar="ADDRESS",
@@ -427,7 +444,7 @@ def main(argv=None):
     parser.add_argument("--uart-port", default="/dev/ttyUSB1")
     parser.add_argument("--uart-socket", metavar="PATH",
                         help="read board UART from a running dashboard relay instead of opening --uart-port")
-    parser.add_argument("--interval", type=float, default=10.0, help="minimum seconds between orders")
+    parser.add_argument("--interval", type=float, default=5.5, help="minimum seconds between orders")
     parser.add_argument("--count", type=int, default=None, help="orders to send; 0 means continuous (interactive defaults to unlimited)")
     parser.add_argument("--advanced", action="store_true",
                         help="13-event A/F/E/C/X/U/D showcase; ends with an empty book")
@@ -580,6 +597,11 @@ def main(argv=None):
                 print(f"    {tint('BOARD VERIFIED', '1;32')}  V=1 E=00", flush=True)
                 field("Board outputs", "LD3=valid, LD4/5=bid/ask; seven-segment SW=00 bid, SW=01 ask")
                 field("Other readers", "CPU MMIO and VGA read BBO")
+                if args.uart_socket:
+                    try:
+                        publish_confirmed_event(args.uart_socket, order, seq, frame)
+                    except OSError as exc:
+                        print(f"    Dashboard event mirror unavailable: {exc}", file=sys.stderr)
                 baseline = frame
             index += 1
             if not args.interactive and (args.count == 0 or index < args.count):

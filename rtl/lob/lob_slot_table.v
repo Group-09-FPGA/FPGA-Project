@@ -29,7 +29,10 @@ module lob_slot_table #(
     // Read Port (Latency = 1 cycle)
     input  wire                   rd_en,
     input  wire [SLOT_ADDR_W-1:0] rd_addr,
-    output wire [46:0]            rd_data
+    output wire [46:0]            rd_data,
+    input  wire                   dbg_clk,
+    input  wire [SLOT_ADDR_W-1:0] dbg_addr,
+    output reg  [46:0]            dbg_data
 );
 
     // 2,048 x 47-bit storage array
@@ -68,6 +71,11 @@ module lob_slot_table #(
     end
 
     assign rd_data = rd_data_reg;
+
+    // Independent read-only VGA port; the matching write/read cycle is
+    // intentionally not used as a coherent snapshot.
+    always @(posedge dbg_clk)
+        dbg_data <= mem[dbg_addr];
 
     // Initialization FSM
     always @(posedge clk or negedge rst_n) begin

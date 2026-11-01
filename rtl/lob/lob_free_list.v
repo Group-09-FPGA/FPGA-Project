@@ -35,7 +35,10 @@ module lob_free_list #(
     output wire                   empty,
     output wire                   full,
     output wire [SLOT_ADDR_W:0]   free_count,     // 0..2048
-    output wire [SLOT_ADDR_W:0]   active_count    // 2048 - sp
+    output wire [SLOT_ADDR_W:0]   active_count,   // 2048 - sp
+    input  wire                   dbg_clk,
+    input  wire [SLOT_ADDR_W-1:0] dbg_addr,
+    output reg  [SLOT_ADDR_W-1:0] dbg_data
 );
 
     // 2,048 x 11-bit BRAM storage (2 x RAMB18 in 2Kx9 mode)
@@ -82,6 +85,9 @@ module lob_free_list #(
             stack_mem[eff_wr_addr] <= eff_wr_data;
         end
     end
+
+    always @(posedge dbg_clk)
+        dbg_data <= stack_mem[dbg_addr];
 
     // Memory read for top_slot (latency = 1)
     wire [SLOT_ADDR_W-1:0] rd_addr;

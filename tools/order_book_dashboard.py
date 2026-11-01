@@ -7,6 +7,7 @@ The dashboard never sends Ethernet packets or injects FPGA orders.
 
 import argparse
 import curses
+import json
 import os
 import queue
 import socket
@@ -15,7 +16,10 @@ import time
 from collections import deque
 from dataclasses import dataclass
 
-from order_journey import parse_frame, serial
+from order_journey import next_advanced_order, parse_frame, serial
+from book_inspector import BookMirror, BoardStorageMirror, decode_storage_trace
+from fpga_readback import (ReadbackAudit, decode_hash_cell, decode_slot,
+                           event_queries, parse_response, query)
 
 
 @dataclass(frozen=True)
@@ -86,10 +90,29 @@ def socket_listener(path):
     return listener
 
 
-def serial_worker(port, listener, updates, stop):
+def serial_worker(port, listener, updates, stop, event_listener=None, requests=None):
     clients = []
+    queued = deque()
+    pending = None
+    last_scheduled = 0
+    readback_failures = 0
     try:
         while not stop.is_set():
+            if requests:
+                try:
+                    while True:
+                        pair = requests.get_nowait()
+                        if pair not in queued and (pending is None or pair != pending[:2]):
+                            queued.append(pair)
+                except queue.Empty:
+                    pass
+            if event_listener:
+                try:
+                    while True:
+                        payload = event_listener.recv(4096)
+                        updates.put(("host_event", json.loads(payload)))
+                except BlockingIOError:
+                    pass
             if listener:
                 try:
                     while True:
@@ -99,15 +122,40 @@ def serial_worker(port, listener, updates, stop):
                 except BlockingIOError:
                     pass
             raw = port.readline()
-            if not raw:
-                continue
-            updates.put(raw)
-            for client in clients[:]:
-                try:
-                    client.sendall(raw)
-                except OSError:
-                    clients.remove(client)
-                    client.close()
+            if raw:
+                reply = parse_response(raw)
+                if reply:
+                    matched = pending and reply[:2] == pending[:2]
+                    updates.put(("readback", raw, pending[2] if matched else None))
+                    if matched:
+                        pending = None
+                        readback_failures = 0
+                else:
+                    frame = parse_frame(raw.decode("ascii", errors="replace"))
+                    if frame and frame.get("D") is not None and frame["D"] < last_scheduled:
+                        queued.clear()
+                        pending = None
+                        last_scheduled = 0
+                        readback_failures = 0
+                    if frame and frame.get("D") and frame["D"] > last_scheduled:
+                        last_scheduled = frame["D"]
+                        for pair in event_queries(frame):
+                            if pair not in queued:
+                                queued.append(pair)
+                    updates.put(raw)
+                for client in clients[:]:
+                    try:
+                        client.sendall(raw)
+                    except OSError:
+                        clients.remove(client)
+                        client.close()
+            if pending and time.monotonic() - pending[3] > 2.0:
+                pending = None
+                readback_failures += 1
+            if queued and pending is None and readback_failures < 2:
+                kind, addr = queued.popleft()
+                port.write(query(kind, addr))
+                pending = kind, addr, last_scheduled, time.monotonic()
     except Exception as exc:
         updates.put(exc)
     finally:
@@ -116,15 +164,22 @@ def serial_worker(port, listener, updates, stop):
 
 
 def demo_worker(updates, stop):
-    sequence = [(0, 0), (905000, 0), (905000, 949000),
-                (907000, 949000), (907000, 948000), (906000, 948000)]
-    for n, (bid, ask) in enumerate(sequence):
+    sample = BookMirror()
+    for n in range(14):
         if stop.is_set():
             return
-        qty_b = 150 if bid else 0
-        qty_a = 75 if ask else 0
-        updates.put(f"[BBO] B:{bid:08X} | A:{ask:08X} | V:1 | E:00 | QB:{qty_b:08X} | QA:{qty_a:08X} | N:{min(n, 4):03X} | R:{n:08X} | U:{n:08X} | M:{n:08X} | I:{n:08X} | F:{n:08X} | D:{n:08X}\n".encode())
-        stop.wait(1.5)
+        if n:
+            order = next_advanced_order(n - 1)
+            event = {"kind": order.kind, "ref": order.ref, "side": order.side,
+                     "shares": order.shares, "price": order.price,
+                     "new_ref": order.new_ref, "seq": n}
+            sample.apply(event)
+        quote = sample.quote()
+        updates.put(f"[BBO] B:{quote['bid']:08X} | A:{quote['ask']:08X} | V:1 | E:00 | QB:{quote['bid_qty']:08X} | QA:{quote['ask_qty']:08X} | N:{quote['active']:03X} | R:{n:08X} | U:{n:08X} | M:{n:08X} | I:{n:08X} | F:{n:08X} | D:{n:08X}\n".encode())
+        if n:
+            event["board"] = {**quote, "D": n}
+            updates.put(("host_event", event))
+        stop.wait(5.5)
 
 
 def put(screen, y, x, value, attr=0):
@@ -192,7 +247,205 @@ def draw_chart(screen, y, chart_height, title, points, key, axis, x0, width):
     put(screen, y + rows + 1, left, axis_label[:max(0, x0 + width - left - 1)], curses.A_DIM)
 
 
-def draw(screen, state, axis, history, history_offset, demo, relay):
+NAV_FOOTER = "Q Quit | 1 Market 2 Orders 3 Hash 4 Events 5 Status 6 Levels 7 Slots"
+MARKET_HINT = "Green = rising · Red = falling · Grey = unchanged    [T] Axis  [H] Quote history"
+
+
+def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected_slot, readback=None):
+    height, width = screen.getmaxyx()
+    board_source = isinstance(mirror, BoardStorageMirror)
+    base = state.frame["base"] if state.frame and state.frame.get("base") is not None else 900000
+    tick = state.frame["tick"] if state.frame and state.frame.get("tick") else 1000
+    put(screen, 0, 2, "FPGA ORDER BOOK  /  " + page.upper(), curses.A_BOLD)
+    put(screen, 1, 2, ("FPGA STORAGE · " +
+                         (f"RAM readback {len(readback.verified)} verified / {len(readback.mismatches)} mismatches"
+                          if readback and readback.supported else "RAM readback waiting") +
+                         " · host prediction checked separately"
+                         if board_source else "HOST MIRROR · predicted from confirmed orders; RAM contents are not read over UART"), curses.A_DIM)
+    if readback and readback.mismatches:
+        put(screen, 2, 2, list(readback.mismatches.values())[-1], curses.color_pair(3) | curses.A_BOLD)
+    elif mirror.warning:
+        put(screen, 2, 2, mirror.warning, curses.color_pair(3) | curses.A_BOLD)
+    elif mirror.last_match is True:
+        put(screen, 2, 2, "Mirror BBO and active count match the latest FPGA confirmation", curses.color_pair(2))
+    elif not mirror.events:
+        put(screen, 2, 2, ("Waiting for FPGA storage trace; reset board and send an order"
+                          if board_source else "Waiting for sender events; run order_journey.py with --uart-socket"), curses.A_DIM)
+    content_bottom = height - 3
+    if page == "orders":
+        put(screen, 4, 2, f"ACTIVE ORDERS  {len(mirror.orders)} / 2048", curses.A_BOLD)
+        put(screen, 5, 2, "SLOT   ORDER ID     SIDE      SHARES       PRICE      P_IDX  HASH SET  WAY       RAM", curses.A_DIM)
+        orders = sorted(mirror.orders.values(), key=lambda o: o.slot, reverse=True)
+        for row, order in enumerate(orders[offset:offset + max(0, content_bottom - 6)], 6):
+            location = str(order.way) if order.way is not None else f"stash {order.stash_index}"
+            raw_slot = readback.current_value("S", order.slot) if readback else None
+            stored = decode_slot(raw_slot, base, tick) if raw_slot is not None else None
+            raw_hash = (readback.current_value("H", order.set_index) if order.way is not None else
+                        readback.current_value("X", order.stash_index)) if readback else None
+            cell = decode_hash_cell((raw_hash >> (order.way * 76)) & ((1 << 76) - 1) if order.way is not None else raw_hash) if raw_hash is not None else None
+            ref = cell["ref"] if cell and cell["slot"] == order.slot else order.ref
+            side = stored["side"] if stored else order.side
+            shares = stored["shares"] if stored else order.shares
+            price = stored["price"] if stored else order.price
+            pidx = (price - base) // tick
+            hash_key = ("H", order.set_index) if order.way is not None else ("X", order.stash_index)
+            ram_mark = "✓" if stored and cell and ("S", order.slot) in readback.verified and hash_key in readback.verified else "!" if stored or cell else "…"
+            put(screen, row, 2, f"{order.slot:4}   {ref:<12} {'BUY' if side == 'B' else 'SELL':<8} {shares:>8}   {money(price):<11} {pidx:>5}  {order.set_index:>4}      {location:<9} {ram_mark}")
+        put(screen, height - 3, 2, "↑/↓ scroll · Slot/way from FPGA writes, checked by RAM readback" if board_source else
+            "↑/↓ scroll · Slot/way is a host prediction", curses.A_DIM)
+    elif page == "hash":
+        put(screen, 4, 2, "HASH TABLE · 1024 SETS × 8 WAYS + 8 STASH ENTRIES", curses.A_BOLD)
+        put(screen, 5, 2, "Each cell is one set; digit = occupied ways · · = empty", curses.A_DIM)
+        rows_visible = min(32, max(1, content_bottom - 8))
+        base_row = (selected_set // 32 // rows_visible) * rows_visible
+        for r in range(rows_visible):
+            set_row = base_row + r
+            if set_row >= 32:
+                break
+            cells = []
+            for c in range(32):
+                index = set_row * 32 + c
+                raw_set = readback.current_value("H", index) if readback else None
+                used = (sum(decode_hash_cell((raw_set >> (way * 76)) & ((1 << 76) - 1)) is not None
+                            for way in range(8)) if raw_set is not None else
+                        sum(ref is not None for ref in mirror.ways.get(index, ())))
+                cells.append("▣" if index == selected_set else str(used) if used else "·")
+            put(screen, 7 + r, 2, f"{set_row * 32:04} " + " ".join(cells))
+        right = max(72, width // 2)
+        put(screen, 6, right, f"SELECTED SET {selected_set:04}  (XOR of order ID slices)", curses.A_BOLD)
+        raw_set = readback.current_value("H", selected_set) if readback else None
+        ways = mirror.ways.get(selected_set, [None] * 8)
+        for way, ref in enumerate(ways):
+            if raw_set is not None:
+                cell = decode_hash_cell((raw_set >> (way * 76)) & ((1 << 76) - 1))
+                detail = f"ID {cell['ref']} → slot {cell['slot']}" if cell else "empty"
+            else:
+                order = mirror.orders.get(ref) if ref is not None else None
+                detail = f"ID {ref} → slot {order.slot}" if order else "empty"
+            put(screen, 8 + way, right, f"way {way}  {detail}")
+        put(screen, 17, right, "Source: FPGA hash RAM" if raw_set is not None else "Source: FPGA write trace; RAM query pending", curses.A_DIM)
+        put(screen, 18, right, f"Free slots {len(mirror.free_slots)}   Active {len(mirror.orders)}")
+        put(screen, 20, right, "COLLISION STASH", curses.A_BOLD)
+        for index, ref in enumerate(mirror.stash):
+            if 21 + index >= content_bottom:
+                break
+            raw_stash = readback.current_value("X", index) if readback else None
+            cell = decode_hash_cell(raw_stash) if raw_stash is not None else None
+            detail = (f"ID {cell['ref']} → slot {cell['slot']}" if cell else "empty") if raw_stash is not None else (f"ID {ref} → set {mirror.orders[ref].set_index}" if ref is not None else "empty")
+            put(screen, 21 + index, right, f"stash {index}  {detail}")
+        put(screen, height - 3, 2, "Arrows: select set · N: next occupied set · ▣: selected", curses.A_DIM)
+    elif page == "events":
+        put(screen, 4, 2, f"FPGA EVENT JOURNAL  {min(len(mirror.events), 256)} / 256 stored" if board_source else
+            f"CONFIRMED HOST EVENTS  {len(mirror.events)}", curses.A_BOLD)
+        put(screen, 5, 2, "SEQ    TYPE       ORDER ID      SIDE      SHARES       PRICE      NEW ID", curses.A_DIM)
+        events = list(reversed(mirror.events[-256:] if board_source else mirror.events))
+        for row, event in enumerate(events[offset:offset + max(0, content_bottom - 6)], 6):
+            raw_event = readback.current_value("E", (event["seq"] - 1) & 255) if readback else None
+            event_key = ("E", (event["seq"] - 1) & 255)
+            in_ring = raw_event is not None and raw_event >> 316 == event["seq"]
+            journal_mark = "RAM ✓" if in_ring and event_key in readback.verified else "RAM !" if in_ring else "trace"
+            record = decode_storage_trace(f"{raw_event & ((1 << 316) - 1):079X}") if in_ring else None
+            kind = {1: "ADD", 2: "EXECUTE", 3: "CANCEL", 4: "DELETE", 5: "REPLACE"}.get(record["op"], "UNKNOWN") if record else event["kind"]
+            ref = record["ref"] if record else event["ref"]
+            new_ref = record["new_ref"] if record and record["op"] == 5 else event["new_ref"]
+            put(screen, row, 2, f"{event['seq']:4}   {kind:<10} {ref:<13} {event['side']:<9} {event['shares']:>8}   {money(event['price']):<11} {new_ref or '—'}  {journal_mark}")
+        put(screen, height - 3, 2, "↑/↓ scroll · Events appear only after sender confirms the FPGA response", curses.A_DIM)
+    elif page == "levels":
+        put(screen, 4, 2, "PRICE RAM · AGGREGATED QUANTITY BY SIDE AND PRICE INDEX", curses.A_BOLD)
+        levels = mirror.price_levels()
+        max_qty = max((qty for qty, _ in levels.values()), default=1)
+        pane = width // 2
+        for side, title, start_x, reverse in (("B", "BID LEVELS", 2, True),
+                                              ("S", "ASK LEVELS", pane + 2, False)):
+            put(screen, 6, start_x, title, curses.A_BOLD)
+            put(screen, 7, start_x, "PRICE        P_IDX   QTY    ORDERS   DEPTH", curses.A_DIM)
+            prices = sorted((price for (kind, price) in levels if kind == side), reverse=reverse)
+            visible_rows = max(0, content_bottom - 9)
+            side_offset = min(offset, max(0, len(prices) - visible_rows)) if visible_rows else 0
+            for row, price in enumerate(prices[side_offset:side_offset + visible_rows], 8):
+                qty, count = levels[(side, price)]
+                addr = (8192 if side == "S" else 0) | ((price - base) // tick)
+                ram_qty = readback.current_value("P", addr) if readback else None
+                ram_count = readback.current_value("L", addr) if readback else None
+                if ram_qty is not None:
+                    qty = ram_qty
+                if ram_count is not None:
+                    count = ram_count
+                bar_width = min(max(0, pane - 43), 28)
+                bar = "█" * max(1, round(qty / max_qty * bar_width)) if bar_width else ""
+                put(screen, row, start_x, f"{money(price):<12} {(price - base) // tick:>5} {qty:>7} {count:>7}   {bar}")
+            if not prices:
+                put(screen, 8, start_x, "No active levels", curses.A_DIM)
+        put(screen, height - 3, 2, "↑/↓ scroll · Quantities checked against FPGA price RAM" if board_source else
+            "↑/↓ scroll · Price levels summed from host-mirrored orders", curses.A_DIM)
+    elif page == "slots":
+        put(screen, 4, 2, "SLOT TABLE · 2048 ENTRIES / LIFO FREE STACK", curses.A_BOLD)
+        put(screen, 5, 2, "Each cell is a slot: ■ occupied  · free  ▣ selected", curses.A_DIM)
+        by_slot = {order.slot: order for order in mirror.orders.values()}
+        rows_visible = min(32, max(1, content_bottom - 8))
+        base_row = (selected_slot // 64 // rows_visible) * rows_visible
+        for r in range(rows_visible):
+            slot_row = base_row + r
+            if slot_row >= 32:
+                break
+            cells = []
+            for c in range(64):
+                slot = slot_row * 64 + c
+                cells.append("▣" if slot == selected_slot else "■" if slot in by_slot else "·")
+            put(screen, 7 + r, 2, f"{slot_row * 64:04} " + "".join(cells))
+        right = max(72, width // 2)
+        put(screen, 6, right, f"SELECTED SLOT {selected_slot:04}", curses.A_BOLD)
+        order = by_slot.get(selected_slot)
+        raw_slot = readback.current_value("S", selected_slot) if readback else None
+        stored = decode_slot(raw_slot, base, tick) if raw_slot is not None else None
+        if order:
+            raw_hash = (readback.current_value("H", order.set_index) if order.way is not None else
+                        readback.current_value("X", order.stash_index)) if readback else None
+            cell = decode_hash_cell((raw_hash >> (order.way * 76)) & ((1 << 76) - 1) if order.way is not None else raw_hash) if raw_hash is not None else None
+            ref = cell["ref"] if cell and cell["slot"] == selected_slot else order.ref
+            put(screen, 8, right, f"Order ID     {ref}")
+            put(screen, 9, right, f"Side         {'BUY' if (stored['side'] if stored else order.side) == 'B' else 'SELL'}")
+            put(screen, 10, right, f"Shares       {stored['shares'] if stored else order.shares}")
+            put(screen, 11, right, f"Price        {money(stored['price'] if stored else order.price)}")
+            put(screen, 12, right, f"Hash set     {order.set_index}")
+            put(screen, 13, right, f"Way / stash  {order.way if order.way is not None else f'stash {order.stash_index}'}")
+        else:
+            put(screen, 8, right, "Free slot")
+        put(screen, 15, right, "Selected slot: FPGA RAM" if raw_slot is not None else "Selected slot: FPGA write trace", curses.A_DIM)
+        put(screen, 17, right, "FREE STACK", curses.A_BOLD)
+        put(screen, 19, right, f"Free {len(mirror.free_slots)}  ·  Active {len(mirror.orders)}")
+        free_addr = len(mirror.free_slots) - 1
+        ram_top = readback.current_value("F", free_addr) if readback and free_addr >= 0 else None
+        put(screen, 20, right, f"Next allocation: slot {ram_top if ram_top is not None else mirror.free_slots[-1] if mirror.free_slots else 'none'}")
+        put(screen, 22, right, "Top of LIFO stack:", curses.A_DIM)
+        stack_rows = max(0, min(8, content_bottom - 24))
+        top_slots = mirror.free_slots[-stack_rows:] if stack_rows else []
+        for i, slot in enumerate(reversed(top_slots)):
+            put(screen, 23 + i, right, f"{i + 1:>2}. slot {slot}")
+        put(screen, height - 3, 2, "Arrows: select slot · N: next occupied slot · FPGA RAM readback checks writes" if board_source else
+            "Arrows: select slot · N: next occupied slot · Host prediction", curses.A_DIM)
+    elif page == "status":
+        frame = state.frame
+        put(screen, 4, 2, "BOARD TELEMETRY", curses.A_BOLD)
+        fields = (("R", "Ethernet frames"), ("U", "UDP packets"), ("M", "Mold messages"),
+                  ("I", "ITCH events"), ("F", "FIFO accepted"), ("D", "Book completed"))
+        for row, (key, label) in enumerate(fields, 6):
+            put(screen, row, 3, f"{label:<22} {frame[key] if frame and frame[key] is not None else '—'}")
+        put(screen, 14, 2, "BOOK", curses.A_BOLD)
+        put(screen, 16, 3, f"Valid: {frame['valid'] if frame else '—'}   Error: 0x{frame['error']:02X}" if frame else "No board telemetry")
+        put(screen, 17, 3, f"Bid: {money(frame['bid'])} × {frame['bid_qty']}   Ask: {money(frame['ask'])} × {frame['ask_qty']}" if frame else "")
+        put(screen, 18, 3, f"Active orders: {frame['active']}" if frame else "")
+        put(screen, 21, 2, "PROVENANCE", curses.A_BOLD)
+        put(screen, 23, 3, "Quotes and counters: directly reported by FPGA UART")
+        put(screen, 24, 3, "Orders, hash ways, slots, levels: FPGA writes plus RAM readback" if board_source else
+            "Orders, hash ways and slot IDs: host model prediction")
+        put(screen, 25, 3, (f"Host prediction vs FPGA trace: {mirror.prediction_match}"
+                            if board_source else "Aggregate BBO/quantity/count compared with FPGA"))
+    put(screen, height - 2, 2, NAV_FOOTER, curses.A_REVERSE)
+    screen.refresh()
+
+
+def draw(screen, state, mirror, page, axis, history_offset, selected_set, selected_slot, demo, relay, readback=None):
     screen.erase()
     height, width = screen.getmaxyx()
     if height < 27 or width < 70:
@@ -200,7 +453,11 @@ def draw(screen, state, axis, history, history_offset, demo, relay):
         screen.refresh()
         return
     curses.curs_set(0)
-    if history:
+    if page in ("orders", "hash", "events", "status", "levels", "slots"):
+        draw_mirror_page(screen, state, mirror, page, history_offset,
+                         selected_set, selected_slot, readback)
+        return
+    if page == "history":
         put(screen, 0, 2, "CONFIRMED QUOTE HISTORY", curses.A_BOLD)
         put(screen, 1, 2, "Board event       Received        Best bid       Best ask", curses.A_DIM)
         entries = list(reversed(state.points))
@@ -255,14 +512,14 @@ def draw(screen, state, axis, history, history_offset, demo, relay):
     for i, item in enumerate(list(state.changes)[:max(0, content_bottom - updates_y - 1)]):
         when, event, label, direction, old, new = item
         put(screen, updates_y + 1 + i, pane + 3, f"#{event} {label} {direction}: {money(old)} → {money(new)}", curses.color_pair(2 if direction == "rose" else 3))
-    put(screen, height - 3, 2, "Green = rising · Red = falling · Grey = unchanged", curses.A_DIM)
-    put(screen, height - 2, 2, "[T] Time / event axis   [H] Quote history   [Q] Quit", curses.A_REVERSE)
+    put(screen, height - 3, 2, MARKET_HINT, curses.A_DIM)
+    put(screen, height - 2, 2, NAV_FOOTER, curses.A_REVERSE)
     if relay:
         put(screen, height - 1, 2, f"Sender UART relay: {relay}", curses.A_DIM)
     screen.refresh()
 
 
-def run_ui(screen, state, updates, stop, demo, relay):
+def run_ui(screen, state, mirror, prediction, updates, stop, demo, relay, requests=None):
     curses.start_color()
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_WHITE, -1)
@@ -271,8 +528,13 @@ def run_ui(screen, state, updates, stop, demo, relay):
     curses.mousemask(curses.BUTTON1_CLICKED)
     screen.timeout(100)
     axis = "events"
-    history = False
+    page = "market"
     history_offset = 0
+    selected_set = 0
+    selected_slot = 2047
+    readback = None if demo else ReadbackAudit()
+    last_requested_set = None
+    last_requested_slot = None
     while True:
         while True:
             try:
@@ -281,32 +543,132 @@ def run_ui(screen, state, updates, stop, demo, relay):
                 break
             if isinstance(item, Exception):
                 raise item
-            state.ingest(item)
-        draw(screen, state, axis, history, history_offset, demo, relay)
+            if isinstance(item, tuple) and item[0] == "readback":
+                readback.ingest(item[1], mirror, state.frame, item[2])
+                parsed = parse_response(item[1])
+                if parsed and parsed[0] == "Q":
+                    value = parsed[2]
+                    event = value & 0xFFFFFFFF
+                    bid = (value >> 141) & 0xFFFFFFFF
+                    ask = (value >> 76) & 0xFFFFFFFF
+                    if state.points and state.points[-1].event == event:
+                        prior = state.points[-1]
+                        state.points[-1] = Point(prior.when, event, bid, ask)
+            elif isinstance(item, tuple) and item[0] == "host_event":
+                event = item[1]
+                try:
+                    if prediction is None:
+                        mirror.apply(event, event.get("board"))
+                    else:
+                        prediction.apply(event, event.get("board"))
+                        if mirror.last_event >= event["seq"]:
+                            mirror.compare_prediction(prediction)
+                except (KeyError, ValueError) as exc:
+                    mirror.warning = f"Host mirror stopped: {exc}"
+            else:
+                previous_event = state.frame["D"] if state.frame else None
+                state.ingest(item)
+                if previous_event is None and state.frame:
+                    last_requested_set = None
+                    last_requested_slot = None
+                if state.frame and previous_event is not None and state.frame["D"] is not None and state.frame["D"] < previous_event:
+                    mirror.reset()
+                    if readback:
+                        readback.reset()
+                    last_requested_set = None
+                    last_requested_slot = None
+                    if prediction is not None:
+                        prediction.reset()
+                if prediction is not None and state.frame and state.frame["storage_trace"]:
+                    try:
+                        if mirror.apply_trace(state.frame["storage_trace"], state.frame,
+                                              state.frame["base"] if state.frame["base"] is not None else 900000,
+                                              state.frame["tick"] or 1000):
+                            if readback:
+                                readback.invalidate(event_queries(state.frame))
+                            if len(prediction.events) >= mirror.last_event:
+                                mirror.compare_prediction(prediction)
+                    except ValueError as exc:
+                        mirror.warning = f"FPGA storage trace invalid: {exc}"
+        if requests and page == "hash" and selected_set != last_requested_set:
+            requests.put(("H", selected_set))
+            last_requested_set = selected_set
+        if requests and page == "slots" and selected_slot != last_requested_slot:
+            requests.put(("S", selected_slot))
+            last_requested_slot = selected_slot
+        draw(screen, state, mirror, page, axis, history_offset, selected_set,
+             selected_slot, demo, relay, readback)
         key = screen.getch()
         if key == curses.KEY_MOUSE:
             try:
                 _, mx, my, _, _ = curses.getmouse()
                 if my == screen.getmaxyx()[0] - 2:
-                    if history:
+                    if page == "history":
                         key = ord("h") if 2 <= mx < 18 else ord("q") if 34 <= mx < 45 else -1
                     else:
-                        key = (ord("t") if 2 <= mx < 25 else
-                               ord("h") if 25 <= mx < 47 else
-                               ord("q") if 47 <= mx < 58 else -1)
+                        key = -1
+                        for label, action in (("Q Quit", "q"), ("1 Market", "1"),
+                                              ("2 Orders", "2"), ("3 Hash", "3"),
+                                              ("4 Events", "4"), ("5 Status", "5"),
+                                              ("6 Levels", "6"), ("7 Slots", "7")):
+                            start = 2 + NAV_FOOTER.find(label)
+                            if start <= mx < start + len(label):
+                                key = ord(action)
+                                break
+                elif page == "market" and my == screen.getmaxyx()[0] - 3:
+                    t_start = 2 + MARKET_HINT.find("[T] Axis")
+                    h_start = 2 + MARKET_HINT.find("[H] Quote history")
+                    key = (ord("t") if t_start <= mx < t_start + len("[T] Axis") else
+                           ord("h") if h_start <= mx < h_start + len("[H] Quote history") else -1)
             except curses.error:
                 continue
         if key in (ord("q"), ord("Q")):
             return
         if key in (ord("t"), ord("T")):
             axis = "time" if axis == "events" else "events"
-        if key in (ord("h"), ord("H")):
-            history = not history
+        if key in (ord("1"), ord("2"), ord("3"), ord("4"), ord("5"), ord("6"), ord("7")):
+            page = {ord("1"): "market", ord("2"): "orders", ord("3"): "hash",
+                    ord("4"): "events", ord("5"): "status", ord("6"): "levels",
+                    ord("7"): "slots"}[key]
             history_offset = 0
-        if history and key in (curses.KEY_DOWN, ord("j")):
+        if key in (ord("h"), ord("H")):
+            page = "market" if page == "history" else "history"
+            history_offset = 0
+        if page == "history" and key in (curses.KEY_DOWN, ord("j")):
             history_offset = min(max(0, len(state.points) - 1), history_offset + 1)
-        if history and key in (curses.KEY_UP, ord("k")):
+        if page == "history" and key in (curses.KEY_UP, ord("k")):
             history_offset = max(0, history_offset - 1)
+        if page in ("orders", "events", "levels") and key in (curses.KEY_DOWN, ord("j")):
+            limit = len(mirror.orders) if page == "orders" else len(mirror.events) if page == "events" else len({(o.side, o.price) for o in mirror.orders.values()})
+            history_offset = min(max(0, limit - 1), history_offset + 1)
+        if page in ("orders", "events", "levels") and key in (curses.KEY_UP, ord("k")):
+            history_offset = max(0, history_offset - 1)
+        if page == "hash":
+            if key == curses.KEY_LEFT:
+                selected_set = max(0, selected_set - 1)
+            elif key == curses.KEY_RIGHT:
+                selected_set = min(1023, selected_set + 1)
+            elif key == curses.KEY_UP:
+                selected_set = max(0, selected_set - 32)
+            elif key == curses.KEY_DOWN:
+                selected_set = min(1023, selected_set + 32)
+            elif key in (ord("n"), ord("N")):
+                occupied = sorted({order.set_index for order in mirror.orders.values()})
+                if occupied:
+                    selected_set = next((item for item in occupied if item > selected_set), occupied[0])
+        if page == "slots":
+            if key == curses.KEY_LEFT:
+                selected_slot = max(0, selected_slot - 1)
+            elif key == curses.KEY_RIGHT:
+                selected_slot = min(2047, selected_slot + 1)
+            elif key == curses.KEY_UP:
+                selected_slot = max(0, selected_slot - 64)
+            elif key == curses.KEY_DOWN:
+                selected_slot = min(2047, selected_slot + 64)
+            elif key in (ord("n"), ord("N")):
+                occupied = sorted(order.slot for order in mirror.orders.values())
+                if occupied:
+                    selected_slot = next((item for item in occupied if item > selected_slot), occupied[0])
 
 
 def main():
@@ -320,16 +682,28 @@ def main():
     stop = threading.Event()
     updates = queue.Queue()
     state = DashboardState()
-    port = listener = None
+    mirror = BookMirror() if args.demo else BoardStorageMirror()
+    prediction = None if args.demo else BookMirror()
+    readback_requests = None if args.demo else queue.Queue()
+    port = listener = event_listener = None
     try:
         if args.demo:
             worker = threading.Thread(target=demo_worker, args=(updates, stop), daemon=True)
         else:
             port = serial.Serial(args.port, 115200, timeout=0.1)
             listener = socket_listener(args.socket)
-            worker = threading.Thread(target=serial_worker, args=(port, listener, updates, stop), daemon=True)
+            event_path = args.socket + ".events"
+            if os.path.exists(event_path):
+                os.unlink(event_path)
+            event_listener = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            event_listener.bind(event_path)
+            os.chmod(event_path, 0o600)
+            event_listener.setblocking(False)
+            worker = threading.Thread(target=serial_worker,
+                                      args=(port, listener, updates, stop, event_listener, readback_requests), daemon=True)
         worker.start()
-        curses.wrapper(run_ui, state, updates, stop, args.demo, None if args.demo else args.socket)
+        curses.wrapper(run_ui, state, mirror, prediction, updates, stop, args.demo,
+                       None if args.demo else args.socket, readback_requests)
     finally:
         stop.set()
         if 'worker' in locals():
@@ -338,6 +712,10 @@ def main():
             listener.close()
             if os.path.exists(args.socket):
                 os.unlink(args.socket)
+        if event_listener:
+            event_listener.close()
+            if os.path.exists(args.socket + ".events"):
+                os.unlink(args.socket + ".events")
         if port:
             port.close()
 

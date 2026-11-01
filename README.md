@@ -38,16 +38,39 @@ With Vivado 2026.1 available:
 vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
 ```
 
-The sole full-system build location is `build_system/`. The script writes
-`top_system.bit`, routed timing, utilization, DRC, and methodology reports there. It refuses
-to generate a bitstream when setup or hold timing fails. This directory is
-ignored by Git; run the script to reproduce it.
+The release build writes `top_system.bit`, routed timing, utilization, DRC,
+and methodology reports to `build_system/`. For an isolated development build:
+
+```bash
+FPGA_BUILD_PROFILE=fast vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
+```
+
+The fast profile uses `build_dev/`, skips the pre-route exploratory physical
+optimization pass and optional reports, and retains the post-route setup/hold
+timing gate and DRC report. If setup timing is negative, it still tries the
+existing post-route recovery pass. Benchmark the profile before relying on a
+speedup; it may have different timing results. Both build directories are
+ignored by Git. The programming script still uses the known-good release
+bitstream in `build_system/`.
+
+The UART RAM-readback candidate was built separately at
+`build_readback_20261102/top_system.bit`. It passed post-route timing
+(setup +0.708 ns, hold +0.019 ns) and bitstream DRC, but has not yet run on
+the physical board. On this 14 GiB laptop, the build used the performance
+power profile and a user scope with `MemoryHigh=8G`, `MemoryMax=10G`, and
+`MemorySwapMax=4G` to avoid exhausting system RAM. The build script accepts
+`FPGA_MAX_THREADS=1..4` if a later memory-limited run needs fewer workers.
+Program this candidate explicitly when the board returns:
+
+```bash
+vivado -mode batch -source vivado/scripts/program_fpga.tcl -tclargs build_readback_20261102/top_system.bit
+```
 
 ## Board bringup when hardware is available
 
 ```bash
 vivado -mode batch -source vivado/scripts/program_fpga.tcl
-python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 10 --count 10
+python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 5.5 --count 10
 ```
 
 Program or reset the current trace-enabled bitstream to start with an empty

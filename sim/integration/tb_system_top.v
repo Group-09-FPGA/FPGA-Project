@@ -318,6 +318,60 @@ module tb_system_top;
 
         // Additional settling cycles for telemetry and MMIO registers
         repeat (50) @(posedge clk);
+        // The second ITCH add must expose the storage writes that actually
+        // reached the slot, hash, and price RAM ports.
+        if (dut.lob_storage_trace[315] !== 1'b1 ||
+            dut.lob_storage_trace[314:311] !== 4'h1 ||
+            dut.lob_storage_trace[310:247] !== 64'h2001 ||
+            dut.lob_storage_trace[182] !== 1'b1 ||
+            dut.lob_storage_trace[170] !== 1'b1 ||
+            dut.lob_storage_trace[169] !== 1'b1 ||
+            dut.lob_storage_trace[155:124] !== 32'd300 ||
+            dut.lob_storage_trace[108] !== 1'b1 ||
+            dut.lob_storage_trace[93] !== 1'b1 ||
+            dut.lob_storage_trace[78:47] !== 32'd300) begin
+            $display("[FAIL] FPGA storage trace does not match committed second add");
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] FPGA slot/hash/price write trace matches second add");
+        end
+        repeat (100) @(posedge clk);
+        if (dut.history_quote_count_core !== 8'd2 ||
+            dut.history_event_count_core !== 9'd2 ||
+            dut.vga_event_history_data[347:316] !== 32'd2 ||
+            dut.display_slot_data[46] !== 1'b1 ||
+            dut.display_slot_data[31:0] !== 32'd300 ||
+            dut.display_price_data !== 32'd300 ||
+            dut.display_level_order_count !== 12'd1 ||
+            dut.u_vga.selected_hash_valid !== 1'b1 ||
+            dut.display_free_data !== 11'd2045) begin
+            $display("[FAIL] VGA journal or read-only RAM ports disagree with second add");
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] VGA journal and direct slot/hash/price/free RAM read ports");
+        end
+        // Exercise the UART query's core->VGA->core readback bridge against
+        // the actual second order slot, not only the raw VGA read port.
+        force dut.readback_req_kind = "S";
+        force dut.readback_req_addr = 14'd2046;
+        force dut.readback_req_toggle = 1'b1;
+        timeout = 0;
+        while (!dut.readback_rsp_update && timeout < 100) begin
+            @(posedge clk);
+            timeout = timeout + 1;
+        end
+        if (timeout == 100 || dut.readback_rsp_core[629:622] !== "S" ||
+            dut.readback_rsp_core[621:608] !== 14'd2046 ||
+            dut.readback_rsp_core[46] !== 1'b1 ||
+            dut.readback_rsp_core[31:0] !== 32'd300) begin
+            $display("[FAIL] UART readback bridge did not return actual slot RAM");
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] UART query bridge returned actual slot RAM");
+        end
+        release dut.readback_req_kind;
+        release dut.readback_req_addr;
+        release dut.readback_req_toggle;
         timeout = 0;
         while ((dut.u_dmem.DMEM.dmem[0] !== 32'd1500000 ||
                 dut.u_dmem.DMEM.dmem[2] !== 32'd1505000) && timeout < 5000) begin

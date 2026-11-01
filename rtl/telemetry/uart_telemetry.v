@@ -42,6 +42,12 @@ module uart_telemetry #(
     input  wire [31:0] pipe_itch_events,
     input  wire [31:0] pipe_fifo_events,
     input  wire [31:0] pipe_done_events,
+    input  wire [315:0] storage_trace,
+    input  wire [31:0] price_base,
+    input  wire [31:0] price_tick,
+    input  wire        readback_valid,
+    input  wire [7:0]  readback_byte,
+    output wire        readback_ready,
 
     // Physical Serial Pin (Nexys A7 pin D4)
     output reg         uart_txd
@@ -141,7 +147,7 @@ module uart_telemetry #(
     // 3. Hardware Automated BBO String Formatter FSM
     // -------------------------------------------------------------------------
     reg auto_telem_en;
-    reg [7:0] telem_step;
+    reg [8:0] telem_step;
     reg       telem_busy;
     reg [31:0] lat_bid_p, lat_bid_q, lat_ask_p, lat_ask_q;
     reg lat_book_valid;
@@ -149,6 +155,8 @@ module uart_telemetry #(
     reg [11:0] lat_active_orders;
     reg [31:0] lat_crc_errors, lat_udp_checksum_errors, lat_ip_checksum_errors;
     reg [31:0] lat_rx, lat_udp, lat_mold, lat_itch, lat_fifo, lat_done;
+    reg [315:0] lat_trace;
+    reg [31:0] lat_price_base, lat_price_tick;
 
     function [7:0] hex2ascii;
         input [3:0] nibble;
@@ -167,6 +175,8 @@ module uart_telemetry #(
 
     reg [7:0] hw_char;
     reg       hw_wr_en;
+    reg       readback_line_active;
+    assign readback_ready = !fifo_full && (!telem_busy || readback_line_active);
 
     always @(*) begin
         hw_char  = 8'h20;
@@ -174,95 +184,116 @@ module uart_telemetry #(
         if (telem_busy && !fifo_full) begin
             hw_wr_en = 1'b1;
             case (telem_step)
-                6'd0:  hw_char = "[";
-                6'd1:  hw_char = "B";
-                6'd2:  hw_char = "B";
-                6'd3:  hw_char = "O";
-                6'd4:  hw_char = "]";
-                6'd5:  hw_char = " ";
-                6'd6:  hw_char = "B";
-                6'd7:  hw_char = ":";
-                6'd8:  hw_char = hex2ascii(lat_bid_p[31:28]);
-                6'd9:  hw_char = hex2ascii(lat_bid_p[27:24]);
-                6'd10: hw_char = hex2ascii(lat_bid_p[23:20]);
-                6'd11: hw_char = hex2ascii(lat_bid_p[19:16]);
-                6'd12: hw_char = hex2ascii(lat_bid_p[15:12]);
-                6'd13: hw_char = hex2ascii(lat_bid_p[11:8]);
-                6'd14: hw_char = hex2ascii(lat_bid_p[7:4]);
-                6'd15: hw_char = hex2ascii(lat_bid_p[3:0]);
-                6'd16: hw_char = " ";
-                6'd17: hw_char = "|";
-                6'd18: hw_char = " ";
-                6'd19: hw_char = "A";
-                6'd20: hw_char = ":";
-                6'd21: hw_char = hex2ascii(lat_ask_p[31:28]);
-                6'd22: hw_char = hex2ascii(lat_ask_p[27:24]);
-                6'd23: hw_char = hex2ascii(lat_ask_p[23:20]);
-                6'd24: hw_char = hex2ascii(lat_ask_p[19:16]);
-                6'd25: hw_char = hex2ascii(lat_ask_p[15:12]);
-                6'd26: hw_char = hex2ascii(lat_ask_p[11:8]);
-                6'd27: hw_char = hex2ascii(lat_ask_p[7:4]);
-                6'd28: hw_char = hex2ascii(lat_ask_p[3:0]);
-                6'd29: hw_char = " ";
-                6'd30: hw_char = "|";
-                6'd31: hw_char = " ";
-                6'd32: hw_char = "V";
-                6'd33: hw_char = ":";
-                6'd34: hw_char = lat_book_valid ? "1" : "0";
-                6'd35: hw_char = " ";
-                6'd36: hw_char = "|";
-                6'd37: hw_char = " ";
-                6'd38: hw_char = "E";
-                6'd39: hw_char = ":";
-                6'd40: hw_char = hex2ascii(lat_error_code[7:4]);
-                6'd41: hw_char = hex2ascii(lat_error_code[3:0]);
-                7'd42: hw_char = " ";
-                7'd43: hw_char = "|";
-                7'd44: hw_char = " ";
-                7'd45: hw_char = "Q";
-                7'd46: hw_char = "B";
-                7'd47: hw_char = ":";
-                7'd56: hw_char = " ";
-                7'd57: hw_char = "|";
-                7'd58: hw_char = " ";
-                7'd59: hw_char = "Q";
-                7'd60: hw_char = "A";
-                7'd61: hw_char = ":";
-                7'd70: hw_char = " ";
-                7'd71: hw_char = "|";
-                7'd72: hw_char = " ";
-                7'd73: hw_char = "N";
-                7'd74: hw_char = ":";
-                7'd78: hw_char = " ";
-                7'd79: hw_char = "|";
-                7'd80: hw_char = " ";
-                7'd81: hw_char = "C";
-                7'd82: hw_char = "R";
-                7'd83: hw_char = "C";
-                7'd84: hw_char = ":";
-                7'd93: hw_char = " ";
-                7'd94: hw_char = "|";
-                7'd95: hw_char = " ";
-                7'd96: hw_char = "U";
-                7'd97: hw_char = "D";
-                7'd98: hw_char = "P";
-                7'd99: hw_char = ":";
-                7'd108: hw_char = " ";
-                7'd109: hw_char = "|";
-                7'd110: hw_char = " ";
-                7'd111: hw_char = "I";
-                7'd112: hw_char = "P";
-                7'd113: hw_char = ":";
-                8'd125, 8'd138, 8'd151, 8'd164, 8'd177, 8'd190: hw_char = "|";
-                8'd127: hw_char = "R";
-                8'd128, 8'd141, 8'd154, 8'd167, 8'd180, 8'd193: hw_char = ":";
-                8'd140: hw_char = "U";
-                8'd153: hw_char = "M";
-                8'd166: hw_char = "I";
-                8'd179: hw_char = "F";
-                8'd192: hw_char = "D";
-                8'd202: hw_char = 8'h0D;
-                8'd203: hw_char = 8'h0A;
+                9'd0:  hw_char = "[";
+                9'd1:  hw_char = "B";
+                9'd2:  hw_char = "B";
+                9'd3:  hw_char = "O";
+                9'd4:  hw_char = "]";
+                9'd5:  hw_char = " ";
+                9'd6:  hw_char = "B";
+                9'd7:  hw_char = ":";
+                9'd8:  hw_char = hex2ascii(lat_bid_p[31:28]);
+                9'd9:  hw_char = hex2ascii(lat_bid_p[27:24]);
+                9'd10: hw_char = hex2ascii(lat_bid_p[23:20]);
+                9'd11: hw_char = hex2ascii(lat_bid_p[19:16]);
+                9'd12: hw_char = hex2ascii(lat_bid_p[15:12]);
+                9'd13: hw_char = hex2ascii(lat_bid_p[11:8]);
+                9'd14: hw_char = hex2ascii(lat_bid_p[7:4]);
+                9'd15: hw_char = hex2ascii(lat_bid_p[3:0]);
+                9'd16: hw_char = " ";
+                9'd17: hw_char = "|";
+                9'd18: hw_char = " ";
+                9'd19: hw_char = "A";
+                9'd20: hw_char = ":";
+                9'd21: hw_char = hex2ascii(lat_ask_p[31:28]);
+                9'd22: hw_char = hex2ascii(lat_ask_p[27:24]);
+                9'd23: hw_char = hex2ascii(lat_ask_p[23:20]);
+                9'd24: hw_char = hex2ascii(lat_ask_p[19:16]);
+                9'd25: hw_char = hex2ascii(lat_ask_p[15:12]);
+                9'd26: hw_char = hex2ascii(lat_ask_p[11:8]);
+                9'd27: hw_char = hex2ascii(lat_ask_p[7:4]);
+                9'd28: hw_char = hex2ascii(lat_ask_p[3:0]);
+                9'd29: hw_char = " ";
+                9'd30: hw_char = "|";
+                9'd31: hw_char = " ";
+                9'd32: hw_char = "V";
+                9'd33: hw_char = ":";
+                9'd34: hw_char = lat_book_valid ? "1" : "0";
+                9'd35: hw_char = " ";
+                9'd36: hw_char = "|";
+                9'd37: hw_char = " ";
+                9'd38: hw_char = "E";
+                9'd39: hw_char = ":";
+                9'd40: hw_char = hex2ascii(lat_error_code[7:4]);
+                9'd41: hw_char = hex2ascii(lat_error_code[3:0]);
+                9'd42: hw_char = " ";
+                9'd43: hw_char = "|";
+                9'd44: hw_char = " ";
+                9'd45: hw_char = "Q";
+                9'd46: hw_char = "B";
+                9'd47: hw_char = ":";
+                9'd56: hw_char = " ";
+                9'd57: hw_char = "|";
+                9'd58: hw_char = " ";
+                9'd59: hw_char = "Q";
+                9'd60: hw_char = "A";
+                9'd61: hw_char = ":";
+                9'd70: hw_char = " ";
+                9'd71: hw_char = "|";
+                9'd72: hw_char = " ";
+                9'd73: hw_char = "N";
+                9'd74: hw_char = ":";
+                9'd78: hw_char = " ";
+                9'd79: hw_char = "|";
+                9'd80: hw_char = " ";
+                9'd81: hw_char = "C";
+                9'd82: hw_char = "R";
+                9'd83: hw_char = "C";
+                9'd84: hw_char = ":";
+                9'd93: hw_char = " ";
+                9'd94: hw_char = "|";
+                9'd95: hw_char = " ";
+                9'd96: hw_char = "U";
+                9'd97: hw_char = "D";
+                9'd98: hw_char = "P";
+                9'd99: hw_char = ":";
+                9'd108: hw_char = " ";
+                9'd109: hw_char = "|";
+                9'd110: hw_char = " ";
+                9'd111: hw_char = "I";
+                9'd112: hw_char = "P";
+                9'd113: hw_char = ":";
+                9'd125, 9'd138, 9'd151, 9'd164, 9'd177, 9'd190: hw_char = "|";
+                9'd127: hw_char = "R";
+                9'd128, 9'd141, 9'd154, 9'd167, 9'd180, 9'd193: hw_char = ":";
+                9'd140: hw_char = "U";
+                9'd153: hw_char = "M";
+                9'd166: hw_char = "I";
+                9'd179: hw_char = "F";
+                9'd192: hw_char = "D";
+                9'd202: hw_char = " ";
+                9'd203: hw_char = "|";
+                9'd204: hw_char = " ";
+                9'd205: hw_char = "T";
+                9'd206: hw_char = ":";
+                9'd286: hw_char = " ";
+                9'd287: hw_char = "|";
+                9'd288: hw_char = " ";
+                9'd289: hw_char = "B";
+                9'd290: hw_char = "A";
+                9'd291: hw_char = "S";
+                9'd292: hw_char = "E";
+                9'd293: hw_char = ":";
+                9'd302: hw_char = " ";
+                9'd303: hw_char = "|";
+                9'd304: hw_char = " ";
+                9'd305: hw_char = "T";
+                9'd306: hw_char = "I";
+                9'd307: hw_char = "C";
+                9'd308: hw_char = "K";
+                9'd309: hw_char = ":";
+                9'd318: hw_char = 8'h0D;
+                9'd319: hw_char = 8'h0A;
                 default: hw_char = " ";
             endcase
             if (telem_step >= 7'd48 && telem_step <= 7'd55)
@@ -289,6 +320,12 @@ module uart_telemetry #(
                 hw_char = hex_digit(lat_fifo, telem_step - 8'd181);
             else if (telem_step >= 8'd194 && telem_step <= 8'd201)
                 hw_char = hex_digit(lat_done, telem_step - 8'd194);
+            else if (telem_step >= 9'd207 && telem_step <= 9'd285)
+                hw_char = hex2ascii(lat_trace[315 - ((telem_step - 9'd207) * 4) -: 4]);
+            else if (telem_step >= 9'd294 && telem_step <= 9'd301)
+                hw_char = hex_digit(lat_price_base, telem_step - 9'd294);
+            else if (telem_step >= 9'd310 && telem_step <= 9'd317)
+                hw_char = hex_digit(lat_price_tick, telem_step - 9'd310);
         end
     end
 
@@ -299,6 +336,8 @@ module uart_telemetry #(
     reg [11:0] pend_active_orders;
     reg [31:0] pend_crc_errors, pend_udp_checksum_errors, pend_ip_checksum_errors;
     reg [31:0] pend_rx, pend_udp, pend_mold, pend_itch, pend_fifo, pend_done;
+    reg [315:0] pend_trace;
+    reg [31:0] pend_price_base, pend_price_tick;
     reg prev_book_valid;
     reg [7:0] prev_error_code;
 
@@ -356,6 +395,8 @@ module uart_telemetry #(
             lat_ip_checksum_errors <= 32'd0;
             lat_rx <= 0; lat_udp <= 0; lat_mold <= 0;
             lat_itch <= 0; lat_fifo <= 0; lat_done <= 0;
+            lat_trace <= 316'd0;
+            lat_price_base <= 32'd0; lat_price_tick <= 32'd0;
             pending_update <= 1'b0;
             pend_bid_p     <= 32'd0;
             pend_bid_q     <= 32'd0;
@@ -369,8 +410,11 @@ module uart_telemetry #(
             pend_ip_checksum_errors <= 32'd0;
             pend_rx <= 0; pend_udp <= 0; pend_mold <= 0;
             pend_itch <= 0; pend_fifo <= 0; pend_done <= 0;
+            pend_trace <= 316'd0;
+            pend_price_base <= 32'd0; pend_price_tick <= 32'd0;
         end else begin
-            if (!telem_busy && auto_telem_en && telem_trigger) begin
+            if (!telem_busy && !readback_line_active && !readback_valid &&
+                auto_telem_en && telem_trigger) begin
                 lat_bid_p      <= best_bid_price;
                 lat_bid_q      <= best_bid_qty;
                 lat_ask_p      <= best_ask_price;
@@ -384,6 +428,9 @@ module uart_telemetry #(
                 lat_rx <= pipe_rx_frames; lat_udp <= pipe_udp_packets;
                 lat_mold <= pipe_mold_msgs; lat_itch <= pipe_itch_events;
                 lat_fifo <= pipe_fifo_events; lat_done <= pipe_done_events;
+                lat_trace <= storage_trace;
+                lat_price_base <= price_base;
+                lat_price_tick <= price_tick;
                 telem_step     <= 8'd0;
                 telem_busy     <= 1'b1;
                 pending_update <= 1'b0;
@@ -404,9 +451,12 @@ module uart_telemetry #(
                     pend_rx <= pipe_rx_frames; pend_udp <= pipe_udp_packets;
                     pend_mold <= pipe_mold_msgs; pend_itch <= pipe_itch_events;
                     pend_fifo <= pipe_fifo_events; pend_done <= pipe_done_events;
+                    pend_trace <= storage_trace;
+                    pend_price_base <= price_base;
+                    pend_price_tick <= price_tick;
                 end
                 if (hw_wr_en) begin
-                    if (telem_step == 8'd203) begin
+                    if (telem_step == 9'd319) begin
                         if (pending_update) begin
                             lat_bid_p      <= pend_bid_p;
                             lat_bid_q      <= pend_bid_q;
@@ -421,6 +471,9 @@ module uart_telemetry #(
                             lat_rx <= pend_rx; lat_udp <= pend_udp;
                             lat_mold <= pend_mold; lat_itch <= pend_itch;
                             lat_fifo <= pend_fifo; lat_done <= pend_done;
+                            lat_trace <= pend_trace;
+                            lat_price_base <= pend_price_base;
+                            lat_price_tick <= pend_price_tick;
                             telem_step     <= 8'd0;
                             pending_update <= 1'b0;
                             telem_busy     <= 1'b1;
@@ -428,7 +481,7 @@ module uart_telemetry #(
                             telem_busy <= 1'b0;
                         end
                     end else begin
-                        telem_step <= telem_step + 8'd1;
+                        telem_step <= telem_step + 9'd1;
                     end
                 end
             end
@@ -457,6 +510,7 @@ module uart_telemetry #(
             req_write_d   <= 1'b0;
             req_addr_d    <= 8'd0;
             req_wdata_d   <= 32'd0;
+            readback_line_active <= 1'b0;
             bus_rsp_valid <= 1'b0;
             bus_rsp_rdata <= 32'd0;
         end else begin
@@ -482,8 +536,15 @@ module uart_telemetry #(
                 auto_telem_en <= req_wdata_d[0];
             end
 
-            // FIFO Write Arbitrator (MMIO priority, fallback hardware)
-            if (mmio_wr_tx && !fifo_full) begin
+            // Keep each readback line contiguous; automated telemetry starts
+            // only after its newline. MMIO writes retain their old behavior
+            // outside a readback line.
+            if (readback_valid && readback_ready) begin
+                fifo_mem[fifo_wptr] <= readback_byte;
+                fifo_wptr <= fifo_wptr + 6'd1;
+                if (!fifo_rd_en) fifo_count <= fifo_count + 7'd1;
+                readback_line_active <= (readback_byte != 8'h0A);
+            end else if (mmio_wr_tx && !fifo_full) begin
                 fifo_mem[fifo_wptr] <= req_wdata_d[7:0];
                 fifo_wptr <= fifo_wptr + 6'd1;
                 if (!fifo_rd_en) fifo_count <= fifo_count + 7'd1;

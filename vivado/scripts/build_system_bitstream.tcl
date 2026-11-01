@@ -7,8 +7,18 @@
 
 set SCRIPT_DIR [file normalize [file dirname [info script]]]
 set REPO_ROOT  [file normalize "$SCRIPT_DIR/../.."]
+set BUILD_PROFILE release
+if {[info exists ::env(FPGA_BUILD_PROFILE)]} {
+    set BUILD_PROFILE $::env(FPGA_BUILD_PROFILE)
+}
+if {$BUILD_PROFILE ni {release fast}} {
+    puts "ERROR: FPGA_BUILD_PROFILE must be release or fast"
+    exit 1
+}
 if {[info exists ::env(FPGA_BUILD_DIR)]} {
     set BUILD_DIR [file normalize $::env(FPGA_BUILD_DIR)]
+} elseif {$BUILD_PROFILE eq "fast"} {
+    set BUILD_DIR [file normalize "$REPO_ROOT/build_dev"]
 } else {
     set BUILD_DIR [file normalize "$REPO_ROOT/build_system"]
 }
@@ -25,9 +35,18 @@ foreach output_name {
     file delete -force "$BUILD_DIR/$output_name"
 }
 
-# Optimize thread count for Intel Core Ultra 8-core host
-set_param general.maxThreads 4
-set_param synth.maxThreads 4
+# Four workers suit the 8-core host. Use two if the memory-limited build
+# reaches its cgroup ceiling; this is intentionally independent of profile.
+set MAX_THREADS 4
+if {[info exists ::env(FPGA_MAX_THREADS)]} {
+    set MAX_THREADS $::env(FPGA_MAX_THREADS)
+}
+if {![string is integer -strict $MAX_THREADS] || $MAX_THREADS < 1 || $MAX_THREADS > 4} {
+    puts "ERROR: FPGA_MAX_THREADS must be an integer from 1 to 4"
+    exit 1
+}
+set_param general.maxThreads $MAX_THREADS
+set_param synth.maxThreads $MAX_THREADS
 
 set PLACE_DIRECTIVE Default
 set ROUTE_DIRECTIVE Default
@@ -42,7 +61,8 @@ puts "=========================================================="
 puts "Starting FPGA Market Data Processor Implementation"
 puts "Repository Root : $REPO_ROOT"
 puts "Build Directory : $BUILD_DIR"
-puts "Max Threads Set : 4"
+puts "Build Profile   : $BUILD_PROFILE"
+puts "Max Threads Set : $MAX_THREADS"
 puts "Place Directive : $PLACE_DIRECTIVE"
 puts "Route Directive : $ROUTE_DIRECTIVE"
 puts "=========================================================="
@@ -93,7 +113,10 @@ read_verilog "$REPO_ROOT/rtl/network/net_parser.v"
 read_verilog "$REPO_ROOT/rtl/network/moldudp64_decoder.v"
 read_verilog "$REPO_ROOT/rtl/itch/itch_decoder.v"
 read_verilog "$REPO_ROOT/rtl/display/vga_top.v"
+read_verilog "$REPO_ROOT/rtl/display/lob_display_journal.v"
+read_verilog "$REPO_ROOT/rtl/display/lob_level_order_count.v"
 read_verilog "$REPO_ROOT/rtl/telemetry/uart_telemetry.v"
+read_verilog "$REPO_ROOT/rtl/telemetry/uart_readback.v"
 read_verilog "$REPO_ROOT/rtl/top/top_system.v"
 
 puts "Reading CPU Verilog core modules..."
@@ -121,8 +144,12 @@ puts "=== [3/5] RUNNING PLACE_DESIGN ==="
 place_design -directive $PLACE_DIRECTIVE
 
 # 5b. Physical Optimization
-puts "=== [3b/5] RUNNING PHYS_OPT_DESIGN ==="
-phys_opt_design -directive Explore
+if {$BUILD_PROFILE eq "release"} {
+    puts "=== [3b/5] RUNNING PHYS_OPT_DESIGN ==="
+    phys_opt_design -directive Explore
+} else {
+    puts "=== [3b/5] SKIPPING PRE-ROUTE PHYS_OPT (fast profile) ==="
+}
 
 # 6. Routing
 puts "=== [4/5] RUNNING ROUTE_DESIGN ==="
@@ -141,7 +168,9 @@ puts "=========================================================="
 if {$wns < 0.0} {
     puts "Setup timing negative ($wns ns). Running post-route phys_opt_design to recover slack..."
     phys_opt_design -directive Explore
-    route_design -directive $ROUTE_DIRECTIVE
+    if {$BUILD_PROFILE eq "release"} {
+        route_design -directive $ROUTE_DIRECTIVE
+    }
     set wns [get_property SLACK [get_timing_paths -max_paths 1 -setup]]
     set whs [get_property SLACK [get_timing_paths -max_paths 1 -hold]]
     puts "After post-route optimization: WNS = $wns ns, WHS = $whs ns"
@@ -161,11 +190,13 @@ if {$wns < 0.0 || $whs < 0.0} {
 puts "=== [5/5] POST-ROUTE TIMING & UTILIZATION REPORTS ==="
 write_checkpoint -force "$BUILD_DIR/post_route.dcp"
 report_timing_summary -file "$BUILD_DIR/post_route_timing.rpt"
-report_utilization -file "$BUILD_DIR/post_route_utilization.rpt"
 report_drc -file "$BUILD_DIR/post_route_drc.rpt"
-report_clock_utilization -file "$BUILD_DIR/post_route_clock_util.rpt"
-report_methodology -file "$BUILD_DIR/post_route_methodology.rpt"
-report_clock_interaction -file "$BUILD_DIR/post_route_clock_interaction.rpt"
+if {$BUILD_PROFILE eq "release"} {
+    report_utilization -file "$BUILD_DIR/post_route_utilization.rpt"
+    report_clock_utilization -file "$BUILD_DIR/post_route_clock_util.rpt"
+    report_methodology -file "$BUILD_DIR/post_route_methodology.rpt"
+    report_clock_interaction -file "$BUILD_DIR/post_route_clock_interaction.rpt"
+}
 
 # 8. Bitstream Generation
 set_property CFGBVS VCCO [current_design]

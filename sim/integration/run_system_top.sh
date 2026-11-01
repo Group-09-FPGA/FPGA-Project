@@ -32,7 +32,10 @@ xvlog -d SIMULATION \
     "$PROJECT_ROOT/rtl/network/moldudp64_decoder.v" \
     "$PROJECT_ROOT/rtl/itch/itch_decoder.v" \
     "$PROJECT_ROOT/rtl/display/vga_top.v" \
+    "$PROJECT_ROOT/rtl/display/lob_display_journal.v" \
+    "$PROJECT_ROOT/rtl/display/lob_level_order_count.v" \
     "$PROJECT_ROOT/rtl/telemetry/uart_telemetry.v" \
+    "$PROJECT_ROOT/rtl/telemetry/uart_readback.v" \
     "$PROJECT_ROOT/rtl/cpu/core/decoder.v" \
     "$PROJECT_ROOT/rtl/cpu/core/alu.v" \
     "$PROJECT_ROOT/rtl/cpu/core/branch_unit.v" \

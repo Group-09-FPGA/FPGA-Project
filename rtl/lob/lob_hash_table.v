@@ -20,19 +20,28 @@ module lob_hash_way_ram (
     input  wire [75:0] wr_data,
     input  wire        rd_en,
     input  wire [9:0]  rd_set,
-    output reg  [75:0] rd_data
+    output reg  [75:0] rd_data,
+    input  wire        dbg_clk,
+    input  wire [9:0]  dbg_set,
+    output reg  [75:0] dbg_data
 );
-    (* ram_style = "block" *)
-    reg [75:0] mem [0:1023];
+    // Two physical copies keep each RAM at one write plus one read port.
+    // The original core read and the VGA-clock read cannot share a 2-port
+    // BRAM with the write port.
+    (* ram_style = "block" *) reg [75:0] mem [0:1023];
+    (* ram_style = "block" *) reg [75:0] dbg_mem [0:1023];
 
     always @(posedge clk) begin
         if (wr_en) begin
             mem[wr_set] <= wr_data;
+            dbg_mem[wr_set] <= wr_data;
         end
         if (rd_en) begin
             rd_data <= mem[rd_set];
         end
     end
+    always @(posedge dbg_clk)
+        dbg_data <= dbg_mem[dbg_set];
 endmodule
 
 module lob_hash_table #(
@@ -86,7 +95,12 @@ module lob_hash_table #(
     input  wire [HASH_SET_W-1:0]   inv_set,
     input  wire [HASH_WAY_W-1:0]   inv_way_idx,
     input  wire                    inv_stash_en,
-    input  wire [STASH_ADDR_W-1:0] inv_stash_idx
+    input  wire [STASH_ADDR_W-1:0] inv_stash_idx,
+    input  wire                    dbg_clk,
+    input  wire [HASH_SET_W-1:0]   dbg_set,
+    output wire [607:0]           dbg_ways,
+    input  wire [STASH_ADDR_W-1:0] dbg_stash_idx,
+    output reg  [75:0]            dbg_stash_data
 );
 
     // -------------------------------------------------------------------------
@@ -94,6 +108,8 @@ module lob_hash_table #(
     // -------------------------------------------------------------------------
     // 8-entry CAM Stash (Registers/FFs)
     reg [75:0] stash [0:STASH_ENTRIES-1];
+    always @(posedge dbg_clk)
+        dbg_stash_data <= stash[dbg_stash_idx];
 
     // Initialization Counter
     reg [HASH_SET_W:0] init_cnt;
@@ -159,7 +175,10 @@ module lob_hash_table #(
                 .wr_data (way_wr_data[w_gen]),
                 .rd_en   (rd_en),
                 .rd_set  (rd_set),
-                .rd_data (way_rd_raw[w_gen])
+                .rd_data (way_rd_raw[w_gen]),
+                .dbg_clk (dbg_clk),
+                .dbg_set (dbg_set),
+                .dbg_data(dbg_ways[w_gen*76 +: 76])
             );
 
             assign way_rd_data[w_gen] = way_rd_raw[w_gen];

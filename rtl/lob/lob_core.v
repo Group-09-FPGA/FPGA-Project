@@ -38,6 +38,8 @@ module lob_core #(
     output reg  [7:0]   error_code,
     output wire [11:0]  active_order_count,
     output reg          event_done,
+    // Last completed event's committed RAM writes, for UART storage telemetry.
+    output reg  [315:0] storage_trace,
 
     // Best Bid & Offer (BBO)
     output wire         best_bid_valid,
@@ -46,7 +48,24 @@ module lob_core #(
 
     output wire         best_ask_valid,
     output wire [31:0]  best_ask_price,
-    output wire [31:0]  best_ask_qty
+    output wire [31:0]  best_ask_qty,
+
+    // Read-only display ports for the existing FPGA memories.
+    input  wire         display_clk,
+    input  wire [10:0]  display_slot_addr,
+    output wire [46:0]  display_slot_data,
+    input  wire [9:0]   display_hash_set,
+    output wire [607:0] display_hash_ways,
+    input  wire [2:0]   display_stash_idx,
+    output wire [75:0]  display_stash_data,
+    input  wire [13:0]  display_price_addr,
+    output wire [31:0]  display_price_data,
+    input  wire [10:0]  display_free_addr,
+    output wire [10:0]  display_free_data,
+    output wire [11:0]  display_free_count,
+    output reg          level_count_delta_valid,
+    output reg          level_count_delta_inc,
+    output reg [13:0]   level_count_delta_addr
 );
 
     // -------------------------------------------------------------------------
@@ -188,7 +207,11 @@ module lob_core #(
         .inv_set(hash_inv_set),
         .inv_way_idx(hash_inv_way_idx),
         .inv_stash_en(hash_inv_stash_en),
-        .inv_stash_idx(hash_inv_stash_idx)
+        .inv_stash_idx(hash_inv_stash_idx),
+        .dbg_clk(display_clk), .dbg_set(display_hash_set),
+        .dbg_ways(display_hash_ways),
+        .dbg_stash_idx(display_stash_idx),
+        .dbg_stash_data(display_stash_data)
     );
 
     // 3. Slot Table Signals
@@ -212,7 +235,9 @@ module lob_core #(
         .wr_data(slot_wr_data),
         .rd_en(slot_rd_en),
         .rd_addr(slot_rd_addr),
-        .rd_data(slot_rd_data)
+        .rd_data(slot_rd_data),
+        .dbg_clk(display_clk), .dbg_addr(display_slot_addr),
+        .dbg_data(display_slot_data)
     );
 
     // 4. Free List Signals
@@ -244,8 +269,12 @@ module lob_core #(
         .empty(free_empty),
         .full(free_full),
         .free_count(free_count),
-        .active_count(free_active_count)
+        .active_count(free_active_count),
+        .dbg_clk(display_clk), .dbg_addr(display_free_addr),
+        .dbg_data(display_free_data)
     );
+
+    assign display_free_count = free_count;
 
     assign active_order_count = free_active_count;
 
@@ -272,7 +301,9 @@ module lob_core #(
         .rd_en(price_rd_en),
         .rd_addr(price_rd_addr),
         .rd_valid(price_rd_valid),
-        .rd_data(price_rd_data)
+        .rd_data(price_rd_data),
+        .dbg_clk(display_clk), .dbg_addr(display_price_addr),
+        .dbg_data(display_price_data)
     );
 
     // 6. Occupancy Signals
@@ -488,6 +519,76 @@ module lob_core #(
     assign event_ready = (state == ST_IDLE) && init_done && book_valid &&
                          run_enable && !feed_fault;
 
+    // Observe the registered write controls on the clock edge when the RAMs
+    // consume them. This reports committed addresses and data, not a second
+    // host-side allocation algorithm. One event writes at most one slot, one
+    // hash insertion, one hash invalidation, and two price levels.
+    reg        tr_slot_v, tr_inv_v, tr_ins_v, tr_p0_v, tr_p1_v;
+    reg [10:0] tr_slot_addr;
+    reg [46:0] tr_slot_data;
+    reg [9:0]  tr_inv_set, tr_ins_set;
+    reg [2:0]  tr_inv_idx, tr_ins_idx;
+    reg        tr_inv_stash, tr_ins_stash;
+    reg [13:0] tr_p0_addr, tr_p1_addr;
+    reg [31:0] tr_p0_qty, tr_p1_qty;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            storage_trace <= 316'd0;
+            tr_slot_v <= 1'b0; tr_inv_v <= 1'b0; tr_ins_v <= 1'b0;
+            tr_p0_v <= 1'b0; tr_p1_v <= 1'b0;
+            tr_slot_addr <= 0; tr_slot_data <= 0;
+            tr_inv_set <= 0; tr_ins_set <= 0;
+            tr_inv_idx <= 0; tr_ins_idx <= 0;
+            tr_inv_stash <= 0; tr_ins_stash <= 0;
+            tr_p0_addr <= 0; tr_p1_addr <= 0;
+            tr_p0_qty <= 0; tr_p1_qty <= 0;
+        end else begin
+            // Completion and acceptance can coincide for back-to-back events.
+            // Snapshot the old event before clearing the per-event collectors.
+            if (event_done)
+                storage_trace <= {1'b1, cur_evt_op, cur_evt_oid, cur_evt_noid,
+                                  tr_slot_v, tr_slot_addr, tr_slot_data,
+                                  tr_inv_v, tr_inv_set, tr_inv_idx, tr_inv_stash,
+                                  tr_ins_v, tr_ins_set, tr_ins_idx, tr_ins_stash,
+                                  tr_p0_v, tr_p0_addr, tr_p0_qty,
+                                  tr_p1_v, tr_p1_addr, tr_p1_qty};
+            if (event_valid && event_ready) begin
+                tr_slot_v <= 1'b0; tr_inv_v <= 1'b0; tr_ins_v <= 1'b0;
+                tr_p0_v <= 1'b0; tr_p1_v <= 1'b0;
+            end else begin
+            if (slot_wr_en) begin
+                tr_slot_v <= 1'b1;
+                tr_slot_addr <= slot_wr_addr;
+                tr_slot_data <= slot_wr_data;
+            end
+            if (hash_inv_way_en || hash_inv_stash_en) begin
+                tr_inv_v <= 1'b1;
+                tr_inv_stash <= hash_inv_stash_en;
+                tr_inv_set <= hash_inv_stash_en ? hash_oid(cur_evt_oid) : hash_inv_set;
+                tr_inv_idx <= hash_inv_stash_en ? hash_inv_stash_idx : hash_inv_way_idx;
+            end
+            if (hash_wr_way_en || hash_wr_stash_en) begin
+                tr_ins_v <= 1'b1;
+                tr_ins_stash <= hash_wr_stash_en;
+                tr_ins_set <= hash_wr_stash_en ? hash_oid(hash_wr_key) : hash_wr_set;
+                tr_ins_idx <= hash_wr_stash_en ? hash_wr_stash_idx : hash_wr_way_idx;
+            end
+            if (price_wr_en) begin
+                if (!tr_p0_v) begin
+                    tr_p0_v <= 1'b1;
+                    tr_p0_addr <= price_wr_addr;
+                    tr_p0_qty <= price_wr_data;
+                end else begin
+                    tr_p1_v <= 1'b1;
+                    tr_p1_addr <= price_wr_addr;
+                    tr_p1_qty <= price_wr_data;
+                end
+            end
+            end
+        end
+    end
+
     // Trigger signals for check against current BBO
     assign bbo_check_side = (state == ST_ECD_C8) ? lat_ord_side :
                             (state == ST_REP_C8) ? rep_ord_side : 1'b0;
@@ -505,6 +606,9 @@ module lob_core #(
             error_valid         <= 1'b0;
             error_code          <= FAIL_NONE;
             event_done          <= 1'b0;
+            level_count_delta_valid <= 1'b0;
+            level_count_delta_inc <= 1'b0;
+            level_count_delta_addr <= 14'd0;
 
             hash_init_start     <= 1'b0;
             slot_init_start     <= 1'b0;
@@ -612,6 +716,7 @@ module lob_core #(
         end else begin
             // Default single-cycle pulse resets
             event_done          <= 1'b0;
+            level_count_delta_valid <= 1'b0;
             hash_init_start     <= 1'b0;
             slot_init_start     <= 1'b0;
             free_init_start     <= 1'b0;
@@ -851,6 +956,9 @@ module lob_core #(
                         price_wr_en   <= 1'b1;
                         price_wr_addr <= {cur_evt_side, cur_evt_pidx};
                         price_wr_data <= lat_new_level_qty;
+                        level_count_delta_valid <= 1'b1;
+                        level_count_delta_inc <= 1'b1;
+                        level_count_delta_addr <= {cur_evt_side, cur_evt_pidx};
 
                         // Occupancy mask set
                         occ_leaf_upd_en      <= 1'b1;
@@ -995,6 +1103,9 @@ module lob_core #(
 
                         // 4. Invalidate hash and reclaim slot if order died
                         if (lat_is_kill) begin
+                            level_count_delta_valid <= 1'b1;
+                            level_count_delta_inc <= 1'b0;
+                            level_count_delta_addr <= {lat_ord_side, lat_ord_pidx};
                             if (lat_is_stash) begin
                                 hash_inv_stash_en  <= 1'b1;
                                 hash_inv_stash_idx <= lat_stash_idx;
@@ -1192,6 +1303,9 @@ module lob_core #(
                         end
 
                         if (rep_old_pidx != rep_new_pidx) begin
+                            level_count_delta_valid <= 1'b1;
+                            level_count_delta_inc <= 1'b0;
+                            level_count_delta_addr <= {rep_ord_side, rep_old_pidx};
                             price_wr_en   <= 1'b1;
                             price_wr_addr <= {rep_ord_side, rep_old_pidx};
                             price_wr_data <= rep_new_old_level_qty;
@@ -1231,6 +1345,11 @@ module lob_core #(
                         price_wr_en   <= 1'b1;
                         price_wr_addr <= {rep_ord_side, rep_new_pidx};
                         price_wr_data <= rep_new_new_level_qty;
+                        if (rep_old_pidx != rep_new_pidx) begin
+                            level_count_delta_valid <= 1'b1;
+                            level_count_delta_inc <= 1'b1;
+                            level_count_delta_addr <= {rep_ord_side, rep_new_pidx};
+                        end
 
                         // New occupancy bit set
                         occ_leaf_upd_en      <= 1'b1;

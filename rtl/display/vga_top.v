@@ -26,6 +26,33 @@ module vga_top (
     input  wire [31:0] cnt_crc_err,
     input  wire [31:0] cnt_mold_msgs,
     input  wire [31:0] cnt_seq_gaps,
+    input  wire [31:0] cnt_udp_packets,
+    input  wire [31:0] cnt_itch_events,
+    input  wire [31:0] cnt_fifo_events,
+    input  wire [7:0]  error_code,
+
+    // Board-owned quote and event rings. SW2/SW3 select one of the latest
+    // four entries while the full rings remain available for paged VGA views.
+    input  wire [1:0]  history_select,
+    input  wire [7:0]  quote_history_count,
+    input  wire [8:0]  event_history_count,
+    input  wire [6:0]  quote_history_next,
+    input  wire [7:0]  event_history_next,
+    output wire [6:0]  quote_history_addr,
+    input  wire [174:0] quote_history_data,
+    output wire [7:0]  event_history_addr,
+    input  wire [347:0] event_history_data,
+    output wire [10:0] display_slot_addr,
+    input  wire [46:0]  display_slot_data,
+    output wire [9:0]  display_hash_set,
+    input  wire [607:0] display_hash_ways,
+    output wire [2:0]  display_stash_idx,
+    input  wire [75:0] display_stash_data,
+    output wire [13:0] display_price_addr,
+    input  wire [31:0] display_price_data,
+    input  wire [11:0] display_level_order_count,
+    output wire [10:0] display_free_addr,
+    input  wire [10:0] display_free_data,
 
     // VGA Physical Pins
     output reg         vga_hs,           // Horizontal Sync (active-low)
@@ -73,6 +100,37 @@ module vga_top (
     wire h_sync_active = (h_cnt >= H_ACTIVE + H_FP) && (h_cnt < H_ACTIVE + H_FP + H_SYNC);
     wire v_sync_active = (v_cnt >= V_ACTIVE + V_FP) && (v_cnt < V_ACTIVE + V_FP + V_SYNC);
     wire video_on      = (h_cnt < H_ACTIVE) && (v_cnt < V_ACTIVE);
+
+    reg [1:0] history_select_meta, history_select_vga;
+    always @(posedge clk_vga or negedge rst_n) begin
+        if (!rst_n) begin
+            history_select_meta <= 2'd0;
+            history_select_vga <= 2'd0;
+        end else begin
+            history_select_meta <= history_select;
+            history_select_vga <= history_select_meta;
+        end
+    end
+    assign quote_history_addr = quote_history_next - 7'd1 - {5'd0, history_select_vga};
+    assign event_history_addr = event_history_next - 8'd1 - {6'd0, history_select_vga};
+    wire quote_history_visible = quote_history_count > {6'd0, history_select_vga};
+    wire event_history_visible = event_history_count > {7'd0, history_select_vga};
+    wire trace_insert = event_history_visible && event_history_data[108];
+    wire trace_remove = event_history_visible && event_history_data[123];
+    wire [2:0] selected_way = trace_insert ? event_history_data[97:95] : event_history_data[112:110];
+    wire selected_stash = trace_insert ? event_history_data[94] : event_history_data[109];
+    assign display_slot_addr = event_history_visible && event_history_data[182]
+                             ? event_history_data[181:171] : 11'd0;
+    assign display_hash_set = trace_insert ? event_history_data[107:98] :
+                              trace_remove ? event_history_data[122:113] : 10'd0;
+    assign display_stash_idx = selected_way;
+    assign display_price_addr = event_history_visible && event_history_data[93]
+                              ? event_history_data[92:79] : 14'd0;
+    assign display_free_addr = active_orders < 12'd2048
+                             ? 11'd2047 - active_orders[10:0] : 11'd0;
+    wire selected_hash_valid = selected_stash ? display_stash_data[75] :
+                               display_hash_ways[selected_way*76 + 75];
+    wire [11:0] display_free_hex = {1'b0, display_free_data};
 
     // -------------------------------------------------------------------------
     // Tear-Free Coherent Snapshot on VBLANK Start
@@ -210,6 +268,9 @@ module vga_top (
                     end
                     6'd18: char_code = "L"; 6'd19: char_code = "O"; 6'd20: char_code = "C"; 6'd21: char_code = "A"; 6'd22: char_code = "T"; 6'd23: char_code = "E"; 6'd24: char_code = ":";
                     6'd26: char_code = "#"; 6'd27: char_code = "0"; 6'd28: char_code = "0"; 6'd29: char_code = "0"; 6'd30: char_code = "1";
+                    6'd34: char_code = "E"; 6'd35: char_code = ":";
+                    6'd36: char_code = nibble_to_hex(error_code[7:4]);
+                    6'd37: char_code = nibble_to_hex(error_code[3:0]);
                     default: char_code = " ";
                 endcase
             end
@@ -343,6 +404,99 @@ module vga_top (
                     6'd28: char_code = nibble_to_hex(snap_gaps[3:0]);
                     default: char_code = " ";
                 endcase
+            end
+
+            5'd24: begin
+                fg_r = 4'h8; fg_g = 4'hC; fg_b = 4'hF;
+                case (col_idx)
+                    6'd2: char_code = "U"; 6'd3: char_code = "D";
+                    6'd4: char_code = "P"; 6'd5: char_code = ":";
+                    6'd12: char_code = "I"; 6'd13: char_code = "T";
+                    6'd14: char_code = "C"; 6'd15: char_code = "H";
+                    6'd16: char_code = ":";
+                    6'd23: char_code = "F"; 6'd24: char_code = "I";
+                    6'd25: char_code = "F"; 6'd26: char_code = "O";
+                    6'd27: char_code = ":";
+                    default: begin
+                        if (col_idx >= 6'd6 && col_idx <= 6'd9)
+                            char_code = nibble_to_hex(cnt_udp_packets[15 - ((col_idx - 6'd6) * 4) -: 4]);
+                        else if (col_idx >= 6'd17 && col_idx <= 6'd20)
+                            char_code = nibble_to_hex(cnt_itch_events[15 - ((col_idx - 6'd17) * 4) -: 4]);
+                        else if (col_idx >= 6'd28 && col_idx <= 6'd31)
+                            char_code = nibble_to_hex(cnt_fifo_events[15 - ((col_idx - 6'd28) * 4) -: 4]);
+                    end
+                endcase
+            end
+
+            // Browse board-owned histories with physical SW2/SW3.
+            5'd27: begin
+                fg_r = 4'h8; fg_g = 4'hC; fg_b = 4'hF;
+                if (quote_history_visible) begin
+                    case (col_idx)
+                        6'd2: char_code = "H"; 6'd3: char_code = "I";
+                        6'd4: char_code = "S"; 6'd5: char_code = "T";
+                        6'd7: char_code = "#";
+                        6'd13: char_code = "B"; 6'd14: char_code = ":";
+                        6'd24: char_code = "A"; 6'd25: char_code = ":";
+                        default: begin
+                            if (col_idx >= 6'd8 && col_idx <= 6'd11)
+                                char_code = nibble_to_hex(quote_history_data[15 - ((col_idx - 6'd8) * 4) -: 4]);
+                            else if (col_idx >= 6'd15 && col_idx <= 6'd22)
+                                char_code = nibble_to_hex(quote_history_data[172 - ((col_idx - 6'd15) * 4) -: 4]);
+                            else if (col_idx >= 6'd26 && col_idx <= 6'd33)
+                                char_code = nibble_to_hex(quote_history_data[107 - ((col_idx - 6'd26) * 4) -: 4]);
+                        end
+                    endcase
+                end
+            end
+            5'd28: begin
+                fg_r = 4'h8; fg_g = 4'hA; fg_b = 4'hC;
+                if (event_history_visible) begin
+                    case (col_idx)
+                        6'd2: char_code = "E"; 6'd3: char_code = "V";
+                        6'd4: char_code = "E"; 6'd5: char_code = "N";
+                        6'd6: char_code = "T"; 6'd8: char_code = "#";
+                        6'd14: char_code = "O"; 6'd15: char_code = "P";
+                        6'd16: char_code = ":";
+                        6'd19: char_code = "I"; 6'd20: char_code = "D";
+                        6'd21: char_code = ":";
+                        default: begin
+                            if (col_idx >= 6'd9 && col_idx <= 6'd12)
+                                char_code = nibble_to_hex(event_history_data[331 - ((col_idx - 6'd9) * 4) -: 4]);
+                            else if (col_idx == 6'd17)
+                                char_code = nibble_to_hex(event_history_data[314:311]);
+                            else if (col_idx >= 6'd22 && col_idx <= 6'd29)
+                                char_code = nibble_to_hex(event_history_data[278 - ((col_idx - 6'd22) * 4) -: 4]);
+                        end
+                    endcase
+                end
+            end
+            5'd29: begin
+                fg_r = 4'h9; fg_g = 4'hB; fg_b = 4'hC;
+                if (event_history_visible) begin
+                    case (col_idx)
+                        6'd2: char_code = "R"; 6'd3: char_code = "A";
+                        6'd4: char_code = "M";
+                        6'd6: char_code = "S"; 6'd7: char_code = ":";
+                        6'd8: char_code = display_slot_data[46] ? "1" : "0";
+                        6'd10: char_code = "Q"; 6'd11: char_code = ":";
+                        6'd17: char_code = "P"; 6'd18: char_code = ":";
+                        6'd24: char_code = "H"; 6'd25: char_code = ":";
+                        6'd26: char_code = selected_hash_valid ? "1" : "0";
+                        6'd28: char_code = "F"; 6'd29: char_code = ":";
+                        6'd34: char_code = "C"; 6'd35: char_code = ":";
+                        default: begin
+                            if (col_idx >= 6'd12 && col_idx <= 6'd15)
+                                char_code = nibble_to_hex(display_slot_data[15 - ((col_idx - 6'd12) * 4) -: 4]);
+                            else if (col_idx >= 6'd19 && col_idx <= 6'd22)
+                                char_code = nibble_to_hex(display_price_data[15 - ((col_idx - 6'd19) * 4) -: 4]);
+                            else if (col_idx >= 6'd30 && col_idx <= 6'd32)
+                                char_code = nibble_to_hex(display_free_hex[11 - ((col_idx - 6'd30) * 4) -: 4]);
+                            else if (col_idx >= 6'd36 && col_idx <= 6'd38)
+                                char_code = nibble_to_hex(display_level_order_count[11 - ((col_idx - 6'd36) * 4) -: 4]);
+                        end
+                    endcase
+                end
             end
 
             default: begin

@@ -374,6 +374,38 @@ module top_system #(
     wire [ 7:0] lob_error_code;
     wire [11:0] lob_active_orders;
     wire        lob_event_done;
+    wire [315:0] lob_storage_trace;
+    wire [10:0] display_slot_addr;
+    wire [46:0] display_slot_data;
+    wire [9:0] display_hash_set;
+    wire [607:0] display_hash_ways;
+    wire [2:0] display_stash_idx;
+    wire [75:0] display_stash_data;
+    wire [13:0] display_price_addr;
+    wire [31:0] display_price_data;
+    wire [10:0] display_free_addr;
+    wire [10:0] display_free_data;
+    wire [11:0] display_free_count;
+    wire level_count_delta_valid;
+    wire level_count_delta_inc;
+    wire [13:0] level_count_delta_addr;
+    wire [11:0] display_level_order_count;
+    wire level_count_init_done;
+    wire [174:0] vga_quote_history_data;
+    wire [347:0] vga_event_history_data;
+    wire [10:0] read_slot_addr;
+    wire [9:0] read_hash_set;
+    wire [2:0] read_stash_idx;
+    wire [13:0] read_price_addr;
+    wire [10:0] read_free_addr;
+    wire readback_active;
+    wire [13:0] readback_addr;
+    wire [7:0] readback_kind;
+    assign read_slot_addr = readback_active && readback_kind == "S" ? readback_addr[10:0] : display_slot_addr;
+    assign read_hash_set = readback_active && readback_kind == "H" ? readback_addr[9:0] : display_hash_set;
+    assign read_stash_idx = readback_active && readback_kind == "X" ? readback_addr[2:0] : display_stash_idx;
+    assign read_price_addr = readback_active && (readback_kind == "P" || readback_kind == "L") ? readback_addr : display_price_addr;
+    assign read_free_addr = readback_active && readback_kind == "F" ? readback_addr[10:0] : display_free_addr;
 
     wire        lob_bid_valid;
     wire [31:0] lob_bid_price;
@@ -407,12 +439,28 @@ module top_system #(
         .error_code         (lob_error_code),
         .active_order_count (lob_active_orders),
         .event_done         (lob_event_done),
+        .storage_trace      (lob_storage_trace),
         .best_bid_valid     (lob_bid_valid),
         .best_bid_price     (lob_bid_price),
         .best_bid_qty       (lob_bid_qty),
         .best_ask_valid     (lob_ask_valid),
         .best_ask_price     (lob_ask_price),
-        .best_ask_qty       (lob_ask_qty)
+        .best_ask_qty       (lob_ask_qty),
+        .display_clk        (clk_vga),
+        .display_slot_addr  (read_slot_addr),
+        .display_slot_data  (display_slot_data),
+        .display_hash_set   (read_hash_set),
+        .display_hash_ways  (display_hash_ways),
+        .display_stash_idx  (read_stash_idx),
+        .display_stash_data (display_stash_data),
+        .display_price_addr (read_price_addr),
+        .display_price_data (display_price_data),
+        .display_free_addr  (read_free_addr),
+        .display_free_data  (display_free_data),
+        .display_free_count (display_free_count),
+        .level_count_delta_valid(level_count_delta_valid),
+        .level_count_delta_inc(level_count_delta_inc),
+        .level_count_delta_addr(level_count_delta_addr)
     );
 
     // Event counter
@@ -680,6 +728,63 @@ module top_system #(
     // =========================================================================
     // 9. UART Serial Telemetry Engine (0x6000_0000)
     // =========================================================================
+    wire readback_tx_valid, readback_tx_ready;
+    wire [7:0] readback_tx_byte;
+    wire [630:0] readback_rsp_core;
+    wire readback_rsp_update;
+    wire readback_req_toggle;
+    wire [7:0] readback_req_kind;
+    wire [13:0] readback_req_addr;
+    uart_readback #(.CLK_FREQ(50_000_000), .BAUD_RATE(115_200)) u_uart_readback (
+        .clk(clk_core), .rst_n(rst_core_n), .uart_rxd(uart_rxd_in),
+        .req_toggle(readback_req_toggle), .req_kind(readback_req_kind),
+        .req_addr(readback_req_addr), .rsp_update(readback_rsp_update),
+        .rsp_payload(readback_rsp_core), .tx_valid(readback_tx_valid),
+        .tx_byte(readback_tx_byte), .tx_ready(readback_tx_ready)
+    );
+    wire [22:0] readback_req_vga;
+    wire readback_req_update;
+    config_cdc #(.WIDTH(23), .RESET_VALUE(23'd0)) u_readback_request_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data({readback_req_toggle, readback_req_kind, readback_req_addr}),
+        .src_busy(), .src_ready(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(readback_req_vga), .dst_update(readback_req_update)
+    );
+    reg [630:0] readback_rsp_vga;
+    reg [2:0] readback_wait;
+    reg readback_busy_vga;
+    assign readback_active = readback_busy_vga;
+    assign readback_kind = readback_req_vga[21:14];
+    assign readback_addr = readback_req_vga[13:0];
+    wire [607:0] readback_selected_data =
+        readback_kind == "S" ? {{561{1'b0}}, display_slot_data} :
+        readback_kind == "H" ? display_hash_ways :
+        readback_kind == "X" ? {{532{1'b0}}, display_stash_data} :
+        readback_kind == "P" ? {{576{1'b0}}, display_price_data} :
+        readback_kind == "F" ? {{597{1'b0}}, display_free_data} :
+        readback_kind == "L" ? {{596{1'b0}}, display_level_order_count} :
+        readback_kind == "Q" ? {{433{1'b0}}, vga_quote_history_data} :
+        readback_kind == "E" ? {{260{1'b0}}, vga_event_history_data} : 608'd0;
+    always @(posedge clk_vga or negedge rst_vga_n) begin
+        if (!rst_vga_n) begin
+            readback_busy_vga <= 0;
+            readback_wait <= 0;
+            readback_rsp_vga <= 0;
+        end else if (readback_req_update) begin
+            readback_busy_vga <= 1;
+            readback_wait <= 0;
+        end else if (readback_busy_vga) begin
+            if (readback_wait == 3) begin
+                readback_rsp_vga <= {readback_req_vga, readback_selected_data};
+                readback_busy_vga <= 0;
+            end else readback_wait <= readback_wait + 1'b1;
+        end
+    end
+    config_cdc #(.WIDTH(631), .RESET_VALUE(631'd0)) u_readback_response_cdc (
+        .src_clk(clk_vga), .src_rst_n(rst_vga_n), .src_data(readback_rsp_vga),
+        .src_busy(), .src_ready(), .dst_clk(clk_core), .dst_rst_n(rst_core_n),
+        .dst_data(readback_rsp_core), .dst_update(readback_rsp_update)
+    );
     uart_telemetry #(
         .CLK_FREQ (50_000_000),
         .BAUD_RATE(115_200)
@@ -709,14 +814,75 @@ module top_system #(
         .pipe_itch_events (pipe_eth_snapshot[63:32]),
         .pipe_fifo_events (pipe_eth_snapshot[31:0]),
         .pipe_done_events (core_event_count),
+        .storage_trace    (lob_storage_trace),
+        .price_base       (mmio_cfg_price_base),
+        .price_tick       (mmio_cfg_tick),
+        .readback_valid   (readback_tx_valid),
+        .readback_byte    (readback_tx_byte),
+        .readback_ready   (readback_tx_ready),
         .uart_txd         (uart_txd_out)
     );
 
     // =========================================================================
     // 10. VGA Market Data & LOB Visualizer (25 MHz Domain)
     // =========================================================================
+    lob_level_order_count u_level_order_count (
+        .core_clk(clk_core), .core_rst_n(rst_core_n),
+        .delta_valid(level_count_delta_valid),
+        .delta_inc(level_count_delta_inc),
+        .delta_addr(level_count_delta_addr),
+        .init_done(level_count_init_done),
+        .read_clk(clk_vga), .read_addr(read_price_addr),
+        .read_count(display_level_order_count)
+    );
+    wire [6:0] vga_quote_history_addr;
+    wire [7:0] vga_event_history_addr;
+    wire [7:0] history_quote_count_core;
+    wire [8:0] history_event_count_core;
+    wire [6:0] history_quote_next_core;
+    wire [7:0] history_event_next_core;
+    wire [31:0] history_meta_vga;
+    lob_display_journal u_display_journal (
+        .core_clk(clk_core), .core_rst_n(rst_core_n),
+        .event_done(lob_event_done), .completed_count(core_event_count),
+        .storage_trace(lob_storage_trace), .book_valid(lob_book_valid),
+        .bid_valid(lob_bid_valid), .bid_price(lob_bid_price),
+        .bid_qty(lob_bid_qty), .ask_valid(lob_ask_valid),
+        .ask_price(lob_ask_price), .ask_qty(lob_ask_qty),
+        .active_orders(lob_active_orders), .read_clk(clk_vga),
+        .quote_read_addr(readback_active && readback_kind == "Q" ? readback_addr[6:0] : vga_quote_history_addr),
+        .quote_read_data(vga_quote_history_data),
+        .event_read_addr(readback_active && readback_kind == "E" ? readback_addr[7:0] : vga_event_history_addr),
+        .event_read_data(vga_event_history_data),
+        .quote_count(history_quote_count_core),
+        .event_count(history_event_count_core),
+        .quote_next(history_quote_next_core),
+        .event_next(history_event_next_core)
+    );
+    config_cdc #(.WIDTH(32), .RESET_VALUE(32'd0)) u_history_meta_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data({history_quote_count_core, history_event_count_core,
+                   history_quote_next_core, history_event_next_core}),
+        .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(history_meta_vga), .dst_update()
+    );
     wire [174:0] vga_core_snapshot;
     wire [127:0] vga_net_snapshot;
+    wire [95:0] vga_pipe_snapshot;
+    wire [7:0] vga_error_snapshot;
+    config_cdc #(.WIDTH(96), .RESET_VALUE(96'd0)) u_vga_pipe_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data({pipe_eth_snapshot[127:96], pipe_eth_snapshot[63:32],
+                   pipe_eth_snapshot[31:0]}),
+        .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(vga_pipe_snapshot), .dst_update()
+    );
+    config_cdc #(.WIDTH(8), .RESET_VALUE(8'd0)) u_vga_error_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n),
+        .src_data(lob_error_code),
+        .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(vga_error_snapshot), .dst_update()
+    );
     config_cdc #(.WIDTH(175), .RESET_VALUE(175'd0)) u_vga_core_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
         .src_data({lob_book_valid, lob_bid_valid, lob_bid_price, lob_bid_qty,
@@ -747,6 +913,30 @@ module top_system #(
         .cnt_crc_err    (vga_net_snapshot[95:64]),
         .cnt_mold_msgs  (vga_net_snapshot[63:32]),
         .cnt_seq_gaps   (vga_net_snapshot[31:0]),
+        .cnt_udp_packets(vga_pipe_snapshot[95:64]),
+        .cnt_itch_events(vga_pipe_snapshot[63:32]),
+        .cnt_fifo_events(vga_pipe_snapshot[31:0]),
+        .error_code(vga_error_snapshot),
+        .history_select (sw[3:2]),
+        .quote_history_count(history_meta_vga[31:24]),
+        .event_history_count(history_meta_vga[23:15]),
+        .quote_history_next(history_meta_vga[14:8]),
+        .event_history_next(history_meta_vga[7:0]),
+        .quote_history_addr(vga_quote_history_addr),
+        .quote_history_data(vga_quote_history_data),
+        .event_history_addr(vga_event_history_addr),
+        .event_history_data(vga_event_history_data),
+        .display_slot_addr(display_slot_addr),
+        .display_slot_data(display_slot_data),
+        .display_hash_set(display_hash_set),
+        .display_hash_ways(display_hash_ways),
+        .display_stash_idx(display_stash_idx),
+        .display_stash_data(display_stash_data),
+        .display_price_addr(display_price_addr),
+        .display_price_data(display_price_data),
+        .display_level_order_count(display_level_order_count),
+        .display_free_addr(display_free_addr),
+        .display_free_data(display_free_data),
         .vga_hs         (vga_hs),
         .vga_vs         (vga_vs),
         .vga_r          (vga_r),

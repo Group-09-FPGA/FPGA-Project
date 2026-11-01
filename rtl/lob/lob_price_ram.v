@@ -30,7 +30,10 @@ module lob_price_ram #(
     input  wire                    rd_en,
     input  wire [PRICE_ADDR_W-1:0] rd_addr,
     output wire                    rd_valid,
-    output wire [31:0]             rd_data
+    output wire [31:0]             rd_data,
+    input  wire                    dbg_clk,
+    input  wire [PRICE_ADDR_W-1:0] dbg_addr,
+    output reg  [31:0]             dbg_data
 );
 
     // 16,384 x 32-bit BRAM storage array
@@ -58,6 +61,9 @@ module lob_price_ram #(
             price_mem[eff_wr_addr] <= eff_wr_data;
         end
     end
+
+    always @(posedge dbg_clk)
+        dbg_data <= price_mem[dbg_addr];
 
     // -------------------------------------------------------------------------
     // 3-Stage Read Pipeline (DOB_REG + Registered Output Mux)

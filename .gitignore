@@ -1,6 +1,7 @@
 # Vivado build outputs & checkpoints
 build/
 build_system/
+build_dev/
 build_system_candidate/
 sim/build/
 sim/build_*/
