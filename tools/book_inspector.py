@@ -151,6 +151,7 @@ class BoardStorageMirror(BookMirror):
     def __init__(self):
         super().__init__()
         self.ram_levels = {}
+        self.slot_words = {}
         self.last_event = 0
         self.prediction_match = None
 
@@ -198,6 +199,7 @@ class BoardStorageMirror(BookMirror):
             shares = slot_data & 0xFFFFFFFF
             price = price_base + pidx * tick
             slot = trace["slot_addr"]
+            self.slot_words[slot] = slot_data
             if trace["op"] in (2, 3):
                 event_shares = old_shares - shares
             elif trace["op"] in (1, 5):

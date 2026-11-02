@@ -18,7 +18,7 @@ python3 tools/order_journey.py --advanced --interactive \
   --uart-socket /tmp/fpga-lob-uart-$(id -u).sock
 ```
 
-The sender still sends MoldUDP64/ITCH packets over the active Wi-Fi LAN and
+The sender sends MoldUDP64/ITCH packets to the selected IPv4 broadcast LAN and
 checks FPGA counters and quotes. The dashboard charts only confirmed board
 telemetry. Press `T` to switch the chart axis between event count and local
 receipt time, `H` to browse recent quote samples, and `Q` to quit. Keys `1`–`7`
@@ -38,6 +38,22 @@ BBO and active count against the reported FPGA values. The layout expands to fil
 full-screen Kitty terminal. Use a wide window for the Hash, Slots, and Price
 Levels pages; narrow windows can clip their details. Keep only one physical
 UART reader running.
+
+For the direct USB Ethernet link observed on 2026-11-02, the laptop adapter
+was `enx00e099001756` at `192.168.1.5/24`. Confirm its carrier and address
+with `ip -br addr show enx00e099001756`, then use this sender command in the
+second terminal:
+
+```bash
+python3 tools/order_journey.py --advanced --count 13 --interval 5.5 \
+  --target-ip 192.168.1.255 \
+  --uart-socket /tmp/fpga-lob-uart-$(id -u).sock
+```
+
+The FPGA filters ITCH stock locate 1. The sender's required eight-byte stock
+field uses neutral `LOBDEMO`; the display labels the tracked book by locate.
+The direct-link run and RAM readback results are in
+[HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md).
 
 Run from the laptop connected to the Nexys A7 by USB/UART and Ethernet.
 

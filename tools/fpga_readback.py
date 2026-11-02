@@ -104,6 +104,8 @@ class ReadbackAudit:
     @staticmethod
     def expected(kind, address, mirror, frame):
         if kind == "S":
+            if hasattr(mirror, "slot_words"):
+                return mirror.slot_words.get(address, 0)
             order = next((o for o in mirror.orders.values() if o.slot == address), None)
             if order is None:
                 return 0

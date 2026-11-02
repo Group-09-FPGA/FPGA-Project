@@ -77,6 +77,10 @@ class ReadbackTest(unittest.TestCase):
         self.assertIn(("S", 2047), audit.verified)
         audit.ingest("@S07FF=000000000000\r\n", mirror, frame, 1)
         self.assertTrue(audit.mismatches)
+        # A retired slot can retain its price index after valid clears.
+        mirror.orders.clear()
+        mirror.slot_words[2047] = 5 << 32
+        self.assertEqual(audit.expected("S", 2047, mirror, frame), 5 << 32)
 
 
 if __name__ == "__main__":

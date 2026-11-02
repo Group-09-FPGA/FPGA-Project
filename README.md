@@ -14,6 +14,12 @@ with an extended UART build. VGA, a deliberately bad FCS on the physical link,
 and CPU MMIO counter readback remain unverified on the physical board;
 see [HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
 
+On 2026-11-02, the UART RAM-readback candidate was programmed and exercised
+through a direct USB Ethernet link. All 13 advanced events were verified by
+board UART; the dashboard reported 53 matching RAM reads and zero mismatches.
+The board was left reset with an empty valid book. Details are in the same
+validation record.
+
 ## Verify
 
 From the repository root:

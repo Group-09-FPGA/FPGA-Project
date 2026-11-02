@@ -1,6 +1,34 @@
 # Physical board validation record
 
-This records the 2026-10-24 physical run. The UART, Ethernet ingest, book
+## 2026-11-02 UART RAM-readback candidate on a direct Ethernet link
+
+Programmed `build_readback_20261102/top_system.bit` (SHA-256
+`d5d3c6df75e4d9bd4fd775e2d6651844715c9c1c165908cd69ea724b984fec92`)
+onto Digilent target `210292AD33B0A`, device `xc7a100t_0`. The laptop's
+USB dock exposed FT2232 UART `/dev/ttyUSB1` and USB Ethernet
+`enx00e099001756`, configured as `192.168.1.5/24`. After programming, the
+Ethernet carrier came up; the sender used `192.168.1.255:10443`, which the
+host routed over that adapter. Wi-Fi remained connected on a different subnet.
+
+| Check | Physical observation | Result |
+| --- | --- | --- |
+| Empty board after programming | UART `D=0 V=1 E=00 N=0`, bid/ask zero; slot `0x07FF` read back zero, free-stack top `0x07FF` | Pass |
+| Direct Ethernet, three Add events | Receiver, UDP, Mold, ITCH, FIFO, and completion counters reached 3; BBO and active count matched the sender | Pass |
+| Full 13-event advanced sequence at 5.5 s spacing | All 13 sender journeys returned `BOARD VERIFIED V=1 E=00`; counters reached 13 at UDP, Mold, ITCH, FIFO, and book completion | Pass |
+| Laptop RAM readback | Final dashboard showed 53 matching reads, zero mismatches, and host prediction matching the FPGA trace | Pass |
+| FPGA event journal | Events page showed all 13 events with verified journal records | Pass |
+| Cleared price levels | After final deletes, Orders showed 0 active and both bid/ask Levels panes showed no active levels | Pass |
+| Invalid slot words | Cleared slot words retained price-index bits with valid=0; the checker now compares the exact FPGA write word | Pass after host checker fix |
+| Neutral ITCH stock field | One additional Add using `LOBDEMO` in the required stock field was accepted and verified; sender displays book locate 1 | Pass |
+
+The final reprogram left the board empty and valid (`D=0 V=1 E=00 N=0`),
+with slot `0x07FF` reading zero. The dashboard was stopped so `/dev/ttyUSB1`
+is free. The VGA seven-page presentation, physical switch navigation, bad
+Ethernet FCS, and independent CPU MMIO readback were not checked in this run.
+Sender logs are kept locally under the ignored
+`build_readback_20261102/hardware_validation/` directory.
+
+The sections below record the earlier 2026-10-24 physical run. The UART, Ethernet ingest, book
 operations, fail-stop, and recovery checks below were observed on the board.
 VGA and a deliberately bad Ethernet FCS were not tested. The original raw
 UART captures are local `/tmp/fpga-lob-board-uart-*.log` files and are not

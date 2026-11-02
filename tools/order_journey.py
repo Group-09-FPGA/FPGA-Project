@@ -109,7 +109,7 @@ def create_moldudp64_event(seq, event):
                          b"\x00\x00\x00\x01\x23\x45", event.ref)
     if event.kind in ("A", "F"):
         body = prefix + struct.pack(">BI8sI", ord(event.side), event.shares,
-                                    b"AAPL    ", event.price)
+                                    b"LOBDEMO ", event.price)
         if event.kind == "F":
             body += b"DEMO"
     elif event.kind in ("E", "C"):
@@ -511,7 +511,7 @@ def main(argv=None):
                 apply_advanced_order(book, order)
                 used_refs.add(order.new_ref if order.kind == "U" else order.ref)
             elif order.kind == "ADD":
-                packet = create_moldudp64_add_order(seq, order.ref, order.side, order.shares, "AAPL", order.price)
+                packet = create_moldudp64_add_order(seq, order.ref, order.side, order.shares, "LOBDEMO", order.price)
                 book[order.ref] = order
             else:
                 packet = create_moldudp64_delete_order(seq, order.ref)
@@ -525,7 +525,7 @@ def main(argv=None):
             print(f"\n{tint('═' * 78, '1;36')}\n  {tint(f'ORDER {seq:03d}', '1;36')}  ·  {tint(operation, '1')}  ·  {tint('BUY' if order.side == 'B' else 'SELL', '1;32' if order.side == 'B' else '1;35')}  ·  ID {order.ref}")
             heading("ORDER DETAILS")
             if order.kind in ("ADD", "A", "F"):
-                print(f"  AAPL  |  {order.shares} shares  |  {money(order.price)}  |  ITCH type {'F' if order.kind == 'F' else 'A'}")
+                print(f"  Book locate 1  |  {order.shares} shares  |  {money(order.price)}  |  ITCH type {'F' if order.kind == 'F' else 'A'}")
             elif advanced_event and order.kind == "U":
                 print(f"  Replace ID {order.ref} → {order.new_ref}; {order.shares} shares at {money(order.price)}  |  ITCH type U")
             elif advanced_event and order.kind in ("E", "C", "X"):
