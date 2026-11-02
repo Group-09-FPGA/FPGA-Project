@@ -53,6 +53,7 @@ addresses. The board-control renderer now offers switch-selected Market,
 Orders, Hash, Events, Status, Levels, Slots, and Order Entry views. These are
 text inspection pages with decimal order-entry feedback. The complete
 Kitty-style chart and table presentation remains renderer work. Controls are
-covered by simulation; physical switch/button/VGA validation is pending.
+covered by simulation. Initial button/switch order-entry tests passed through
+UART; physical VGA output and page appearance remain unverified.
 The snapshot bitstream was physically verified on 2026-11-02 before adding
 these controls; its preserved image is listed in the controls guide.

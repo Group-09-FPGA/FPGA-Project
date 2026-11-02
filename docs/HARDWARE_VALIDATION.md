@@ -1,5 +1,33 @@
 # Physical board validation record
 
+## 2026-11-02 physical board-control checks
+
+Programmed the controls candidate `build/board_controls_20261102/top_system.bit`
+(SHA-256 `f34a30279376709548790484bec4d344cc186266d634123a46d8e3fb50dc90b9`)
+onto target `210292AD33B0A`. UART confirmed an empty valid book with runtime
+base 900000 and tick 1000. The user reported that VGA was not visible, so
+visual page selection is not verified by this run.
+
+| Manual check | FPGA observation | Result |
+| --- | --- | --- |
+| Entry page, SW13 enabled, Center once | D=1, valid, error 0, Buy 100 at $90.5000; network Mold/ITCH/FIFO counters remain zero | Pass |
+| Actual storage of first button order | RAM snapshot: reference `0xB0000000`, slot 2047, hash set 770, way 0, 100 shares at price index 5 | Pass |
+| Price/quantity editor, Sell side | User selected price digit 3 and raised it twice, then quantity digit 1 and raised it five times; Center gave D=2, Buy 100 at $90.5000 and Sell 150 at $90.7000, active 2, valid, error 0 | Pass |
+| Browse live Buy, decrease shares, Execute | Up browsed the actual Buy slot; digit editing selected 40 shares; Center gave D=3, Buy 60 at $90.5000, Sell 150 at $90.7000, active 2, valid, error 0 | Pass |
+| Browse live Sell with Right, action C | Right selected the Sell slot; editing 150 to 50 requested an execution of 50 shares. D=4, Buy 60 at $90.5000, Sell 100 at $90.7000, active 2, valid, error 0 | Pass |
+| Browse previous Buy with Down, Cancel | Down selected the Buy slot; editing 60 to 10 requested cancellation of 10 shares. D=5, Buy 50 at $90.5000, Sell 100 at $90.7000, active 2, valid, error 0 | Pass |
+| Replace price, shares and new-ID digit editor | D=6 replaced `0xB0000001` with `0xC0000011`, Sell 120 at $90.8000, active 2, valid, error 0. The committed trace preserved slot 2046, invalidated hash set 771, inserted set 18, cleared old price address 8199 and wrote 120 at address 8200 | Pass |
+
+The user ended manual testing after D=6. Final state: Buy 50 at $90.5000,
+Sell 120 at $90.8000, two active orders, valid, error zero. Add A, Execute E,
+Execute C, Cancel X and Replace U were physically checked. All five buttons,
+price/shares/new-ID editing and active-order browsing were exercised.
+F, Delete, typed old-order-ID editing, held-Center behavior, disabled submission
+and local rejection cases remain simulation-tested rather than physically
+checked in this run. VGA output/page appearance remains unverified.
+UART observations are recorded locally in the ignored
+`build/board_controls_20261102/hardware_validation/` directory.
+
 ## 2026-11-02 sender relay backpressure fix
 
 The snapshot dashboard originally forwarded RAM replies as well as BBO lines

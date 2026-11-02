@@ -144,6 +144,14 @@ The build used `MemoryHigh=8G`, `MemoryMax=10G`, `MemorySwapMax=4G`, performance
 mode, and a sleep inhibitor. The observed scope memory peak was about 7 GiB.
 The previous power profile and battery-aware behavior were restored afterward.
 
+A subsequent physical session verified Add A, Execute E/C, Cancel X and
+Replace U through UART, including actual price, shares, new-ID editing and
+order browsing with all five buttons. The user ended testing after six
+completed events. VGA was not visible. See
+[the physical validation record](HARDWARE_VALIDATION.md) for observed values
+and the remaining checks; the broader simulation results below do not imply
+all combinations have been physically exercised.
+
 Validation: 23/23 RTL testbenches and 24/24 Python tests passed, plus the
 full-system test in Vivado xsim. The board was disconnected: physical button,
 switch and VGA validation is pending. Set SW13=0 before the first board test,
