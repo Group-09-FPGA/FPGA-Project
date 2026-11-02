@@ -67,6 +67,10 @@ run_test "LOB RTL versus Python golden vectors" \
     "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_lob_golden.vvp)"
 
 # 3. Ethernet 100M RMII Receiver & CRC-32 Unit Test
+run_test "Three random LOB sequences versus independent dictionary book" \
+    "iverilog -g2001 -I${PROJECT_ROOT}/rtl/lob -s tb_lob_random -o ${BUILD_DIR}/tb_lob_random.vvp ${LOB_RTL_FILES} ${PROJECT_ROOT}/sim/golden/tb_lob_random.v" \
+    "for random_seed in 7 20261102 942931; do python3 ${PROJECT_ROOT}/sim/golden/generate_random_vectors.py ${BUILD_DIR}/random_\${random_seed} --seed \${random_seed} && (cd ${BUILD_DIR}/random_\${random_seed} && vvp -N ${BUILD_DIR}/tb_lob_random.vvp) || exit 1; done"
+
 run_test "Ethernet RMII Receiver (tb_rmii_rx.v)" \
     "iverilog -g2001 -I${PROJECT_ROOT}/rtl/cpu/core -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/ethernet \
      ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v \
@@ -136,6 +140,22 @@ run_test "Network parser maximum UDP payload" \
 run_test "RMII queue and ring wrap" \
     "iverilog -g2001 -s tb_rmii_rx_queue ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v ${PROJECT_ROOT}/sim/unit/tb_rmii_rx_queue.v -o ${BUILD_DIR}/tb_rmii_queue.vvp" \
     "vvp -N ${BUILD_DIR}/tb_rmii_queue.vvp"
+
+run_test "Board buttons, digit editor, seven actions and RAM browsing" \
+    "iverilog -g2001 -s tb_board_controls -o ${BUILD_DIR}/tb_board_controls.vvp ${PROJECT_ROOT}/rtl/ui/board_controls.v ${PROJECT_ROOT}/sim/unit/tb_board_controls.v" \
+    "vvp -N ${BUILD_DIR}/tb_board_controls.vvp"
+
+run_test "Randomized board price/tick/quantity editing" \
+    "iverilog -g2001 -s tb_board_price_random -o ${BUILD_DIR}/tb_board_price_random.vvp ${PROJECT_ROOT}/rtl/ui/board_controls.v ${PROJECT_ROOT}/sim/unit/tb_board_price_random.v" \
+    "vvp -N ${BUILD_DIR}/tb_board_price_random.vvp"
+
+run_test "Mixed network and board sources under backpressure" \
+    "iverilog -g2001 -s tb_order_source_arbiter -o ${BUILD_DIR}/tb_order_sources.vvp ${PROJECT_ROOT}/rtl/ui/order_source_arbiter.v ${PROJECT_ROOT}/sim/unit/tb_order_source_arbiter.v" \
+    "vvp -N ${BUILD_DIR}/tb_order_sources.vvp"
+
+run_test "VGA page text and decimal order-entry feedback" \
+    "iverilog -g2001 -s tb_board_ui_text -o ${BUILD_DIR}/tb_board_ui_text.vvp ${PROJECT_ROOT}/rtl/ui/board_ui_text.v ${PROJECT_ROOT}/rtl/display/vga_top.v ${PROJECT_ROOT}/sim/unit/tb_board_ui_text.v" \
+    "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_board_ui_text.vvp)"
 
 run_test "Full Ethernet-to-book integration" \
     "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v' ! -path '*/lab5_baseline/*' ! -name 'top_fpga.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \

@@ -113,6 +113,7 @@ read_verilog "$REPO_ROOT/rtl/network/net_parser.v"
 read_verilog "$REPO_ROOT/rtl/network/moldudp64_decoder.v"
 read_verilog "$REPO_ROOT/rtl/itch/itch_decoder.v"
 read_verilog "$REPO_ROOT/rtl/display/vga_top.v"
+read_verilog [glob "$REPO_ROOT/rtl/ui/*.v"]
 read_verilog "$REPO_ROOT/rtl/display/lob_display_journal.v"
 read_verilog "$REPO_ROOT/rtl/display/lob_level_order_count.v"
 read_verilog "$REPO_ROOT/rtl/telemetry/uart_telemetry.v"

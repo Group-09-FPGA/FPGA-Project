@@ -24,6 +24,14 @@ the same validation record.
 
 ## Verify
 
+The board-control RTL adds eight switch-selected VGA pages and a five-button
+order form. See [board_controls.md](docs/board_controls.md) for physical switch
+assignments, digit editing, local submission, and the laptop `--mixed-input`
+mode. SW0/SW1 remain unused; SW14/SW15 retain seven-segment selection.
+These controls have passed simulation; physical verification is pending.
+The built candidate is `build/board_controls_20261102/top_system.bit`
+(routed setup +0.499 ns, hold +0.016 ns). It retains the UART snapshot protocol.
+
 From the repository root:
 
 ```bash

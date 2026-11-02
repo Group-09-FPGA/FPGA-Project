@@ -16,7 +16,7 @@ stores from state currently added by Python.
 | Price-level quantities and order counts | FPGA already has a 16,384-entry quantity RAM; Python derived order counts | **Added:** read-only quantity port and a separate FPGA 16,384-entry order-count index updated by add, full removal, and price-changing replace. Full nonzero-level paging remains |
 | Free-stack contents and next slot | FPGA has a 2,048-entry LIFO free-list RAM | **Added:** read-only free-list port; full stack browsing remains |
 | Event list | FPGA journal read back over UART | **Added:** 256-entry FPGA ring of event number, canonical side/shares/price index, and committed storage trace. Older records wrap after 256 events |
-| Page, selection, scroll | Python curses state, keyboard and mouse | **Partial:** SW2/SW3 browse four recent board history records. Seven-page navigation and selected set/slot/level registers still need the remaining available switches and buttons; physical SW0/1 are broken and SW14/15 are reserved for seven-segment |
+| Page, selection, scroll | Laptop curses state; FPGA board-control state | **Added:** SW2–SW4 select eight pages, arrows browse FPGA storage and history, and Order Entry supports digit editing and local submission. Physical SW0/1 stay unused and SW14/15 remain reserved for seven-segment. See [board_controls.md](board_controls.md) |
 | Clock receipt time | Laptop wall clock | Keep only on laptop as agreed; VGA uses FPGA event numbers |
 | Event/time axis toggle | Laptop UI state | Keep time mode on laptop as agreed; VGA chart will use event numbers |
 | Host prediction comparison | Independent Python model | Keep on laptop; duplicating the prediction inside the FPGA would remove the independent check |
@@ -49,10 +49,10 @@ dense books can take longer than the six-second demo interval.
 The storage trace in [storage_trace_uart.md](storage_trace_uart.md) is based on
 actual FPGA write controls. It lets the laptop reconstruct a live view from
 reset. The new read ports let VGA inspect the actual RAM at arbitrary
-addresses. The current VGA code shows the latest four quote/event records
-selected by physical SW2/SW3 and a compact current RAM readout for the
-selected event, including its current price-level order count. It does not yet
-draw the Kitty-style charts or seven pages.
-The earlier RAM-readback bitstream was physically verified on 2026-11-02.
-The occupied-set bitmap and enriched journal require a new bitstream; the
-current source has passed RTL simulation but has not yet been tested on board.
+addresses. The board-control renderer now offers switch-selected Market,
+Orders, Hash, Events, Status, Levels, Slots, and Order Entry views. These are
+text inspection pages with decimal order-entry feedback. The complete
+Kitty-style chart and table presentation remains renderer work. Controls are
+covered by simulation; physical switch/button/VGA validation is pending.
+The snapshot bitstream was physically verified on 2026-11-02 before adding
+these controls; its preserved image is listed in the controls guide.

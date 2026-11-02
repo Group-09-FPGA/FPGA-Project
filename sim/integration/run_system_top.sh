@@ -32,6 +32,9 @@ xvlog -d SIMULATION \
     "$PROJECT_ROOT/rtl/network/moldudp64_decoder.v" \
     "$PROJECT_ROOT/rtl/itch/itch_decoder.v" \
     "$PROJECT_ROOT/rtl/display/vga_top.v" \
+    "$PROJECT_ROOT/rtl/ui/board_controls.v" \
+    "$PROJECT_ROOT/rtl/ui/board_ui_text.v" \
+    "$PROJECT_ROOT/rtl/ui/order_source_arbiter.v" \
     "$PROJECT_ROOT/rtl/display/lob_display_journal.v" \
     "$PROJECT_ROOT/rtl/display/lob_level_order_count.v" \
     "$PROJECT_ROOT/rtl/telemetry/uart_telemetry.v" \

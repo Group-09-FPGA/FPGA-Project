@@ -370,7 +370,7 @@ def choose_interactive_order(book, used_refs):
         return event
 
 
-def read_until(port, expected, timeout, counter_target=None):
+def read_until(port, expected, timeout, counter_target=None, event_ref=None):
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
@@ -385,7 +385,11 @@ def read_until(port, expected, timeout, counter_target=None):
             frame[key] is not None and frame[key] >= counter_target[key]
             for key in counter_target
         )
-        if matches(frame, expected) and counters_ok:
+        quote_ok = (frame["valid"] and frame["error"] == 0) if expected is None else matches(frame, expected)
+        trace = frame.get("storage_trace")
+        event_ok = event_ref is None or (trace is not None and
+                    ((int(trace, 16) >> 247) & ((1 << 64) - 1)) == event_ref)
+        if quote_ok and counters_ok and event_ok:
             return frame, True
         if not frame["valid"] or frame["error"]:
             return frame, False
@@ -448,6 +452,8 @@ def main(argv=None):
     parser.add_argument("--count", type=int, default=None, help="orders to send; 0 means continuous (interactive defaults to unlimited)")
     parser.add_argument("--advanced", action="store_true",
                         help="13-event A/F/E/C/X/U/D showcase; ends with an empty book")
+    parser.add_argument("--mixed-input", action="store_true",
+                        help="allow board orders; confirm network counters and valid FPGA state instead of host-only book totals")
     parser.add_argument("--interactive", action="store_true",
                         help="choose each action and its fields from prompts; ignores --interval")
     parser.add_argument("--stage-delay", type=float, default=0.22)
@@ -476,8 +482,9 @@ def main(argv=None):
         if not args.demo:
             uart = (SocketLineReader(args.uart_socket) if args.uart_socket
                     else serial.Serial(args.uart_port, 115200, timeout=0.15))
-            print("Waiting for an empty, valid FPGA book on UART...", flush=True)
-            baseline, ok = read_until(uart, quote({}), 3.0)
+            print("Waiting for a valid FPGA book on UART..." if args.mixed_input else
+                  "Waiting for an empty, valid FPGA book on UART...", flush=True)
+            baseline, ok = read_until(uart, None if args.mixed_input else quote({}), 3.0)
             if not ok or baseline is None or any(baseline[key] is None for key in ("R", "U", "M", "I", "F", "D")):
                 print(f"Board is not at an empty valid book (last frame: {baseline}). Reset FPGA, wait for initialization, then rerun.", file=sys.stderr)
                 print("Live journey requires the newly built trace-enabled bitstream.", file=sys.stderr)
@@ -504,7 +511,7 @@ def main(argv=None):
             else:
                 order = next_advanced_order(index) if args.advanced else next_order(index, book)
             started = time.monotonic()
-            seq = index + 1
+            seq = baseline["M"] + 1 if args.mixed_input and not args.demo else index + 1
             advanced_event = args.advanced or args.interactive
             if advanced_event:
                 packet = create_moldudp64_event(seq, order)
@@ -565,8 +572,8 @@ def main(argv=None):
                 sent = sock.sendto(packet, (args.target_ip, args.port))
                 if sent != len(packet):
                     raise OSError(f"short UDP send: {sent}/{len(packet)} bytes")
-            heading("EXPECTED BOOK")
-            bbo("Expected", expected)
+            heading("HOST ORDER SUBSET" if args.mixed_input else "EXPECTED BOOK")
+            bbo("Host subset" if args.mixed_input else "Expected", expected)
             heading("FPGA PATH")
             if args.demo:
                 stage(5, "Ethernet → RMII", "simulated accepted frame", d)
@@ -578,7 +585,8 @@ def main(argv=None):
                 print(f"    {tint('SIMULATED', '1;33')}  No packet sent; no hardware observation.\n", flush=True)
             else:
                 target = {key: baseline[key] + 1 for key in ("R", "U", "M", "I", "F", "D")}
-                frame, ok = read_until(uart, expected, args.timeout, target)
+                frame, ok = read_until(uart, None if args.mixed_input else expected,
+                                       args.timeout, target, order.ref if args.mixed_input else None)
                 if not ok:
                     heading("RESULT")
                     print(f"    {tint('NOT CONFIRMED', '1;31')}  Last UART: {frame}", flush=True)
@@ -594,10 +602,10 @@ def main(argv=None):
                 stage(9, "LOB accelerator", f"{storage}; event completed #{frame['D']}", d)
                 heading("RESULT")
                 bbo("Board UART", frame)
-                print(f"    {tint('BOARD VERIFIED', '1;32')}  V=1 E=00", flush=True)
+                print(f"    {tint('NETWORK ACCEPTED / FPGA VALID' if args.mixed_input else 'BOARD VERIFIED', '1;32')}  V=1 E=00", flush=True)
                 field("Board outputs", "LD3=valid, LD4/5=bid/ask; seven-segment SW=00 bid, SW=01 ask")
                 field("Other readers", "CPU MMIO and VGA read BBO")
-                if args.uart_socket:
+                if args.uart_socket and not args.mixed_input:
                     try:
                         publish_confirmed_event(args.uart_socket, order, seq, frame)
                     except OSError as exc:

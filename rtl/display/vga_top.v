@@ -33,7 +33,17 @@ module vga_top (
 
     // Board-owned quote and event rings. SW2/SW3 select one of the latest
     // four entries while the full rings remain available for paged VGA views.
-    input  wire [1:0]  history_select,
+    input  wire [7:0]  history_select,
+    input wire [2:0] ui_page, ui_action, ui_hash_way,
+    input wire [1:0] ui_field,
+    input wire ui_side, ui_edit, ui_browse, ui_enabled, ui_selected_valid, ui_scan_busy, ui_stash,
+    input wire [3:0] ui_digit,
+    input wire [4:0] ui_status,
+    input wire [31:0] ui_price, ui_qty, ui_price_base, ui_price_tick,
+    input wire [63:0] ui_id, ui_new_id, ui_selected_id,
+    input wire [9:0] ui_hash_set,
+    input wire [10:0] ui_slot, ui_free_offset,
+    input wire [13:0] ui_level,
     input  wire [7:0]  quote_history_count,
     input  wire [8:0]  event_history_count,
     input  wire [6:0]  quote_history_next,
@@ -101,7 +111,7 @@ module vga_top (
     wire v_sync_active = (v_cnt >= V_ACTIVE + V_FP) && (v_cnt < V_ACTIVE + V_FP + V_SYNC);
     wire video_on      = (h_cnt < H_ACTIVE) && (v_cnt < V_ACTIVE);
 
-    reg [1:0] history_select_meta, history_select_vga;
+    reg [7:0] history_select_meta, history_select_vga;
     always @(posedge clk_vga or negedge rst_n) begin
         if (!rst_n) begin
             history_select_meta <= 2'd0;
@@ -111,10 +121,10 @@ module vga_top (
             history_select_vga <= history_select_meta;
         end
     end
-    assign quote_history_addr = quote_history_next - 7'd1 - {5'd0, history_select_vga};
-    assign event_history_addr = event_history_next - 8'd1 - {6'd0, history_select_vga};
-    wire quote_history_visible = quote_history_count > {6'd0, history_select_vga};
-    wire event_history_visible = event_history_count > {7'd0, history_select_vga};
+    assign quote_history_addr = quote_history_next - 7'd1 - history_select_vga[6:0];
+    assign event_history_addr = event_history_next - 8'd1 - history_select_vga;
+    wire quote_history_visible = quote_history_count > history_select_vga;
+    wire event_history_visible = event_history_count > {1'b0, history_select_vga};
     wire trace_insert = event_history_visible && event_history_data[108];
     wire trace_remove = event_history_visible && event_history_data[123];
     wire [2:0] selected_way = trace_insert ? event_history_data[97:95] : event_history_data[112:110];
@@ -212,6 +222,27 @@ module vga_top (
     // -------------------------------------------------------------------------
     reg [7:0] char_code;
     reg [3:0] fg_r, fg_g, fg_b;
+    wire [7:0] ui_character;
+    wire ui_highlight;
+    board_ui_text u_ui_text (
+        .clk(clk_vga), .rst_n(rst_n), .col(col_idx), .row(ui_page==0 && row_idx==0 ? 5'd28 : row_idx),
+        .page(ui_page), .action(ui_action), .field(ui_field), .side(ui_side),
+        .edit_mode(ui_edit), .browse_mode(ui_browse), .enabled(ui_enabled),
+        .selected_valid(ui_selected_valid), .scan_busy(ui_scan_busy), .stash(ui_stash),
+        .digit(ui_digit), .status(ui_status), .price(ui_price), .quantity(ui_qty),
+        .price_base(ui_price_base), .price_tick(ui_price_tick),
+        .order_id(ui_id), .new_id(ui_new_id), .selected_id(ui_selected_id),
+        .hash_set(ui_hash_set), .hash_way(ui_hash_way), .slot_addr(ui_slot),
+        .free_offset(ui_free_offset), .level_addr(ui_level), .history_offset(history_select_vga),
+        .hash_data(display_hash_ways), .stash_data(display_stash_data), .slot_data(display_slot_data),
+        .level_qty(display_price_data), .level_count(display_level_order_count), .free_data(display_free_data),
+        .active_orders(active_orders),
+        .event_data(event_history_data), .event_visible(event_history_visible),
+        .rx_count(cnt_rx_frames), .udp_count(cnt_udp_packets), .mold_count(cnt_mold_msgs),
+        .itch_count(cnt_itch_events), .fifo_count(cnt_fifo_events), .completed(event_count),
+        .book_valid(book_valid), .error_code(error_code),
+        .character(ui_character), .highlight(ui_highlight)
+    );
 
     always @(*) begin
         char_code = 8'h20; // Default Space
@@ -503,6 +534,13 @@ module vga_top (
                 char_code = " ";
             end
         endcase
+        if (ui_page != 0 || row_idx == 0) begin
+            char_code = ui_character;
+            fg_r = ui_highlight ? 4'h6 : 4'hD;
+            fg_g = ui_highlight ? 4'hF : 4'hD;
+            fg_b = ui_highlight ? 4'hB : 4'hD;
+            if (!book_valid && row_idx == 1) begin fg_r=4'hF; fg_g=4'h3; fg_b=4'h3; end
+        end
     end
 
     // -------------------------------------------------------------------------
@@ -551,6 +589,13 @@ module vga_top (
             "$": case(y) 3'd0: font_lookup = 8'h18; 3'd1: font_lookup = 8'h3E; 3'd2: font_lookup = 8'h58; 3'd3: font_lookup = 8'h3C; 3'd4: font_lookup = 8'h0E; 3'd5: font_lookup = 8'h7C; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
             ".": case(y) 3'd5: font_lookup = 8'h18; 3'd6: font_lookup = 8'h18; default: font_lookup = 8'h00; endcase
             "#": case(y) 3'd1: font_lookup = 8'h24; 3'd2: font_lookup = 8'h7E; 3'd3: font_lookup = 8'h24; 3'd4: font_lookup = 8'h7E; 3'd5: font_lookup = 8'h24; default: font_lookup = 8'h00; endcase
+            "W": case(y) 3'd0,3'd1,3'd2,3'd3: font_lookup=8'h63; 3'd4:font_lookup=8'h6B; 3'd5:font_lookup=8'h7F; 3'd6:font_lookup=8'h36; default:font_lookup=0; endcase
+            "Q": case(y) 3'd0:font_lookup=8'h3C; 3'd1,3'd2,3'd3:font_lookup=8'h66; 3'd4:font_lookup=8'h6E; 3'd5:font_lookup=8'h3C; 3'd6:font_lookup=8'h0E; default:font_lookup=0; endcase
+            "J": case(y) 3'd0:font_lookup=8'h1E; 3'd1,3'd2,3'd3:font_lookup=8'h0C; 3'd4,3'd5:font_lookup=8'h6C; 3'd6:font_lookup=8'h38; default:font_lookup=0; endcase
+            "/": case(y) 3'd0:font_lookup=8'h02; 3'd1:font_lookup=8'h06; 3'd2:font_lookup=8'h0C; 3'd3:font_lookup=8'h18; 3'd4:font_lookup=8'h30; 3'd5,3'd6:font_lookup=8'h60; default:font_lookup=0; endcase
+            "^": case(y) 3'd0:font_lookup=8'h18; 3'd1:font_lookup=8'h3C; 3'd2:font_lookup=8'h66; default:font_lookup=0; endcase
+            "=": case(y) 3'd2,3'd4:font_lookup=8'h7E; default:font_lookup=0; endcase
+            "Z": case(y) 3'd0,3'd6:font_lookup=8'h7E; 3'd1:font_lookup=8'h06; 3'd2:font_lookup=8'h0C; 3'd3:font_lookup=8'h18; 3'd4:font_lookup=8'h30; 3'd5:font_lookup=8'h60; default:font_lookup=0; endcase
             default: font_lookup = 8'h00;
         endcase
             end
@@ -582,10 +627,10 @@ module vga_top (
             vga_vs <= ~v_sync_active;
 
             if (video_on) begin
-                if (in_bid_bar) begin
+                if (ui_page == 0 && in_bid_bar) begin
                     // Bid depth bar: Green
                     vga_r <= 4'h0; vga_g <= 4'hE; vga_b <= 4'h2;
-                end else if (in_ask_bar) begin
+                end else if (ui_page == 0 && in_ask_bar) begin
                     // Ask depth bar: Red
                     vga_r <= 4'hE; vga_g <= 4'h1; vga_b <= 4'h1;
                 end else if (pixel_on) begin

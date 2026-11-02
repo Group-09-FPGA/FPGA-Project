@@ -13,6 +13,7 @@
 `include "lob_defines.vh"
 
 module top_system #(
+    parameter UI_DEBOUNCE_CYCLES = 250000,
     parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
     parameter [31:0] DEFAULT_TICK       = 32'd1000,
     parameter [15:0] DEFAULT_LOCATE     = 16'd1,
@@ -29,7 +30,8 @@ module top_system #(
     // Interactive User Switches & Push Buttons
     // sw[0]: SW14 (Pin U11), sw[1]: SW15 (Pin V10), sw[2]: Pin M13, sw[3]: Pin R15
     // -------------------------------------------------------------------------
-    input  wire [ 3:0] sw,
+    input  wire [13:0] sw,
+    input  wire [4:0] btn, // {Center, Up, Down, Left, Right}
 
     // -------------------------------------------------------------------------
     // Diagnostic LEDs (LD0..LD15)
@@ -308,6 +310,12 @@ module top_system #(
     wire         core_evt_valid;
     wire [255:0] core_evt_data;
     wire         core_evt_ready;
+    wire net_core_evt_valid, net_core_evt_ready;
+    wire [255:0] net_core_evt_data;
+    wire board_core_evt_valid, board_core_evt_ready;
+    wire [255:0] board_core_evt_data;
+    wire ui_event_valid, ui_event_ready;
+    wire [255:0] ui_event_data;
     wire         fifo_wr_overflow;
     wire         fifo_rd_underflow;
     wire [ 6:0]  fifo_wr_cnt;
@@ -354,14 +362,28 @@ module top_system #(
 
         .rd_clk       (clk_core),
         .rd_rst_n     (rst_core_n),
-        .rd_ready     (core_evt_ready),
-        .rd_valid     (core_evt_valid),
-        .rd_data      (core_evt_data),
+        .rd_ready     (net_core_evt_ready),
+        .rd_valid     (net_core_evt_valid),
+        .rd_data      (net_core_evt_data),
         .rd_empty     (),
         .rd_underflow (fifo_rd_underflow),
 
         .wr_count     (fifo_wr_cnt),
         .rd_count     (fifo_rd_cnt)
+    );
+    async_event_fifo #(.DATA_WIDTH(256), .ADDR_WIDTH(2)) u_board_event_fifo (
+        .wr_clk(clk_vga), .wr_rst_n(rst_vga_n),
+        .wr_valid(ui_event_valid), .wr_data(ui_event_data), .wr_ready(ui_event_ready),
+        .wr_full(), .wr_overflow(), .wr_count(),
+        .rd_clk(clk_core), .rd_rst_n(rst_core_n),
+        .rd_valid(board_core_evt_valid), .rd_data(board_core_evt_data),
+        .rd_ready(board_core_evt_ready), .rd_empty(), .rd_underflow(), .rd_count()
+    );
+    order_source_arbiter u_order_sources (
+        .clk(clk_core), .rst_n(rst_core_n),
+        .net_valid(net_core_evt_valid), .net_data(net_core_evt_data), .net_ready(net_core_evt_ready),
+        .board_valid(board_core_evt_valid), .board_data(board_core_evt_data), .board_ready(board_core_evt_ready),
+        .valid(core_evt_valid), .data(core_evt_data), .ready(core_evt_ready)
     );
 
     // =========================================================================
@@ -392,6 +414,7 @@ module top_system #(
     wire [11:0] display_level_order_count;
     wire level_count_init_done;
     wire [174:0] vga_quote_history_data;
+    wire [174:0] vga_core_snapshot;
     wire [393:0] vga_event_history_data;
     reg [45:0] journal_event_meta;
     always @(posedge clk_core or negedge rst_core_n) begin
@@ -411,6 +434,31 @@ module top_system #(
     wire [13:0] readback_addr;
     wire [7:0] readback_kind;
     reg [9:0] readback_scan_set;
+    wire [2:0] ui_page, ui_action, ui_hash_way;
+    wire [1:0] ui_field;
+    wire ui_side, ui_edit, ui_browse, ui_enabled, ui_selected_valid, ui_scan_busy, ui_stash;
+    wire [3:0] ui_digit;
+    wire [4:0] ui_status;
+    wire [31:0] ui_price, ui_qty;
+    wire [63:0] ui_id, ui_new_id, ui_selected_id;
+    wire [7:0] ui_history;
+    wire [9:0] ui_hash_set;
+    wire [10:0] ui_slot, ui_free_offset;
+    wire [13:0] ui_level;
+    wire [10:0] renderer_slot, renderer_free;
+    wire [9:0] renderer_hash;
+    wire [2:0] renderer_stash;
+    wire [13:0] renderer_price;
+    wire ui_memory = ui_scan_busy || ui_page == 1 || ui_page == 2 ||
+                                    ui_page == 5 || ui_page == 6 || ui_page == 7;
+    assign display_slot_addr = ui_memory ? ui_slot : renderer_slot;
+    assign display_hash_set = ui_memory ? ui_hash_set : renderer_hash;
+    assign display_stash_idx = ui_memory ? ui_hash_way : renderer_stash;
+    assign display_price_addr = ui_page == 5 ? ui_level : ui_memory ?
+                               {display_slot_data[45], display_slot_data[44:32]} : renderer_price;
+    wire [11:0] ui_free_count = 12'd2048 - vga_core_snapshot[43:32];
+    assign display_free_addr = ui_page == 6 && ui_free_count != 0 ?
+        (ui_free_offset < ui_free_count ? ui_free_count[10:0]-1'b1-ui_free_offset : 11'd0) : renderer_free;
     assign read_slot_addr = readback_active && readback_kind == "S" ? readback_addr[10:0] : display_slot_addr;
     assign read_hash_set = readback_active && readback_kind == "B" ? readback_scan_set :
                            readback_active && readback_kind == "H" ? readback_addr[9:0] : display_hash_set;
@@ -905,7 +953,6 @@ module top_system #(
         .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
         .dst_data(history_meta_vga), .dst_update()
     );
-    wire [174:0] vga_core_snapshot;
     wire [127:0] vga_net_snapshot;
     wire [95:0] vga_pipe_snapshot;
     wire [7:0] vga_error_snapshot;
@@ -936,6 +983,50 @@ module top_system #(
         .src_busy(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
         .dst_data(vga_net_snapshot), .dst_update()
     );
+    wire [63:0] ui_config;
+    // UART borrows the display RAM port for a few clocks per query. Keep the
+    // last settled display values while that port is borrowed and returns.
+    reg [2:0] render_wait;
+    reg [46:0] render_slot_data;
+    reg [607:0] render_hash_data;
+    reg [75:0] render_stash_data;
+    reg [31:0] render_price_data;
+    reg [11:0] render_level_count;
+    reg [10:0] render_free_data;
+    reg [174:0] render_quote_data;
+    reg [393:0] render_event_data;
+    always @(posedge clk_vga or negedge rst_vga_n) begin
+        if (!rst_vga_n) begin
+            render_wait<=0; render_slot_data<=0; render_hash_data<=0;
+            render_stash_data<=0; render_price_data<=0; render_level_count<=0;
+            render_free_data<=0; render_quote_data<=0; render_event_data<=0;
+        end else if (readback_active) render_wait<=0;
+        else if (render_wait != 3) render_wait<=render_wait+1'b1;
+        else begin
+            render_slot_data<=display_slot_data; render_hash_data<=display_hash_ways;
+            render_stash_data<=display_stash_data; render_price_data<=display_price_data;
+            render_level_count<=display_level_order_count; render_free_data<=display_free_data;
+            render_quote_data<=vga_quote_history_data; render_event_data<=vga_event_history_data;
+        end
+    end
+    config_cdc #(.WIDTH(64), .RESET_VALUE({DEFAULT_PRICE_BASE, DEFAULT_TICK})) u_ui_config_cdc (
+        .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data({mmio_cfg_price_base, mmio_cfg_tick}),
+        .src_busy(), .src_ready(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
+        .dst_data(ui_config), .dst_update()
+    );
+    board_controls #(.DEBOUNCE_CYCLES(UI_DEBOUNCE_CYCLES)) u_board_controls (
+        .clk(clk_vga), .rst_n(rst_vga_n), .switches(sw[13:2]), .buttons(btn),
+        .book_valid(vga_core_snapshot[174]), .price_base(ui_config[63:32]), .price_tick(ui_config[31:0]),
+        .ram_paused(readback_active), .hash_data(display_hash_ways),
+        .stash_data(display_stash_data), .slot_data(display_slot_data),
+        .page(ui_page), .action(ui_action), .field(ui_field), .side(ui_side),
+        .edit_mode(ui_edit), .browse_mode(ui_browse), .enabled(ui_enabled),
+        .digit(ui_digit), .price(ui_price), .quantity(ui_qty), .order_id(ui_id), .new_id(ui_new_id),
+        .history_offset(ui_history), .hash_set(ui_hash_set), .hash_way(ui_hash_way),
+        .stash_selected(ui_stash), .slot_addr(ui_slot), .level_addr(ui_level), .free_offset(ui_free_offset),
+        .selected_valid(ui_selected_valid), .scan_busy(ui_scan_busy), .selected_id(ui_selected_id),
+        .status(ui_status), .event_valid(ui_event_valid), .event_data(ui_event_data), .event_ready(ui_event_ready)
+    );
     vga_top u_vga (
         .clk_vga        (clk_vga),
         .rst_n          (rst_vga_n),
@@ -956,26 +1047,33 @@ module top_system #(
         .cnt_itch_events(vga_pipe_snapshot[63:32]),
         .cnt_fifo_events(vga_pipe_snapshot[31:0]),
         .error_code(vga_error_snapshot),
-        .history_select (sw[3:2]),
+        .history_select (ui_history),
+        .ui_page(ui_page), .ui_action(ui_action), .ui_field(ui_field), .ui_side(ui_side),
+        .ui_edit(ui_edit), .ui_browse(ui_browse), .ui_enabled(ui_enabled), .ui_digit(ui_digit),
+        .ui_price(ui_price), .ui_qty(ui_qty), .ui_id(ui_id), .ui_new_id(ui_new_id),
+        .ui_hash_set(ui_hash_set), .ui_hash_way(ui_hash_way), .ui_stash(ui_stash),
+        .ui_slot(ui_slot), .ui_level(ui_level), .ui_free_offset(ui_free_offset),
+        .ui_selected_valid(ui_selected_valid), .ui_scan_busy(ui_scan_busy), .ui_selected_id(ui_selected_id),
+        .ui_status(ui_status), .ui_price_base(ui_config[63:32]), .ui_price_tick(ui_config[31:0]),
         .quote_history_count(history_meta_vga[31:24]),
         .event_history_count(history_meta_vga[23:15]),
         .quote_history_next(history_meta_vga[14:8]),
         .event_history_next(history_meta_vga[7:0]),
         .quote_history_addr(vga_quote_history_addr),
-        .quote_history_data(vga_quote_history_data),
+        .quote_history_data(render_quote_data),
         .event_history_addr(vga_event_history_addr),
-        .event_history_data(vga_event_history_data),
-        .display_slot_addr(display_slot_addr),
-        .display_slot_data(display_slot_data),
-        .display_hash_set(display_hash_set),
-        .display_hash_ways(display_hash_ways),
-        .display_stash_idx(display_stash_idx),
-        .display_stash_data(display_stash_data),
-        .display_price_addr(display_price_addr),
-        .display_price_data(display_price_data),
-        .display_level_order_count(display_level_order_count),
-        .display_free_addr(display_free_addr),
-        .display_free_data(display_free_data),
+        .event_history_data(render_event_data),
+        .display_slot_addr(renderer_slot),
+        .display_slot_data(render_slot_data),
+        .display_hash_set(renderer_hash),
+        .display_hash_ways(render_hash_data),
+        .display_stash_idx(renderer_stash),
+        .display_stash_data(render_stash_data),
+        .display_price_addr(renderer_price),
+        .display_price_data(render_price_data),
+        .display_level_order_count(render_level_count),
+        .display_free_addr(renderer_free),
+        .display_free_data(render_free_data),
         .vga_hs         (vga_hs),
         .vga_vs         (vga_vs),
         .vga_r          (vga_r),

@@ -21,7 +21,8 @@ module tb_system_top;
     // -------------------------------------------------------------------------
     reg        clk;
     reg        reset;
-    reg  [3:0] sw;
+    reg  [13:0] sw;
+    reg [4:0] btn;
     wire [15:0] led;
     wire [7:0] an;
     wire [6:0] seg;
@@ -52,6 +53,7 @@ module tb_system_top;
     // Device Under Test (DUT)
     // -------------------------------------------------------------------------
     top_system #(
+        .UI_DEBOUNCE_CYCLES(2),
         .DEFAULT_PRICE_BASE(32'd900000), // $90.0000
         .DEFAULT_TICK      (32'd1000),   // $0.1000 per tick
         .DEFAULT_LOCATE    (16'd1)       // Stock Locate 1 (AAPL)
@@ -59,6 +61,7 @@ module tb_system_top;
         .clk         (clk),
         .reset       (reset),
         .sw          (sw),
+        .btn         (btn),
         .led         (led),
         .an          (an),
         .seg         (seg),
@@ -185,7 +188,8 @@ module tb_system_top;
         test_errors = 0;
         clk         = 1'b0;
         reset       = 1'b0; // Hold in reset
-        sw          = 4'h0;
+        sw          = 14'd0;
+        btn         = 5'd0;
         eth_crsdv   = 1'b0;
         eth_rxerr   = 1'b0;
         eth_rxd     = 2'b00;
@@ -494,6 +498,37 @@ module tb_system_top;
             $display("   -> [PASS] Diagnostic Peripherals Verified.");
         end
 
+        // Center generates a local order after two network orders. A held
+        // button must commit once across the VGA/core FIFO and arbiter.
+        sw[4:2] = 3'd7;
+        sw[13] = 1'b1;
+        repeat (30) @(posedge clk);
+        btn[4] = 1;
+        repeat (300) @(posedge clk);
+        btn[4] = 0;
+        repeat (30) @(posedge clk);
+        if (dut.core_event_count !== 3 || dut.lob_active_orders !== 3 ||
+            dut.lob_storage_trace[310:247] !== 64'hB0000000 ||
+            dut.cnt_itch_events !== 2 || !dut.lob_book_valid) begin
+            $display("[FAIL] Center path duplicated/lost the board order");
+            test_errors = test_errors + 1;
+        end else $display("[PASS] Center submitted one board order through the source arbiter");
+        // The next network sequence remains 3 after the local event.
+        pkt[59] = 3;
+        pkt[82] = 8'h11;
+        pkt[120] = 8'h11;
+        send_rmii_packet(pkt_len);
+        timeout=0;
+        while(dut.core_event_count != 5 && timeout<5000) begin
+            @(posedge clk); timeout=timeout+1;
+        end
+        repeat(30) @(posedge clk);
+        if(dut.core_event_count !== 5 || dut.lob_active_orders !== 5 ||
+           dut.cnt_itch_events !== 4 || !dut.lob_book_valid) begin
+            $display("[FAIL] Network feed failed after a board-generated order");
+            test_errors=test_errors+1;
+        end else $display("[PASS] Laptop and board orders share a book without changing network sequencing");
+
         // A frame with a valid Ethernet FCS but bad IPv4 checksum must
         // invalidate the previously published book, even if no later
         // sequence number arrives to expose the lost market packet.
@@ -506,7 +541,7 @@ module tb_system_top;
         end
         repeat (20) @(posedge clk);
         if (timeout == 5000 || dut.lob_book_valid !== 1'b0 ||
-            dut.lob_error_code !== 8'h0A || dut.core_event_count !== 32'd2) begin
+            dut.lob_error_code !== 8'h0A || dut.core_event_count !== 32'd5) begin
             $display("[FAIL] Bad IPv4 checksum did not fail-stop the book");
             test_errors = test_errors + 1;
         end else begin
