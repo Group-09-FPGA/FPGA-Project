@@ -1,6 +1,8 @@
 import sys
 import queue
 import threading
+import socket
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -9,10 +11,44 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from book_inspector import BoardStorageMirror
 from fpga_readback import (ReadbackAudit, SnapshotCollector, decode_hash_cell,
                            decode_slot, event_queries, parse_response, query, WIDTHS)
-from order_book_dashboard import DashboardState, serial_worker
+from order_book_dashboard import DashboardState, serial_worker, socket_listener
 
 
 class ReadbackTest(unittest.TestCase):
+    def test_relay_excludes_snapshot_traffic_for_sleeping_sender(self):
+        class FakePort:
+            def __init__(self):
+                self.lines = queue.Queue()
+            def readline(self):
+                try:
+                    return self.lines.get(timeout=0.01)
+                except queue.Empty:
+                    return b""
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = directory + "/relay.sock"
+            listener = socket_listener(path)
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client.settimeout(3)
+            client.connect(path)
+            port, updates, stop = FakePort(), queue.Queue(), threading.Event()
+            thread = threading.Thread(target=serial_worker,
+                                      args=(port, listener, updates, stop), daemon=True)
+            thread.start()
+            try:
+                # A sender waits between orders without draining its socket.
+                # Thousands of snapshot replies must remain dashboard-only.
+                for _ in range(1000):
+                    port.lines.put(b"@H0000=" + b"0" * 152 + b"\r\n")
+                confirmation = b"[BBO] B:00000000 | A:00000000 | V:1 | E:00\n"
+                port.lines.put(confirmation)
+                self.assertEqual(client.recv(4096), confirmation)
+            finally:
+                stop.set()
+                thread.join(timeout=1)
+                client.close()
+                listener.close()
+
     def test_dashboard_worker_queries_uart(self):
         class FakePort:
             def __init__(self):

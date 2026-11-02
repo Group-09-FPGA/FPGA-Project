@@ -1,5 +1,17 @@
 # Physical board validation record
 
+## 2026-11-02 sender relay backpressure fix
+
+The snapshot dashboard originally forwarded RAM replies as well as BBO lines
+to the sender's local socket. During the 5.5-second pause between orders,
+the sender did not drain that traffic; the dashboard's 50 ms socket write
+timeout could close the sender connection despite healthy UART and Ethernet.
+The relay now forwards BBO telemetry without RAM replies. A regression test
+queues 1,000 RAM replies for a waiting client and checks that only the BBO
+confirmation reaches it. The physical 14-event advanced sequence at 5.5-second
+spacing then completed with all 14 `BOARD VERIFIED V=1 E=00` confirmations.
+The unchanged snapshot bitstream was used. All 22 Python tests passed.
+
 ## 2026-11-02 cold dashboard snapshot on a direct Ethernet link
 
 Programmed `build_snapshot_20261102/top_system.bit` (SHA-256

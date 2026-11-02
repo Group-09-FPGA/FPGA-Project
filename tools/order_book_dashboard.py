@@ -174,7 +174,10 @@ def serial_worker(port, listener, updates, stop, event_listener=None, requests=N
                     if frame and frame.get("D") and frame["D"] > last_scheduled:
                         last_scheduled = frame["D"]
                     updates.put(raw)
-                for client in clients[:]:
+                # The sender consumes BBO confirmations, not RAM readback.
+                # Forwarding snapshot traffic fills its socket while it sleeps
+                # between orders and can disconnect an otherwise healthy link.
+                for client in clients[:] if not reply else []:
                     try:
                         client.sendall(raw)
                     except OSError:
