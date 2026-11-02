@@ -17,8 +17,10 @@ see [HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
 On 2026-11-02, the UART RAM-readback candidate was programmed and exercised
 through a direct USB Ethernet link. All 13 advanced events were verified by
 board UART; the dashboard reported 53 matching RAM reads and zero mismatches.
-The board was left reset with an empty valid book. Details are in the same
-validation record.
+A later snapshot build was also programmed: a dashboard started after two
+orders rebuilt the book and retained charts from FPGA readback, then refreshed
+after subsequent Add and Execute events in about 1.4 seconds. Details are in
+the same validation record.
 
 ## Verify
 
@@ -61,15 +63,25 @@ bitstream in `build_system/`.
 
 The UART RAM-readback candidate was built separately at
 `build_readback_20261102/top_system.bit`. It passed post-route timing
-(setup +0.708 ns, hold +0.019 ns) and bitstream DRC, but has not yet run on
-the physical board. On this 14 GiB laptop, the build used the performance
+(setup +0.708 ns, hold +0.019 ns), bitstream DRC, and the physical 13-event
+test. It is the previous protocol: the current snapshot dashboard requires a
+new bitstream with `B` occupied-set queries and 99-digit `E` journal records.
+On this 14 GiB laptop, the build used the performance
 power profile and a user scope with `MemoryHigh=8G`, `MemoryMax=10G`, and
 `MemorySwapMax=4G` to avoid exhausting system RAM. The build script accepts
 `FPGA_MAX_THREADS=1..4` if a later memory-limited run needs fewer workers.
-Program this candidate explicitly when the board returns:
+Program the previous candidate explicitly if needed:
 
 ```bash
 vivado -mode batch -source vivado/scripts/program_fpga.tcl -tclargs build_readback_20261102/top_system.bit
+```
+
+The current cold-attach dashboard requires `build_snapshot_20261102/top_system.bit`.
+It passed routed timing (setup +0.511 ns, hold +0.014 ns), bitstream DRC,
+and the direct-link board test. Program it with:
+
+```bash
+vivado -mode batch -source vivado/scripts/program_fpga.tcl -tclargs build_snapshot_20261102/top_system.bit
 ```
 
 ## Board bringup when hardware is available

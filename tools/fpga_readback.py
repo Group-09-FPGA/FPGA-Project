@@ -4,9 +4,9 @@ import re
 from book_inspector import decode_storage_trace
 
 
-WIDTHS = {"S": 12, "H": 152, "X": 19, "P": 8, "F": 3,
-          "L": 3, "Q": 44, "E": 87}
-RESPONSE = re.compile(rb"^@([SHXPFLQE])([0-9A-Fa-f]{4})=([0-9A-Fa-f]+)\r?\n?$")
+WIDTHS = {"S": 12, "H": 152, "X": 19, "P": 8, "F": 3, "B": 8,
+          "L": 3, "Q": 44, "E": 99}
+RESPONSE = re.compile(rb"^@([SHXPFLQEB])([0-9A-Fa-f]{4})=([0-9A-Fa-f]+)\r?\n?$")
 
 
 def query(kind, address):
@@ -105,6 +105,8 @@ class ReadbackAudit:
     def expected(kind, address, mirror, frame):
         if kind == "S":
             if hasattr(mirror, "slot_words"):
+                if getattr(mirror, "snapshot_ready", False) and address not in mirror.slot_words:
+                    return None  # An inactive RAM slot can retain old data.
                 return mirror.slot_words.get(address, 0)
             order = next((o for o in mirror.orders.values() if o.slot == address), None)
             if order is None:
@@ -135,9 +137,7 @@ class ReadbackAudit:
         if kind == "F":
             return mirror.free_slots[address] if address < len(mirror.free_slots) else None
         if kind == "E":
-            if address != ((mirror.last_event - 1) & 255):
-                return None
-            return (mirror.last_event << 316) | int(frame["storage_trace"], 16)
+            return None  # The canonical payload is held only in the FPGA journal.
         if kind == "Q":
             if address != ((mirror.last_event - 1) & 127):
                 return None
@@ -164,3 +164,85 @@ def decode_slot(value, base, tick):
 def decode_hash_cell(value):
     return None if not value >> 75 & 1 else {"slot": (value >> 64) & 0x7FF,
                                                "ref": value & ((1 << 64) - 1)}
+
+
+class SnapshotCollector:
+    """Request a complete, versioned view of the FPGA's retained display data.
+
+    Only one query is outstanding. The caller sends the returned pair, then
+    feeds its response back to ``accept``. A changed book sequence restarts
+    the scan; no partial generation is ever published as a snapshot.
+    """
+
+    def __init__(self):
+        self.seq = None
+        self.phase = None
+        self.pending = None
+        self.todo = []
+        self.values = {}
+        self.complete = False
+
+    def start(self, seq, active):
+        self.seq = seq
+        self.active = active
+        self.phase = "bitmap"
+        self.pending = None
+        self.todo = [("B", group) for group in range(32)]
+        self.values = {}
+        self.complete = False
+
+    def next_query(self):
+        if self.pending is None and self.todo:
+            self.pending = self.todo.pop(0)
+            return self.pending
+        return None
+
+    def accept(self, response, request_seq):
+        parsed = parse_response(response)
+        if (parsed is None or request_seq != self.seq or
+                parsed[:2] != self.pending):
+            return False
+        kind, address, value = parsed
+        self.values[(kind, address)] = value
+        self.pending = None
+        if self.todo:
+            return True
+        if self.phase == "bitmap":
+            occupied = [group * 32 + bit
+                        for group in range(32)
+                        for bit in range(32)
+                        if self.values[("B", group)] & (1 << bit)]
+            self.todo = [("H", index) for index in occupied]
+            self.todo += [("X", index) for index in range(8)]
+            self.phase = "hash"
+        elif self.phase == "hash":
+            slots = set()
+            for (cell_kind, _), word in self.values.items():
+                if cell_kind == "H":
+                    cells = ((word >> (way * 76)) & ((1 << 76) - 1)
+                             for way in range(8))
+                elif cell_kind == "X":
+                    cells = (word,)
+                else:
+                    continue
+                for raw in cells:
+                    cell = decode_hash_cell(raw)
+                    if cell:
+                        slots.add(cell["slot"])
+            self.todo = [("S", slot) for slot in sorted(slots)]
+            self.phase = "slots"
+        elif self.phase == "slots":
+            levels = set()
+            for (kind, _), word in self.values.items():
+                if kind == "S" and (word >> 46) & 1:
+                    levels.add((((word >> 45) & 1) << 13) | ((word >> 32) & 0x1FFF))
+            self.todo = [(kind, addr) for addr in sorted(levels) for kind in ("P", "L")]
+            free_count = max(0, 2048 - self.active)
+            self.todo += [("F", addr) for addr in range(max(0, free_count - 8), free_count)]
+            self.todo += [("Q", (seq - 1) & 127) for seq in range(max(1, self.seq - 127), self.seq + 1)]
+            self.todo += [("E", (seq - 1) & 255) for seq in range(max(1, self.seq - 255), self.seq + 1)]
+            self.phase = "journals"
+        else:
+            self.phase = "complete"
+            self.complete = True
+        return True

@@ -392,7 +392,16 @@ module top_system #(
     wire [11:0] display_level_order_count;
     wire level_count_init_done;
     wire [174:0] vga_quote_history_data;
-    wire [347:0] vga_event_history_data;
+    wire [393:0] vga_event_history_data;
+    reg [45:0] journal_event_meta;
+    always @(posedge clk_core or negedge rst_core_n) begin
+        if (!rst_core_n)
+            journal_event_meta <= 46'd0;
+        else if (core_evt_valid && core_evt_ready)
+            journal_event_meta <= {core_evt_data[`EVT_SIDE_BIT],
+                                   core_evt_data[`EVT_SHARES_SLICE],
+                                   core_evt_data[`EVT_PIDX_SLICE]};
+    end
     wire [10:0] read_slot_addr;
     wire [9:0] read_hash_set;
     wire [2:0] read_stash_idx;
@@ -401,8 +410,10 @@ module top_system #(
     wire readback_active;
     wire [13:0] readback_addr;
     wire [7:0] readback_kind;
+    reg [9:0] readback_scan_set;
     assign read_slot_addr = readback_active && readback_kind == "S" ? readback_addr[10:0] : display_slot_addr;
-    assign read_hash_set = readback_active && readback_kind == "H" ? readback_addr[9:0] : display_hash_set;
+    assign read_hash_set = readback_active && readback_kind == "B" ? readback_scan_set :
+                           readback_active && readback_kind == "H" ? readback_addr[9:0] : display_hash_set;
     assign read_stash_idx = readback_active && readback_kind == "X" ? readback_addr[2:0] : display_stash_idx;
     assign read_price_addr = readback_active && (readback_kind == "P" || readback_kind == "L") ? readback_addr : display_price_addr;
     assign read_free_addr = readback_active && readback_kind == "F" ? readback_addr[10:0] : display_free_addr;
@@ -753,6 +764,17 @@ module top_system #(
     reg [630:0] readback_rsp_vga;
     reg [2:0] readback_wait;
     reg readback_busy_vga;
+    reg [4:0] readback_scan_index;
+    reg [31:0] readback_scan_bits;
+    wire [7:0] readback_hash_valid;
+    genvar rb_way;
+    generate
+        for (rb_way = 0; rb_way < 8; rb_way = rb_way + 1) begin : gen_readback_valid
+            assign readback_hash_valid[rb_way] = display_hash_ways[rb_way*76 + 75];
+        end
+    endgenerate
+    wire [31:0] readback_scan_next = readback_scan_bits |
+        ((|readback_hash_valid) ? (32'd1 << readback_scan_index) : 32'd0);
     assign readback_active = readback_busy_vga;
     assign readback_kind = readback_req_vga[21:14];
     assign readback_addr = readback_req_vga[13:0];
@@ -764,17 +786,33 @@ module top_system #(
         readback_kind == "F" ? {{597{1'b0}}, display_free_data} :
         readback_kind == "L" ? {{596{1'b0}}, display_level_order_count} :
         readback_kind == "Q" ? {{433{1'b0}}, vga_quote_history_data} :
-        readback_kind == "E" ? {{260{1'b0}}, vga_event_history_data} : 608'd0;
+        readback_kind == "E" ? {{214{1'b0}}, vga_event_history_data} : 608'd0;
     always @(posedge clk_vga or negedge rst_vga_n) begin
         if (!rst_vga_n) begin
             readback_busy_vga <= 0;
             readback_wait <= 0;
             readback_rsp_vga <= 0;
+            readback_scan_set <= 0;
+            readback_scan_index <= 0;
+            readback_scan_bits <= 0;
         end else if (readback_req_update) begin
             readback_busy_vga <= 1;
             readback_wait <= 0;
+            readback_scan_set <= {readback_req_vga[4:0], 5'b0};
+            readback_scan_index <= 0;
+            readback_scan_bits <= 0;
         end else if (readback_busy_vga) begin
-            if (readback_wait == 3) begin
+            if (readback_kind == "B" && readback_wait == 3) begin
+                readback_scan_bits <= readback_scan_next;
+                if (readback_scan_index == 31) begin
+                    readback_rsp_vga <= {readback_req_vga, {576'd0, readback_scan_next}};
+                    readback_busy_vga <= 0;
+                end else begin
+                    readback_scan_index <= readback_scan_index + 1'b1;
+                    readback_scan_set <= readback_scan_set + 1'b1;
+                    readback_wait <= 0;
+                end
+            end else if (readback_kind != "B" && readback_wait == 3) begin
                 readback_rsp_vga <= {readback_req_vga, readback_selected_data};
                 readback_busy_vga <= 0;
             end else readback_wait <= readback_wait + 1'b1;
@@ -845,7 +883,8 @@ module top_system #(
     lob_display_journal u_display_journal (
         .core_clk(clk_core), .core_rst_n(rst_core_n),
         .event_done(lob_event_done), .completed_count(core_event_count),
-        .storage_trace(lob_storage_trace), .book_valid(lob_book_valid),
+        .storage_trace(lob_storage_trace), .event_meta(journal_event_meta),
+        .book_valid(lob_book_valid),
         .bid_valid(lob_bid_valid), .bid_price(lob_bid_price),
         .bid_qty(lob_bid_qty), .ask_valid(lob_ask_valid),
         .ask_price(lob_ask_price), .ask_qty(lob_ask_qty),

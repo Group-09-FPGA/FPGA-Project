@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from order_journey import next_advanced_order, parse_frame, serial
 from book_inspector import BookMirror, BoardStorageMirror, decode_storage_trace
 from fpga_readback import (ReadbackAudit, decode_hash_cell, decode_slot,
-                           event_queries, parse_response, query)
+                           parse_response, query, SnapshotCollector)
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,31 @@ class DashboardState:
                     self.changes.appendleft((when, event, label, direction, old[key], frame[key]))
         return True
 
+    def load_quotes(self, values, seq):
+        """Rebuild retained quote history entirely from the FPGA quote ring."""
+        points = []
+        for event in range(max(1, seq - 127), seq + 1):
+            word = values.get(("Q", (event - 1) & 127))
+            if word is None or (word & 0xFFFFFFFF) != event:
+                continue
+            points.append(Point(None, event, (word >> 141) & 0xFFFFFFFF,
+                                (word >> 76) & 0xFFFFFFFF))
+        self.points = deque(points, maxlen=128)
+        if self.invalid and points:
+            latest = values[("Q", (points[-1].event - 1) & 127)]
+            self.last_good = {**self.frame, "bid": points[-1].bid,
+                              "ask": points[-1].ask,
+                              "bid_qty": (latest >> 109) & 0xFFFFFFFF,
+                              "ask_qty": (latest >> 44) & 0xFFFFFFFF,
+                              "active": (latest >> 32) & 0xFFF}
+        self.changes.clear()
+        for old, new in zip(points, points[1:]):
+            for label, key in (("BID", "bid"), ("ASK", "ask")):
+                before, after = getattr(old, key), getattr(new, key)
+                if before != after:
+                    self.changes.appendleft((None, new.event, label,
+                                             "rose" if after > before else "fell", before, after))
+
 
 def money(raw):
     return "—" if raw is None or raw == 0 else f"${raw / 10000:.4f}"
@@ -106,6 +131,11 @@ def serial_worker(port, listener, updates, stop, event_listener=None, requests=N
                             queued.append(pair)
                 except queue.Empty:
                     pass
+                if pending is None and not queued:
+                    try:
+                        queued.append(requests.get(timeout=0.02))
+                    except queue.Empty:
+                        pass
             if event_listener:
                 try:
                     while True:
@@ -121,6 +151,10 @@ def serial_worker(port, listener, updates, stop, event_listener=None, requests=N
                         clients.append(client)
                 except BlockingIOError:
                     pass
+            if queued and pending is None and readback_failures < 2:
+                kind, addr = queued.popleft()
+                port.write(query(kind, addr))
+                pending = kind, addr, last_scheduled, time.monotonic()
             raw = port.readline()
             if raw:
                 reply = parse_response(raw)
@@ -139,9 +173,6 @@ def serial_worker(port, listener, updates, stop, event_listener=None, requests=N
                         readback_failures = 0
                     if frame and frame.get("D") and frame["D"] > last_scheduled:
                         last_scheduled = frame["D"]
-                        for pair in event_queries(frame):
-                            if pair not in queued:
-                                queued.append(pair)
                     updates.put(raw)
                 for client in clients[:]:
                     try:
@@ -152,10 +183,6 @@ def serial_worker(port, listener, updates, stop, event_listener=None, requests=N
             if pending and time.monotonic() - pending[3] > 2.0:
                 pending = None
                 readback_failures += 1
-            if queued and pending is None and readback_failures < 2:
-                kind, addr = queued.popleft()
-                port.write(query(kind, addr))
-                pending = kind, addr, last_scheduled, time.monotonic()
     except Exception as exc:
         updates.put(exc)
     finally:
@@ -219,7 +246,8 @@ def draw_chart(screen, y, chart_height, title, points, key, axis, x0, width):
         put(screen, y + 1 + row, x0 + 12, "┤", curses.A_DIM)
     selected = points[-min(len(points), max(2, graph_width // 3)):]
     positions = []
-    axis_values = [p.event if axis == "events" else p.when for p in selected]
+    use_time = axis == "time" and all(p.when is not None for p in selected)
+    axis_values = [p.when if use_time else p.event for p in selected]
     axis_min, axis_max = min(axis_values), max(axis_values)
     for i, point in enumerate(selected):
         value = getattr(point, key)
@@ -241,9 +269,9 @@ def draw_chart(screen, y, chart_height, title, points, key, axis, x0, width):
                     put(screen, y + 1 + r, x, "│", attr)
         put(screen, y + 1 + row, x, "●", attr | curses.A_BOLD)
     first, last = selected[0], selected[-1]
-    start = str(first.event) if axis == "events" else time.strftime("%H:%M:%S", time.localtime(first.when))
-    end = str(last.event) if axis == "events" else time.strftime("%H:%M:%S", time.localtime(last.when))
-    axis_label = f"{start} ─────── {end}  {axis}"
+    start = time.strftime("%H:%M:%S", time.localtime(first.when)) if use_time else str(first.event)
+    end = time.strftime("%H:%M:%S", time.localtime(last.when)) if use_time else str(last.event)
+    axis_label = f"{start} ─────── {end}  {'time' if use_time else 'events'}"
     put(screen, y + rows + 1, left, axis_label[:max(0, x0 + width - left - 1)], curses.A_DIM)
 
 
@@ -258,19 +286,22 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
     tick = state.frame["tick"] if state.frame and state.frame.get("tick") else 1000
     put(screen, 0, 2, "FPGA ORDER BOOK  /  " + page.upper(), curses.A_BOLD)
     put(screen, 1, 2, ("FPGA STORAGE · " +
-                         (f"RAM readback {len(readback.verified)} verified / {len(readback.mismatches)} mismatches"
-                          if readback and readback.supported else "RAM readback waiting") +
+                         (f"{len(readback.current)} RAM words in latest snapshot"
+                          if readback and readback.current else "reading FPGA snapshot") +
                          " · host prediction checked separately"
                          if board_source else "HOST MIRROR · predicted from confirmed orders; RAM contents are not read over UART"), curses.A_DIM)
-    if readback and readback.mismatches:
+    if state.invalid:
+        put(screen, 2, 2, "FPGA BOOK INVALID · storage shown from last completed snapshot", curses.color_pair(3) | curses.A_BOLD)
+    elif readback and readback.mismatches:
         put(screen, 2, 2, list(readback.mismatches.values())[-1], curses.color_pair(3) | curses.A_BOLD)
     elif mirror.warning:
         put(screen, 2, 2, mirror.warning, curses.color_pair(3) | curses.A_BOLD)
+    elif board_source and not mirror.snapshot_ready:
+        put(screen, 2, 2, "Reading the current FPGA book and retained journals", curses.A_DIM)
+    elif not board_source and not mirror.events:
+        put(screen, 2, 2, "Waiting for sender events; run order_journey.py with --uart-socket", curses.A_DIM)
     elif mirror.last_match is True:
         put(screen, 2, 2, "Mirror BBO and active count match the latest FPGA confirmation", curses.color_pair(2))
-    elif not mirror.events:
-        put(screen, 2, 2, ("Waiting for FPGA storage trace; reset board and send an order"
-                          if board_source else "Waiting for sender events; run order_journey.py with --uart-socket"), curses.A_DIM)
     content_bottom = height - 3
     if page == "orders":
         put(screen, 4, 2, f"ACTIVE ORDERS  {len(mirror.orders)} / 2048", curses.A_BOLD)
@@ -291,7 +322,7 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
             hash_key = ("H", order.set_index) if order.way is not None else ("X", order.stash_index)
             ram_mark = "✓" if stored and cell and ("S", order.slot) in readback.verified and hash_key in readback.verified else "!" if stored or cell else "…"
             put(screen, row, 2, f"{order.slot:4}   {ref:<12} {'BUY' if side == 'B' else 'SELL':<8} {shares:>8}   {money(price):<11} {pidx:>5}  {order.set_index:>4}      {location:<9} {ram_mark}")
-        put(screen, height - 3, 2, "↑/↓ scroll · Slot/way from FPGA writes, checked by RAM readback" if board_source else
+        put(screen, height - 3, 2, "↑/↓ scroll · Slot and hash way read from FPGA RAM" if board_source else
             "↑/↓ scroll · Slot/way is a host prediction", curses.A_DIM)
     elif page == "hash":
         put(screen, 4, 2, "HASH TABLE · 1024 SETS × 8 WAYS + 8 STASH ENTRIES", curses.A_BOLD)
@@ -323,8 +354,8 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
                 order = mirror.orders.get(ref) if ref is not None else None
                 detail = f"ID {ref} → slot {order.slot}" if order else "empty"
             put(screen, 8 + way, right, f"way {way}  {detail}")
-        put(screen, 17, right, "Source: FPGA hash RAM" if raw_set is not None else "Source: FPGA write trace; RAM query pending", curses.A_DIM)
-        put(screen, 18, right, f"Free slots {len(mirror.free_slots)}   Active {len(mirror.orders)}")
+        put(screen, 17, right, "Source: FPGA hash RAM" if raw_set is not None else "Source: FPGA occupancy bitmap", curses.A_DIM)
+        put(screen, 18, right, f"Free slots {mirror.free_count if board_source else len(mirror.free_slots)}   Active {len(mirror.orders)}")
         put(screen, 20, right, "COLLISION STASH", curses.A_BOLD)
         for index, ref in enumerate(mirror.stash):
             if 21 + index >= content_bottom:
@@ -342,14 +373,15 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
         for row, event in enumerate(events[offset:offset + max(0, content_bottom - 6)], 6):
             raw_event = readback.current_value("E", (event["seq"] - 1) & 255) if readback else None
             event_key = ("E", (event["seq"] - 1) & 255)
-            in_ring = raw_event is not None and raw_event >> 316 == event["seq"]
+            in_ring = raw_event is not None and raw_event >> 362 == event["seq"]
             journal_mark = "RAM ✓" if in_ring and event_key in readback.verified else "RAM !" if in_ring else "trace"
             record = decode_storage_trace(f"{raw_event & ((1 << 316) - 1):079X}") if in_ring else None
             kind = {1: "ADD", 2: "EXECUTE", 3: "CANCEL", 4: "DELETE", 5: "REPLACE"}.get(record["op"], "UNKNOWN") if record else event["kind"]
             ref = record["ref"] if record else event["ref"]
             new_ref = record["new_ref"] if record and record["op"] == 5 else event["new_ref"]
-            put(screen, row, 2, f"{event['seq']:4}   {kind:<10} {ref:<13} {event['side']:<9} {event['shares']:>8}   {money(event['price']):<11} {new_ref or '—'}  {journal_mark}")
-        put(screen, height - 3, 2, "↑/↓ scroll · Events appear only after sender confirms the FPGA response", curses.A_DIM)
+            shares = str(event["shares"]) if event["shares"] is not None else "—"
+            put(screen, row, 2, f"{event['seq']:4}   {kind:<10} {ref:<13} {event['side']:<9} {shares:>8}   {money(event['price']):<11} {new_ref or '—'}  {journal_mark}")
+        put(screen, height - 3, 2, "↑/↓ scroll · FPGA journal with canonical shares and RAM writes", curses.A_DIM)
     elif page == "levels":
         put(screen, 4, 2, "PRICE RAM · AGGREGATED QUANTITY BY SIDE AND PRICE INDEX", curses.A_BOLD)
         levels = mirror.price_levels()
@@ -376,7 +408,7 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
                 put(screen, row, start_x, f"{money(price):<12} {(price - base) // tick:>5} {qty:>7} {count:>7}   {bar}")
             if not prices:
                 put(screen, 8, start_x, "No active levels", curses.A_DIM)
-        put(screen, height - 3, 2, "↑/↓ scroll · Quantities checked against FPGA price RAM" if board_source else
+        put(screen, height - 3, 2, "↑/↓ scroll · Quantities and counts read from FPGA price RAM" if board_source else
             "↑/↓ scroll · Price levels summed from host-mirrored orders", curses.A_DIM)
     elif page == "slots":
         put(screen, 4, 2, "SLOT TABLE · 2048 ENTRIES / LIFO FREE STACK", curses.A_BOLD)
@@ -411,18 +443,19 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
             put(screen, 13, right, f"Way / stash  {order.way if order.way is not None else f'stash {order.stash_index}'}")
         else:
             put(screen, 8, right, "Free slot")
-        put(screen, 15, right, "Selected slot: FPGA RAM" if raw_slot is not None else "Selected slot: FPGA write trace", curses.A_DIM)
+        put(screen, 15, right, "Selected slot: FPGA RAM" if raw_slot is not None else "Selected slot: awaiting RAM query", curses.A_DIM)
         put(screen, 17, right, "FREE STACK", curses.A_BOLD)
-        put(screen, 19, right, f"Free {len(mirror.free_slots)}  ·  Active {len(mirror.orders)}")
-        free_addr = len(mirror.free_slots) - 1
+        put(screen, 19, right, f"Free {mirror.free_count if board_source else len(mirror.free_slots)}  ·  Active {len(mirror.orders)}")
+        free_addr = (mirror.free_count if board_source else len(mirror.free_slots)) - 1
         ram_top = readback.current_value("F", free_addr) if readback and free_addr >= 0 else None
-        put(screen, 20, right, f"Next allocation: slot {ram_top if ram_top is not None else mirror.free_slots[-1] if mirror.free_slots else 'none'}")
+        fallback_top = mirror.free_top[-1] if board_source and mirror.free_top else mirror.free_slots[-1] if not board_source and mirror.free_slots else 'none'
+        put(screen, 20, right, f"Next allocation: slot {ram_top if ram_top is not None else fallback_top}")
         put(screen, 22, right, "Top of LIFO stack:", curses.A_DIM)
         stack_rows = max(0, min(8, content_bottom - 24))
-        top_slots = mirror.free_slots[-stack_rows:] if stack_rows else []
+        top_slots = (mirror.free_top if board_source else mirror.free_slots)[-stack_rows:] if stack_rows else []
         for i, slot in enumerate(reversed(top_slots)):
             put(screen, 23 + i, right, f"{i + 1:>2}. slot {slot}")
-        put(screen, height - 3, 2, "Arrows: select slot · N: next occupied slot · FPGA RAM readback checks writes" if board_source else
+        put(screen, height - 3, 2, "Arrows: select slot · N: next occupied slot · FPGA RAM snapshot" if board_source else
             "Arrows: select slot · N: next occupied slot · Host prediction", curses.A_DIM)
     elif page == "status":
         frame = state.frame
@@ -437,9 +470,9 @@ def draw_mirror_page(screen, state, mirror, page, offset, selected_set, selected
         put(screen, 18, 3, f"Active orders: {frame['active']}" if frame else "")
         put(screen, 21, 2, "PROVENANCE", curses.A_BOLD)
         put(screen, 23, 3, "Quotes and counters: directly reported by FPGA UART")
-        put(screen, 24, 3, "Orders, hash ways, slots, levels: FPGA writes plus RAM readback" if board_source else
+        put(screen, 24, 3, "Orders, hash ways, slots, levels: fresh FPGA RAM snapshot" if board_source else
             "Orders, hash ways and slot IDs: host model prediction")
-        put(screen, 25, 3, (f"Host prediction vs FPGA trace: {mirror.prediction_match}"
+        put(screen, 25, 3, (f"Host prediction vs FPGA RAM: {mirror.prediction_match if mirror.prediction_match is not None else 'waiting for full sender replay'}"
                             if board_source else "Aggregate BBO/quantity/count compared with FPGA"))
     put(screen, height - 2, 2, NAV_FOOTER, curses.A_REVERSE)
     screen.refresh()
@@ -463,7 +496,8 @@ def draw(screen, state, mirror, page, axis, history_offset, selected_set, select
         entries = list(reversed(state.points))
         visible = max(1, height - 5)
         for row, point in enumerate(entries[history_offset:history_offset + visible], 2):
-            put(screen, row, 2, f"#{point.event:<15} {time.strftime('%H:%M:%S', time.localtime(point.when)):<15} {money(point.bid):<14} {money(point.ask)}")
+            received = time.strftime('%H:%M:%S', time.localtime(point.when)) if point.when is not None else "—"
+            put(screen, row, 2, f"#{point.event:<15} {received:<15} {money(point.bid):<14} {money(point.ask)}")
         put(screen, height - 2, 2, "[H] Dashboard   [↑/↓] Scroll   [Q] Quit", curses.A_REVERSE)
         put(screen, height - 1, 2, f"Showing {len(entries)} most recent confirmed samples (maximum 128)", curses.A_DIM)
         screen.refresh()
@@ -533,6 +567,7 @@ def run_ui(screen, state, mirror, prediction, updates, stop, demo, relay, reques
     selected_set = 0
     selected_slot = 2047
     readback = None if demo else ReadbackAudit()
+    snapshot = None if demo else SnapshotCollector()
     last_requested_set = None
     last_requested_slot = None
     while True:
@@ -544,16 +579,25 @@ def run_ui(screen, state, mirror, prediction, updates, stop, demo, relay, reques
             if isinstance(item, Exception):
                 raise item
             if isinstance(item, tuple) and item[0] == "readback":
-                readback.ingest(item[1], mirror, state.frame, item[2])
                 parsed = parse_response(item[1])
-                if parsed and parsed[0] == "Q":
-                    value = parsed[2]
-                    event = value & 0xFFFFFFFF
-                    bid = (value >> 141) & 0xFFFFFFFF
-                    ask = (value >> 76) & 0xFFFFFFFF
-                    if state.points and state.points[-1].event == event:
-                        prior = state.points[-1]
-                        state.points[-1] = Point(prior.when, event, bid, ask)
+                if snapshot and snapshot.accept(item[1], item[2]):
+                    if snapshot.complete and state.frame and state.frame["D"] == snapshot.seq:
+                        try:
+                            mirror.load_snapshot(snapshot.values, state.frame,
+                                                 decode_hash_cell, decode_slot)
+                        except ValueError as exc:
+                            mirror.warning = str(exc)
+                        else:
+                            state.load_quotes(snapshot.values, snapshot.seq)
+                            readback.values = snapshot.values.copy()
+                            readback.current = set(snapshot.values)
+                            readback.verified = set(snapshot.values)
+                            readback.supported = True
+                            readback.mismatches.clear()
+                            if prediction is not None and len(prediction.events) == snapshot.seq:
+                                mirror.compare_prediction(prediction)
+                elif parsed and mirror.snapshot_ready and state.frame and item[2] == state.frame["D"]:
+                    readback.ingest(item[1], mirror, state.frame, item[2])
             elif isinstance(item, tuple) and item[0] == "host_event":
                 event = item[1]
                 try:
@@ -561,7 +605,7 @@ def run_ui(screen, state, mirror, prediction, updates, stop, demo, relay, reques
                         mirror.apply(event, event.get("board"))
                     else:
                         prediction.apply(event, event.get("board"))
-                        if mirror.last_event >= event["seq"]:
+                        if mirror.snapshot_ready and len(prediction.events) == mirror.last_event:
                             mirror.compare_prediction(prediction)
                 except (KeyError, ValueError) as exc:
                     mirror.warning = f"Host mirror stopped: {exc}"
@@ -579,25 +623,31 @@ def run_ui(screen, state, mirror, prediction, updates, stop, demo, relay, reques
                     last_requested_slot = None
                     if prediction is not None:
                         prediction.reset()
-                if prediction is not None and state.frame and state.frame["storage_trace"]:
-                    try:
-                        if mirror.apply_trace(state.frame["storage_trace"], state.frame,
-                                              state.frame["base"] if state.frame["base"] is not None else 900000,
-                                              state.frame["tick"] or 1000):
-                            if readback:
-                                readback.invalidate(event_queries(state.frame))
-                            if len(prediction.events) >= mirror.last_event:
-                                mirror.compare_prediction(prediction)
-                    except ValueError as exc:
-                        mirror.warning = f"FPGA storage trace invalid: {exc}"
-        if requests and page == "hash" and selected_set != last_requested_set:
+                if snapshot and state.frame and state.frame["D"] is not None and snapshot.seq != state.frame["D"]:
+                    if state.frame["active"] is None:
+                        mirror.warning = "FPGA telemetry is missing the active-order count"
+                    else:
+                        snapshot.start(state.frame["D"], state.frame["active"])
+                        mirror.snapshot_ready = False
+                        mirror.last_match = None
+                        mirror.warning = None
+                        readback.current.clear()
+                        readback.verified.clear()
+                        last_requested_set = None
+                        last_requested_slot = None
+        if snapshot and requests and not snapshot.complete:
+            next_pair = snapshot.next_query()
+            if next_pair:
+                requests.put(next_pair)
+        if requests and snapshot.complete and page == "hash" and selected_set != last_requested_set:
             requests.put(("H", selected_set))
             last_requested_set = selected_set
-        if requests and page == "slots" and selected_slot != last_requested_slot:
+        if requests and snapshot.complete and page == "slots" and selected_slot != last_requested_slot:
             requests.put(("S", selected_slot))
             last_requested_slot = selected_slot
         draw(screen, state, mirror, page, axis, history_offset, selected_set,
              selected_slot, demo, relay, readback)
+        screen.timeout(5 if snapshot and snapshot.seq is not None and not snapshot.complete else 100)
         key = screen.getch()
         if key == curses.KEY_MOUSE:
             try:

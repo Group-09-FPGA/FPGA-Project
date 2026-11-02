@@ -22,11 +22,10 @@ The trace is 316 bits, most significant field first:
 | price write 0 valid, address, quantity | 1, 14, 32 | First aggregate level write |
 | price write 1 valid, address, quantity | 1, 14, 32 | Second aggregate level write, used by replacements that change price |
 
-The dashboard reconstructs the address map from FPGA write traces, requests
-the touched RAM addresses, and displays readback values when verified. It
-independently runs the host prediction and compares active-order locations and
-level totals. A RAM/trace mismatch appears prominently on the storage pages.
-The quote graph uses the FPGA quote-ring sample after its readback arrives.
+The dashboard uses this trace for the latest event and the FPGA event journal.
+After any completed event, including a cold attach, it rebuilds its displayed
+book from current FPGA RAM and the retained journals. An independent host
+prediction is compared only when the sender has been observed since event 1.
 
 ## Read-only UART query protocol
 
@@ -44,22 +43,21 @@ time. Automatic BBO and readback lines do not interleave.
 | `L` | 0–16383 | 12-bit number of orders at price, 3 hex digits |
 | `F` | 0–2047 | 11-bit free-stack entry, 3 hex digits |
 | `Q` | 0–127 | 175-bit quote journal record, 44 hex digits |
-| `E` | 0–255 | 32-bit event number plus 316-bit write trace, 87 hex digits |
+| `E` | 0–255 | 32-bit event number, 46-bit canonical event metadata, 316-bit write trace, 99 hex digits |
+| `B` | 0–31 | One 32-bit bitmap of occupied hash sets, 8 hex digits; bit 0 is the first set in that group |
 
-Start with a reset board and keep the dashboard connected so it knows which
-addresses to query. A readback is a current RAM observation. If another order
-changes that address while a query is in flight, the dashboard compares only
-the reply associated with the latest completed event.
+Canonical metadata is `{side[0], requested_shares[31:0], price_index[12:0]}`.
+For execute and cancel, `requested_shares` is the actual incoming amount;
+for delete it is zero. The FPGA retains up to 128 quotes and 256 events. The
+dashboard first reads all 32 `B` groups, then only occupied hash sets and
+their referenced slots. It also reads the stash, active level RAM, top eight
+free-stack entries, and all retained journal records. A completed scan is
+shown only while its event count still matches the latest UART BBO.
 
-Start with an empty board and keep the dashboard connected for the whole
-session. The UART formatter currently retains only its latest pending update;
-events arriving faster than a trace line can be transmitted may coalesce. The
-dashboard detects a gap in the board event count and stops applying further
-storage records until reset. This demo's one-order-per-packet, 5.5-second
-pacing leaves ample time for a 320-byte UART line at 115200 baud. VGA now has
-read-only ports into the actual slot, hash, price, and free-list RAMs plus
-board-owned quote and event rings. The remaining work is the full page
-renderer, navigation, and coherent frame-level
-presentation. A timing-checked candidate bitstream is available in
-`build_readback_20261102/top_system.bit`; it has not been tested on the
-physical board.
+Historical laptop receipt times are not in the FPGA, so the time-axis toggle
+uses event numbers for pre-attach samples. A dense book can take longer than
+the demo's six-second order interval to scan over 115200-baud UART; a new
+completion aborts the prior scan and starts again. The VGA page renderer and
+board navigation are separate unfinished work. The new bitmap and metadata
+require the snapshot bitstream; the earlier RAM-readback bitstream does not
+understand `B` and uses the older `E` width.

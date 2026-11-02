@@ -1,7 +1,8 @@
 // Laptop -> FPGA read-only memory query: ?S0001\n
 // FPGA -> laptop response: @S0001=<fixed-width hexadecimal>\r\n
 // S slot, H hash set (all eight ways), X stash, P price quantity,
-// F free stack, L level order count, Q quote ring, E event ring.
+// F free stack, L level order count, Q quote ring, E event ring,
+// B 32-bit bitmap of occupied hash sets (address is group of 32 sets).
 `timescale 1ns/1ps
 module uart_readback #(
     parameter CLK_FREQ = 50_000_000,
@@ -80,7 +81,7 @@ module uart_readback #(
         input [7:0] k;
         begin
             valid_kind = k == "S" || k == "H" || k == "X" || k == "P" ||
-                         k == "F" || k == "L" || k == "Q" || k == "E";
+                         k == "F" || k == "L" || k == "Q" || k == "E" || k == "B";
         end
     endfunction
     reg [2:0] parse_step;
@@ -147,10 +148,10 @@ module uart_readback #(
                     "S": tx_digits <= 12;
                     "H": tx_digits <= 152;
                     "X": tx_digits <= 19;
-                    "P": tx_digits <= 8;
+                    "P", "B": tx_digits <= 8;
                     "F", "L": tx_digits <= 3;
                     "Q": tx_digits <= 44;
-                    "E": tx_digits <= 87;
+                    "E": tx_digits <= 99;
                     default: tx_digits <= 1;
                 endcase
                 tx_step <= 0;

@@ -338,7 +338,8 @@ module tb_system_top;
         repeat (100) @(posedge clk);
         if (dut.history_quote_count_core !== 8'd2 ||
             dut.history_event_count_core !== 9'd2 ||
-            dut.vga_event_history_data[347:316] !== 32'd2 ||
+            dut.vga_event_history_data[393:362] !== 32'd2 ||
+            dut.vga_event_history_data[361:316] !== {1'b1, 32'd300, 13'd605} ||
             dut.display_slot_data[46] !== 1'b1 ||
             dut.display_slot_data[31:0] !== 32'd300 ||
             dut.display_price_data !== 32'd300 ||
@@ -368,6 +369,24 @@ module tb_system_top;
             test_errors = test_errors + 1;
         end else begin
             $display("[PASS] UART query bridge returned actual slot RAM");
+        end
+        repeat (4) @(posedge clk);
+        force dut.readback_req_kind = "B";
+        force dut.readback_req_addr = 14'd0;
+        force dut.readback_req_toggle = 1'b0;
+        timeout = 0;
+        while (!dut.readback_rsp_update && timeout < 600) begin
+            @(posedge clk);
+            timeout = timeout + 1;
+        end
+        if (timeout == 600 || dut.readback_rsp_core[629:622] !== "B" ||
+            dut.readback_rsp_core[621:608] !== 14'd0 ||
+            dut.readback_rsp_core[31:0] !== 32'h00000220) begin
+            $display("[FAIL] UART occupied-hash bitmap: timeout=%0d kind=%h addr=%h bits=%h", timeout,
+                     dut.readback_rsp_core[629:622], dut.readback_rsp_core[621:608], dut.readback_rsp_core[31:0]);
+            test_errors = test_errors + 1;
+        end else begin
+            $display("[PASS] UART occupied-hash bitmap matches actual hash RAM");
         end
         release dut.readback_req_kind;
         release dut.readback_req_addr;

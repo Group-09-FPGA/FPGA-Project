@@ -41,7 +41,7 @@ module vga_top (
     output wire [6:0]  quote_history_addr,
     input  wire [174:0] quote_history_data,
     output wire [7:0]  event_history_addr,
-    input  wire [347:0] event_history_data,
+    input  wire [393:0] event_history_data,
     output wire [10:0] display_slot_addr,
     input  wire [46:0]  display_slot_data,
     output wire [9:0]  display_hash_set,
@@ -462,7 +462,7 @@ module vga_top (
                         6'd21: char_code = ":";
                         default: begin
                             if (col_idx >= 6'd9 && col_idx <= 6'd12)
-                                char_code = nibble_to_hex(event_history_data[331 - ((col_idx - 6'd9) * 4) -: 4]);
+                                char_code = nibble_to_hex(event_history_data[377 - ((col_idx - 6'd9) * 4) -: 4]);
                             else if (col_idx == 6'd17)
                                 char_code = nibble_to_hex(event_history_data[314:311]);
                             else if (col_idx >= 6'd22 && col_idx <= 6'd29)

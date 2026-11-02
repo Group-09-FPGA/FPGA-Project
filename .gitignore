@@ -3,6 +3,7 @@ build/
 build_system/
 build_dev/
 build_system_candidate/
+build_snapshot_*/
 sim/build/
 sim/build_*/
 sim/build_system_top/

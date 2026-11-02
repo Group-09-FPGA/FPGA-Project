@@ -8,6 +8,7 @@ module lob_display_journal (
     input  wire         event_done,
     input  wire [31:0]  completed_count,
     input  wire [315:0] storage_trace,
+    input  wire [45:0]  event_meta,
     input  wire         book_valid,
     input  wire         bid_valid,
     input  wire [31:0]  bid_price,
@@ -20,7 +21,7 @@ module lob_display_journal (
     input  wire [6:0]   quote_read_addr,
     output reg  [174:0] quote_read_data,
     input  wire [7:0]   event_read_addr,
-    output reg  [347:0] event_read_data,
+    output reg  [393:0] event_read_data,
     output reg  [7:0]   quote_count,
     output reg  [8:0]   event_count,
     output reg  [6:0]   quote_next,
@@ -28,16 +29,17 @@ module lob_display_journal (
 );
     // Same 175-bit layout as the existing VGA BBO snapshot, event number last.
     (* ram_style = "block" *) reg [174:0] quote_mem [0:127];
-    // 32-bit event number + 316-bit committed storage trace.
-    (* ram_style = "block" *) reg [347:0] event_mem [0:255];
+    // Sequence + canonical side/shares/price index + committed RAM writes.
+    (* ram_style = "block" *) reg [393:0] event_mem [0:255];
 
     // Core completion precedes the final BBO settling. The trace becomes
     // stable on the next edge; quote values are sampled eight edges later.
     reg [7:0] done_pipe;
     reg [31:0] seq_pipe [0:7];
+    reg [45:0] meta_pipe [0:1];
     always @(posedge core_clk) begin
         if (core_rst_n && done_pipe[1])
-            event_mem[event_next] <= {seq_pipe[1], storage_trace};
+            event_mem[event_next] <= {seq_pipe[1], meta_pipe[1], storage_trace};
         if (core_rst_n && done_pipe[7])
             quote_mem[quote_next] <= {book_valid, bid_valid,
                 bid_price, bid_qty, ask_valid, ask_price, ask_qty,
@@ -47,6 +49,8 @@ module lob_display_journal (
     always @(posedge core_clk or negedge core_rst_n) begin
         if (!core_rst_n) begin
             done_pipe <= 8'd0;
+            meta_pipe[0] <= 46'd0;
+            meta_pipe[1] <= 46'd0;
             for (i = 0; i < 8; i = i + 1)
                 seq_pipe[i] <= 32'd0;
             quote_count <= 8'd0;
@@ -55,6 +59,8 @@ module lob_display_journal (
             event_next <= 8'd0;
         end else begin
             done_pipe <= {done_pipe[6:0], event_done};
+            meta_pipe[0] <= event_meta;
+            meta_pipe[1] <= meta_pipe[0];
             seq_pipe[0] <= completed_count + 32'd1;
             for (i = 1; i < 8; i = i + 1)
                 seq_pipe[i] <= seq_pipe[i-1];

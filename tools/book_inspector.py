@@ -154,6 +154,78 @@ class BoardStorageMirror(BookMirror):
         self.slot_words = {}
         self.last_event = 0
         self.prediction_match = None
+        self.free_count = 2048
+        self.free_top = []
+        self.snapshot_ready = False
+
+    def load_snapshot(self, values, frame, decode_hash_cell, decode_slot):
+        """Replace every market field with RAM/journal readback from one sequence."""
+        self.reset()
+        base, tick = frame.get("base"), frame.get("tick")
+        if base is None or not tick:
+            raise ValueError("FPGA snapshot is missing BASE or TICK")
+        self.last_event = frame["D"]
+        self.free_count = 2048 - frame["active"]
+        self.free_top = [values[("F", addr)] for addr in sorted(
+            addr for kind, addr in values if kind == "F")]
+        for (kind, addr), word in values.items():
+            if kind == "H":
+                cells = [(way, decode_hash_cell((word >> (way * 76)) & ((1 << 76) - 1)))
+                         for way in range(8)]
+                self.ways[addr] = [cell["ref"] if cell else None for _, cell in cells]
+                locations = [(addr, way, None, cell) for way, cell in cells]
+            elif kind == "X":
+                cell = decode_hash_cell(word)
+                self.stash[addr] = cell["ref"] if cell else None
+                locations = [(hash_set(cell["ref"]), None, addr, cell)] if cell else []
+            else:
+                continue
+            for set_index, way, stash_index, cell in locations:
+                if not cell:
+                    continue
+                slot = cell["slot"]
+                slot_word = values.get(("S", slot))
+                decoded = decode_slot(slot_word, base, tick) if slot_word is not None else None
+                if decoded is None:
+                    self.warning = f"FPGA hash entry {cell['ref']} points to an unreadable slot {slot}"
+                    continue
+                self.slot_words[slot] = slot_word
+                self.orders[cell["ref"]] = StoredOrder(
+                    cell["ref"], decoded["side"], decoded["shares"], decoded["price"],
+                    slot, set_index, way, stash_index)
+        counts = {}
+        for (kind, addr), qty in values.items():
+            if kind != "P" or not qty:
+                continue
+            key = ("S" if addr & 8192 else "B", base + (addr & 8191) * tick)
+            self.ram_levels[key] = qty
+            counts[key] = values.get(("L", addr))
+        first = max(1, frame["D"] - 255)
+        for seq in range(first, frame["D"] + 1):
+            word = values.get(("E", (seq - 1) & 255))
+            if word is None or word >> 362 != seq:
+                continue
+            trace = decode_storage_trace(f"{word & ((1 << 316) - 1):079X}")
+            if trace is None:
+                continue
+            meta = (word >> 316) & ((1 << 46) - 1)
+            requested_shares = (meta >> 13) & 0xFFFFFFFF
+            slot_word = trace["slot_data"]
+            side = "S" if (slot_word >> 45) & 1 else "B"
+            pidx = (meta & 8191) if trace["op"] in (1, 5) else ((slot_word >> 32) & 8191)
+            price = base + pidx * tick if trace["slot_valid"] else None
+            self.events.append({"seq": seq,
+                                "kind": {1: "ADD", 2: "EXECUTE", 3: "CANCEL",
+                                         4: "DELETE", 5: "REPLACE"}.get(trace["op"], "UNKNOWN"),
+                                "ref": trace["ref"], "new_ref": trace["new_ref"] if trace["op"] == 5 else 0,
+                                "side": side if trace["slot_valid"] else ("S" if meta >> 45 else "B"),
+                                "shares": requested_shares,
+                                "price": price})
+        self.last_match = self.quote() == {key: frame[key] for key in
+                                          ("bid", "ask", "bid_qty", "ask_qty", "active")}
+        if not self.last_match:
+            self.warning = "FPGA RAM snapshot disagrees with FPGA BBO/count"
+        self.snapshot_ready = True
 
     def price_levels(self):
         counts = {}

@@ -1,5 +1,28 @@
 # Physical board validation record
 
+## 2026-11-02 cold dashboard snapshot on a direct Ethernet link
+
+Programmed `build_snapshot_20261102/top_system.bit` (SHA-256
+`97a00c9ebac9275658dffb7e9975f41b361ff0b3c640f073c12df69fc2d38d91`)
+onto Digilent target `210292AD33B0A`. The release build routed with
++0.511 ns setup and +0.014 ns hold slack; bitstream generation passed DRC.
+The build ran in a user cgroup capped at 10 GiB RAM and 4 GiB swap.
+
+| Check | Physical observation | Result |
+| --- | --- | --- |
+| Orders before dashboard | Sent two 6-second-spaced Add events via direct USB Ethernet while dashboard was closed; UART confirmed `D=2`, bid 905000 × 100, ask 949000 × 200, active 2 | Pass |
+| Cold attach | A new Kitty dashboard read 60 FPGA words and rebuilt both chart points, both orders with slots 2047/2046, all event records, both price levels, hash occupancy, and free-stack top | Pass |
+| Live Add refresh | At event 5, the dashboard rebuilt five active orders and their level totals in 1.41 seconds | Pass |
+| Live Execute refresh | Event 6 executed 40 shares from order 1003; the FPGA journal page showed `EXECUTE 1003 B 40 $90.7000`, and the order slot fell from 150 to 110 shares in 1.40 seconds | Pass |
+| Aggregated level | After event 6, the bid level at $90.7000 showed 160 shares in two orders, directly from FPGA price quantity and level-count RAM | Pass |
+
+The dashboard was left open on its Market page with five active orders after
+event 6. This run proves reconstruction without earlier laptop market state
+for the tested six-event session. Historical laptop wall-clock receipt times
+are not in the FPGA; a cold dashboard uses FPGA event numbers. Dense books
+may take longer than the six-second order interval to scan over UART. The
+VGA seven-page layout and switch navigation remain untested on a display.
+
 ## 2026-11-02 UART RAM-readback candidate on a direct Ethernet link
 
 Programmed `build_readback_20261102/top_system.bit` (SHA-256
