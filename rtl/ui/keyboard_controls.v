@@ -51,19 +51,10 @@ module keyboard_controls (
     reg [2:0] validate_wait;
     reg scan_reverse;
     reg [13:0] scanned;
-    reg [5:0] div_count;
-    reg [31:0] div_q,div_tick;
-    reg [32:0] div_rem;
     reg [255:0] pending_event;
-    reg dividing;
-    reg [31:0] format_price_bin,format_qty_bin;
-    reg [39:0] format_price_bcd,format_qty_bcd;
-    reg [5:0] format_count;
     reg [31:0] selected_qty;
     reg [12:0] selected_price_index;
     reg selected_side;
-    reg [39:0] adjusted_price,adjusted_qty;
-    integer bcd_index;
     integer i,j;
     wire [1:0] field_index=focus-3'd2;
     wire numeric_focus=page==7 && focus>=2 && focus<=5;
@@ -77,96 +68,17 @@ module keyboard_controls (
         selected_cell[63:0]==selected_id && selected_cell[74:64]==slot_addr &&
         slot_data[46] && slot_data[31:0]==selected_qty &&
         slot_data[44:32]==selected_price_index && slot_data[45]==selected_side;
-    wire [32:0] shifted_rem={div_rem[31:0],div_q[31]};
-    wire div_take=shifted_rem>={1'b0,div_tick};
-    wire [32:0] next_rem=div_take ? shifted_rem-{1'b0,div_tick} : shifted_rem;
-    wire [31:0] next_q={div_q[30:0],div_take};
     assign ram_hold=scan_busy || (validate_wait>=2 && needs_existing);
 
-    function [7:0] chr;
-        input [127:0] value;
-        input integer position;
-        begin chr=value[127-position*8-:8];end
-    endfunction
-    function [3:0] hex_value;
-        input [7:0] value;
-        begin
-            if(value>="0" && value<="9") hex_value=value-"0";
-            else if(value>="A" && value<="F") hex_value=value-"A"+10;
-            else hex_value=0;
-        end
-    endfunction
-    function syntax_valid;
-        input [127:0] value;
-        input [4:0] length;
-        input [1:0] kind;
-        integer n,dots,fraction;
-        reg good,seen_dot;
-        reg [7:0] c;
-        begin
-            good=length!=0;dots=0;fraction=0;seen_dot=0;
-            for(n=0;n<16;n=n+1) if(n<length) begin
-                c=chr(value,n);
-                if(kind==0 && c==".") begin
-                    dots=dots+1;seen_dot=1;
-                    if(n==0) good=0;
-                end else if(kind>=2 && c>="A" && c<="F") begin end
-                else if(c>="0" && c<="9") begin
-                    if(seen_dot) fraction=fraction+1;
-                end else good=0;
-            end
-            if(kind==0 && (dots!=1 || fraction!=4 || length>11)) good=0;
-            if(kind==1 && length>10) good=0;
-            syntax_valid=good;
-        end
-    endfunction
-    reg [63:0] parsed_value[0:3];
-    reg [127:0] parsed_text[0:3];
-    reg [4:0] parsed_length[0:3];
-    reg [3:0] parsed_ok;
-    reg [1:0] parse_field;
-    reg [4:0] parse_index,parse_length;
-    reg [127:0] parse_text;
-    reg [63:0] parse_acc;
-    integer parser_k;
-    wire [7:0] parse_char=chr(parse_text,parse_index-1'b1);
-    wire [63:0] parse_next=(parse_index-1'b1>=parse_length || parse_char==".") ?
-        parse_acc : parse_field>=2 ? (parse_acc<<4)+hex_value(parse_char) :
-                                    parse_acc*10+(parse_char-"0");
-    wire [63:0] price64=parsed_value[0],qty64=parsed_value[1];
-    wire [63:0] id64=parsed_value[2],new64=parsed_value[3];
-    wire [3:0] parsed_current;
-    genvar parsed_i;
-    generate for(parsed_i=0;parsed_i<4;parsed_i=parsed_i+1) begin : gen_parsed_current
-        assign parsed_current[parsed_i]=parsed_text[parsed_i]==field_text[parsed_i] &&
-            parsed_length[parsed_i]==field_len[parsed_i];
-    end endgenerate
+    wire [255:0] parsed_values;
+    wire [3:0] parsed_ok,parsed_current;
+    form_parser u_parser (
+        .clk(clk),.reset_n(reset_n),.text(form_text),.lengths(form_lengths),
+        .values(parsed_values),.ok(parsed_ok),.current(parsed_current)
+    );
+    wire [63:0] price64=parsed_values[63:0],qty64=parsed_values[127:64];
+    wire [63:0] id64=parsed_values[191:128],new64=parsed_values[255:192];
     wire all_parsed_current=&parsed_current;
-    always @(posedge clk or negedge reset_n) begin
-        if(!reset_n) begin
-            parse_field<=0;parse_index<=0;parse_length<=0;parse_text<=0;parse_acc<=0;
-            parsed_ok<=0;
-            for(parser_k=0;parser_k<4;parser_k=parser_k+1) begin
-                parsed_value[parser_k]<=0;parsed_text[parser_k]<=0;parsed_length[parser_k]<=0;
-            end
-        end else if(parse_index==0) begin
-            parse_text<=field_text[parse_field];
-            parse_length<=field_len[parse_field];
-            parse_acc<=0;parse_index<=1;
-        end else begin
-            parse_acc<=parse_next;
-            if(parse_index==16) begin
-                parsed_value[parse_field]<=parse_next;
-                parsed_text[parse_field]<=parse_text;
-                parsed_length[parse_field]<=parse_length;
-                parsed_ok[parse_field]<=syntax_valid(parse_text,parse_length,parse_field) &&
-                    (parse_field==0 ? parse_next<=32'hffffffff :
-                     parse_field==1 ? parse_next!=0 && parse_next<=32'hffffffff :
-                     parse_next!=0);
-                parse_field<=parse_field+1'b1;parse_index<=0;
-            end else parse_index<=parse_index+1'b1;
-        end
-    end
     assign price=price64[31:0];assign quantity=qty64[31:0];
     assign order_id=id64;assign new_id=new64;
     assign focused_valid=!numeric_focus ||
@@ -174,20 +86,40 @@ module keyboard_controls (
     assign form_text={field_text[3],field_text[2],field_text[1],field_text[0]};
     assign form_lengths={field_len[3],field_len[2],field_len[1],field_len[0]};
     assign form_cursors={field_cursor[3],field_cursor[2],field_cursor[1],field_cursor[0]};
-    always @* begin
-        adjusted_price=format_price_bcd;
-        adjusted_qty=format_qty_bcd;
-        for(bcd_index=0;bcd_index<10;bcd_index=bcd_index+1) begin
-            if(adjusted_price[bcd_index*4+:4]>=5)
-                adjusted_price[bcd_index*4+:4]=adjusted_price[bcd_index*4+:4]+3;
-            if(adjusted_qty[bcd_index*4+:4]>=5)
-                adjusted_qty[bcd_index*4+:4]=adjusted_qty[bcd_index*4+:4]+3;
-        end
-    end
     function [7:0] hexdigit;
         input [3:0] nibble;
         begin hexdigit=nibble<10 ? "0"+nibble : "A"+nibble-10;end
     endfunction
+
+    // Price index = (price - base) / tick, computed by a 32-cycle divider.
+    reg div_start;
+    reg [31:0] div_numerator,div_denominator;
+    wire div_busy,div_finishing;
+    wire [31:0] div_quotient;
+    wire [32:0] div_remainder;
+    wire dividing=div_busy || div_start;
+    price_divider u_divider (
+        .clk(clk),.reset_n(reset_n),.start(div_start),
+        .numerator(div_numerator),.denominator(div_denominator),
+        .busy(div_busy),.finishing(div_finishing),
+        .quotient(div_quotient),.remainder(div_remainder)
+    );
+
+    // Selected order -> decimal text, one bit per step once the RAM data is stable.
+    wire scan_go=scan_state!=0 && !ram_paused && ram_wait==3;
+    wire fmt_load=scan_go && scan_state==2;
+    wire fmt_step=scan_go && scan_state==3;
+    wire fmt_last;
+    wire [39:0] price_digits,qty_digits;
+    bin_to_decimal u_price_decimal (
+        .clk(clk),.reset_n(reset_n),.load(fmt_load),
+        .value(price_base+slot_data[44:32]*price_tick),
+        .step(fmt_step),.last(fmt_last),.digits(price_digits)
+    );
+    bin_to_decimal u_qty_decimal (
+        .clk(clk),.reset_n(reset_n),.load(fmt_load),.value(slot_data[31:0]),
+        .step(fmt_step),.last(),.digits(qty_digits)
+    );
 
     task advance_hash;
         input backwards;
@@ -218,12 +150,10 @@ module keyboard_controls (
             slot_addr<=0;level_addr<=0;free_offset<=0;
             selected_valid<=0;scan_busy<=0;selected_id<=0;status<=0;
             selected_qty<=0;selected_price_index<=0;selected_side<=0;
-            format_price_bin<=0;format_qty_bin<=0;format_price_bcd<=0;
-            format_qty_bcd<=0;format_count<=0;
             event_valid<=0;event_data<=0;local_sequence<=1;
             scan_state<=0;scan_reverse<=0;scanned<=0;ram_wait<=0;
             validate_wait<=0;
-            dividing<=0;div_count<=0;div_q<=0;div_tick<=0;div_rem<=0;pending_event<=0;
+            div_start<=0;div_numerator<=0;div_denominator<=0;pending_event<=0;
         end else begin
             if(event_valid && event_ready) begin
                 event_valid<=0;status<=2;local_sequence<=local_sequence+1'b1;
@@ -240,15 +170,12 @@ module keyboard_controls (
                     field_len[3]<=16;field_cursor[3]<=16;
                 end
             end
-            if(dividing) begin
-                div_q<=next_q;div_rem<=next_rem;div_count<=div_count+1'b1;
-                if(div_count==31) begin
-                    dividing<=0;
-                    if(next_rem!=0 || next_q>8191) status<=5;
-                    else begin
-                        event_data<=pending_event | ({243'd0,next_q[12:0]}<<67);
-                        event_valid<=1;status<=1;
-                    end
+            div_start<=0;
+            if(div_finishing) begin
+                if(div_remainder!=0 || div_quotient>8191) status<=5;
+                else begin
+                    event_data<=pending_event | ({243'd0,div_quotient[12:0]}<<67);
+                    event_valid<=1;status<=1;
                 end
             end
             if(scan_state!=0) begin
@@ -269,26 +196,18 @@ module keyboard_controls (
                     selected_qty<=slot_data[31:0];
                     selected_price_index<=slot_data[44:32];
                     selected_side<=slot_data[45];
-                    format_price_bin<=price_base+slot_data[44:32]*price_tick;
-                    format_qty_bin<=slot_data[31:0];
-                    format_price_bcd<=0;format_qty_bcd<=0;format_count<=0;
                     scan_state<=3;
                 end else begin
-                    format_price_bcd<={adjusted_price[38:0],format_price_bin[31]};
-                    format_qty_bcd<={adjusted_qty[38:0],format_qty_bin[31]};
-                    format_price_bin<={format_price_bin[30:0],1'b0};
-                    format_qty_bin<={format_qty_bin[30:0],1'b0};
-                    format_count<=format_count+1'b1;
-                    if(format_count==31) begin
+                    if(fmt_last) begin
                         scan_state<=0;scan_busy<=0;
                         if(selected_valid) begin
                             // Fixed width shows all stored digits and preserves
                             // exact four-place price formatting.
                             for(j=0;j<10;j=j+1) begin
                                 field_text[0][127-(j+(j>=6))*8-:8] <=
-                                    "0"+(({adjusted_price[38:0],format_price_bin[31]}>>((9-j)*4))&4'hf);
+                                    "0"+((price_digits>>((9-j)*4))&4'hf);
                                 field_text[1][127-j*8-:8] <=
-                                    "0"+(({adjusted_qty[38:0],format_qty_bin[31]}>>((9-j)*4))&4'hf);
+                                    "0"+((qty_digits>>((9-j)*4))&4'hf);
                             end
                             field_text[0][127-6*8-:8]<=".";
                             field_len[0]<=11;field_cursor[0]<=11;
@@ -437,8 +356,8 @@ module keyboard_controls (
                         id64,operation==5 ? new64 : 64'd0,
                         operation==4 ? 32'd0 : qty64[31:0],13'd0,1'b0,2'd0,local_sequence,32'd0};
                     if(needs_price) begin
-                        dividing<=1;div_count<=0;div_rem<=0;
-                        div_q<=price64[31:0]-price_base;div_tick<=price_tick;status<=1;
+                        div_start<=1;div_numerator<=price64[31:0]-price_base;
+                        div_denominator<=price_tick;status<=1;
                     end else begin
                         event_data<={4'd1,operation,8'd0,id64,64'd0,
                             operation==4 ? 32'd0 : qty64[31:0],16'd0,local_sequence,32'd0};
