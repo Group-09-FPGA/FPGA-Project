@@ -1,6 +1,0 @@
-../../../rtl/cpu/lab5_baseline/IF_ID.v
-../../../rtl/cpu/lab5_baseline/execute.v
-../../../rtl/cpu/lab5_baseline/wb.v
-../../../rtl/cpu/lab5_baseline/memory.v
-../../../rtl/cpu/lab5_baseline/pipe.v
-./tb_pipeline.v
