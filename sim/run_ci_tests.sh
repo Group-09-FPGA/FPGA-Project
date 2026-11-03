@@ -10,11 +10,11 @@ BUILD_DIR="${PROJECT_ROOT}/build/ci_sim"
 CORE_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/cpu/core" -maxdepth 1 -name '*.v' ! -name top_fpga.v | tr '\n' ' ')
 LOB_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/lob" -maxdepth 1 -name '*.v' | tr '\n' ' ')
 mkdir -p "${BUILD_DIR}"
-python3 "${PROJECT_ROOT}/software/baremetal/kitty_ui/build.py"
-ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/imem.hex" "${BUILD_DIR}/imem.hex"
-ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/dmem.hex" "${BUILD_DIR}/dmem.hex"
-ln -sf "${PROJECT_ROOT}/software/baremetal/kitty_ui/kitty_ui.hex" "${BUILD_DIR}/kitty_ui.hex"
-ln -sf "${PROJECT_ROOT}/software/baremetal/kitty_ui/kitty_font.hex" "${BUILD_DIR}/kitty_font.hex"
+python3 "${PROJECT_ROOT}/firmware/kitty_ui/build.py"
+ln -sf "${PROJECT_ROOT}/firmware/lob_test/imem.hex" "${BUILD_DIR}/imem.hex"
+ln -sf "${PROJECT_ROOT}/firmware/lob_test/dmem.hex" "${BUILD_DIR}/dmem.hex"
+ln -sf "${PROJECT_ROOT}/firmware/kitty_ui/kitty_ui.hex" "${BUILD_DIR}/kitty_ui.hex"
+ln -sf "${PROJECT_ROOT}/firmware/kitty_ui/kitty_font.hex" "${BUILD_DIR}/kitty_font.hex"
 
 TOTAL_TESTS=0
 PASSED_TESTS=0

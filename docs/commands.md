@@ -9,7 +9,7 @@ and an RV32IM GNU toolchain only if you rebuild firmware.
 ```bash
 ./sim/run_ci_tests.sh                 # all Icarus testbenches (about 2 minutes)
 ./sim/integration/run_system_top.sh   # same full-system test under Vivado XSim
-python3 -m unittest discover -s tests # host tools (dashboard, readback, feed)
+python3 -m unittest discover -s tools/tests # host tools (dashboard, readback, feed)
 ```
 
 To run one testbench, copy its `iverilog ... && vvp` line from
@@ -18,9 +18,9 @@ To run one testbench, copy its `iverilog ... && vvp` line from
 ## Firmware
 
 ```bash
-python3 software/baremetal/lob_test/build_firmware.py   # supervisor CPU -> imem.hex, dmem.hex
-python3 software/baremetal/kitty_ui/build.py            # VGA CPU -> kitty_ui.hex
-python3 tools/build_kitty_font.py                       # font -> kitty_font.hex
+python3 firmware/lob_test/build_firmware.py   # supervisor CPU -> imem.hex, dmem.hex
+python3 firmware/kitty_ui/build.py            # VGA CPU -> kitty_ui.hex
+python3 firmware/kitty_ui/build_font.py                       # font -> kitty_font.hex
 ```
 
 The generated `.hex` files are committed because the FPGA build loads them.
@@ -28,8 +28,8 @@ The generated `.hex` files are committed because the FPGA build loads them.
 ## Bitstream
 
 ```bash
-vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
-FPGA_BUILD_PROFILE=fast vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
+vivado -mode batch -source fpga/build_bitstream.tcl
+FPGA_BUILD_PROFILE=fast vivado -mode batch -source fpga/build_bitstream.tcl
 ```
 
 Optional environment variables: `FPGA_BUILD_DIR` (output folder, default
@@ -43,9 +43,9 @@ rg 'WNS\(ns\)|WHS\(ns\)' $FPGA_BUILD_DIR/post_route_timing.rpt
 ## Program and test on the board
 
 ```bash
-vivado -mode batch -source vivado/scripts/program_fpga.tcl -tclargs path/to/top_system.bit
+vivado -mode batch -source fpga/program_fpga.tcl -tclargs path/to/top_system.bit
 python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 5.5 --count 10
-python3 tools/fpga_control_center.py   # menu with the same tools
+
 ```
 
 The FPGA only receives Ethernet; it never answers ARP. For a direct cable, set

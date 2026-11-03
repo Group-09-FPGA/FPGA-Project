@@ -104,7 +104,7 @@ count real network traffic. Details and the full key list are in
 
 ## 4. The CPU
 
-A 3-stage RV32IM CPU (`rtl/cpu/core`) runs `software/baremetal/lob_test`
+A 3-stage RV32IM CPU (`rtl/cpu/core`) runs `firmware/lob_test`
 firmware. It is only a supervisor: it reads status and counters over the
 memory-mapped bus and mirrors them to LEDs and the seven-segment display. The
 order path never goes through it. The multiplier/divider (`rv32m_unit`) is
@@ -113,7 +113,7 @@ handle data hazards. Register map: [rtl_reference.md](rtl_reference.md#cpu-memor
 
 ## 5. Showing the result
 
-* **VGA.** A second, tiny CPU (`kitty_ui_cpu`) runs `software/baremetal/kitty_ui`.
+* **VGA.** A second, tiny CPU (`kitty_ui_cpu`) runs `firmware/kitty_ui`.
   It reads the real hash, slot, price and history memories (through read-only
   ports on the LOB), draws characters and graph points into video memory, and
   `kitty_video` scans that memory out at 1280×720. Static text and the font

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from book_inspector import BoardStorageMirror
 from fpga_readback import (ReadbackAudit, SnapshotCollector, decode_hash_cell,

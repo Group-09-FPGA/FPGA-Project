@@ -3,9 +3,9 @@
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 FONT = Path.home() / ".local/share/fonts/GeistMono/GeistMonoNerdFontMono-Regular.otf"
-OUTPUT = ROOT / "software/baremetal/kitty_ui/kitty_font.hex"
+OUTPUT = ROOT / "firmware/kitty_ui/kitty_font.hex"
 
 
 def main():

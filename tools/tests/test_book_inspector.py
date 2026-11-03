@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from book_inspector import BookMirror, BoardStorageMirror, TRACE_FIELDS, decode_storage_trace
 from order_journey import hash_set, next_advanced_order
 

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 
-TOOLS = Path(__file__).resolve().parents[1] / "tools"
+TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 import order_book_dashboard as dashboard
 from order_journey import Order, SocketLineReader, parse_frame, publish_confirmed_event

@@ -1,12 +1,12 @@
 # =============================================================================
-# File: build_system_bitstream.tcl
+# File: build_bitstream.tcl
 # Description: Automated, non-project Vivado build script for Full Market Data
 #              Processor on Digilent Nexys A7-100T (XC7A100T-1CSG324C).
 #              Synthesizes, implements, verifies timing closure, and writes bitstream.
 # =============================================================================
 
 set SCRIPT_DIR [file normalize [file dirname [info script]]]
-set REPO_ROOT  [file normalize "$SCRIPT_DIR/../.."]
+set REPO_ROOT  [file normalize "$SCRIPT_DIR/.."]
 set BUILD_PROFILE release
 if {[info exists ::env(FPGA_BUILD_PROFILE)]} {
     set BUILD_PROFILE $::env(FPGA_BUILD_PROFILE)
@@ -68,12 +68,12 @@ puts "Route Directive : $ROUTE_DIRECTIVE"
 puts "=========================================================="
 
 # 1. Prepare Memory Hex Payloads
-if {[catch {exec python3 "$REPO_ROOT/software/baremetal/kitty_ui/build.py" 2>@1} build_result]} {
+if {[catch {exec python3 "$REPO_ROOT/firmware/kitty_ui/build.py" 2>@1} build_result]} {
     puts "ERROR: Presentation firmware build failed: $build_result"
     exit 1
 }
 puts $build_result
-set HEX_DIR [file normalize "$REPO_ROOT/software/baremetal/lob_test"]
+set HEX_DIR [file normalize "$REPO_ROOT/firmware/lob_test"]
 set IMEM_HEX "$HEX_DIR/imem.hex"
 set DMEM_HEX "$HEX_DIR/dmem.hex"
 
@@ -88,8 +88,8 @@ if {![file exists $DMEM_HEX]} {
 
 file copy -force $IMEM_HEX "$BUILD_DIR/imem.hex"
 file copy -force $DMEM_HEX "$BUILD_DIR/dmem.hex"
-file copy -force "$REPO_ROOT/software/baremetal/kitty_ui/kitty_ui.hex" "$BUILD_DIR/kitty_ui.hex"
-file copy -force "$REPO_ROOT/software/baremetal/kitty_ui/kitty_font.hex" "$BUILD_DIR/kitty_font.hex"
+file copy -force "$REPO_ROOT/firmware/kitty_ui/kitty_ui.hex" "$BUILD_DIR/kitty_ui.hex"
+file copy -force "$REPO_ROOT/firmware/kitty_ui/kitty_font.hex" "$BUILD_DIR/kitty_font.hex"
 
 puts "Memory payloads staged in build directory:"
 puts "  imem: $IMEM_HEX -> $BUILD_DIR/imem.hex"
@@ -132,7 +132,7 @@ puts "Reading CPU Verilog core modules..."
 read_verilog [glob "$REPO_ROOT/rtl/cpu/core/*.v"]
 
 puts "Reading physical and timing constraints..."
-read_xdc "$REPO_ROOT/constraints/nexys_a7_system.xdc"
+read_xdc "$REPO_ROOT/fpga/nexys_a7_system.xdc"
 
 # 3. Synthesis
 puts "=== [1/5] RUNNING SYNTH_DESIGN ==="

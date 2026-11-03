@@ -143,7 +143,7 @@ FCS, so the bad-FCS case remains untested on the physical Ethernet link.
 ## Original build identity
 
 - Git commit and working-tree status before programming: `d092cff`, clean
-- Firmware image SHA-256 (`software/baremetal/lob_test/imem.hex`): `9b2d0b0ffb81993e2aced3f5790cc3fc14ee468cb4a723ad2726ca0aaff54a62`
+- Firmware image SHA-256 (`firmware/lob_test/imem.hex`): `9b2d0b0ffb81993e2aced3f5790cc3fc14ee468cb4a723ad2726ca0aaff54a62`
 - Original bitstream SHA-256 (then `build_system/top_system.bit`): `25c6c83d46bdbcc336b2e38e74a2e0d28a10fe0498edf00d65afce75735dde5b`
 - Vivado version and device: 2026.1, `xc7a100tcsg324-1`
 - Routed WNS, WHS, and DRC error count: +0.817 ns, +0.030 ns, 0 errors

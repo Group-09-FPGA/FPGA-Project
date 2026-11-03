@@ -70,7 +70,7 @@ trace* sent over UART) and read-only ports used by the display.
 
 ## Display (`rtl/display`)
 
-* `kitty_ui_cpu` – small RV32 core running `software/baremetal/kitty_ui`
+* `kitty_ui_cpu` – small RV32 core running `firmware/kitty_ui`
   (`main.c`, built by `build.py` into `kitty_ui.hex`).
 * `kitty_video` – pixel clock MMCM (74.25 MHz), double-buffered character and
   plot memories in block RAM, font ROM from `kitty_font.hex`, 1280×720 timing.

@@ -9,9 +9,8 @@ Start here, in this order:
 5. [storage_trace_uart.md](storage_trace_uart.md) – UART status line and RAM readback protocol.
 6. [order_journey_advanced_demo.md](order_journey_advanced_demo.md) – 13-event laptop demo.
 
-Status records: [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) (what was
-verified on a real board), [AUDIT_FOLLOWUP.md](AUDIT_FOLLOWUP.md) (open
-evidence gaps), [DRC_REVIEW.md](DRC_REVIEW.md) (Vivado warning review).
+Status record: [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) (what was
+verified on a real board).
 
 The RTL and the tests are the source of truth. Old reports and slides were
 removed; they remain in Git history.

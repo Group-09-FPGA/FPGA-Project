@@ -6,7 +6,7 @@
 if {$argc > 0} {
     set BIT_FILE [file normalize [lindex $argv 0]]
 } else {
-    set BIT_FILE [file normalize [file join [file dirname [info script]] "../../build_system/top_system.bit"]]
+    set BIT_FILE [file normalize [file join [file dirname [info script]] "../build/keyboard_vga_720p/top_system.bit"]]
 }
 
 if {![file exists $BIT_FILE]} {
