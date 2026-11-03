@@ -1,4 +1,8 @@
-# Board switches and five-button controls
+# Board switches and five-button controls (previous bitstream only)
+
+This guide describes the preserved `build/board_controls_20261102/top_system.bit`.
+The current source removes this UI. See [keyboard_vga_controls.md](keyboard_vga_controls.md)
+for the new candidate.
 
 This build adds switch-selected VGA inspection pages, board order entry, and
 arbitration between local and network orders. The laptop remains the way to

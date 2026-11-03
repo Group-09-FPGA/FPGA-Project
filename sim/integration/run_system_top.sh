@@ -4,11 +4,14 @@ PROJECT_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$PROJECT_ROOT"
 
 BUILD_DIR="$PROJECT_ROOT/sim/build_system_top"
+python3 "$PROJECT_ROOT/software/baremetal/kitty_ui/build.py"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 ln -sf "$PROJECT_ROOT/software/baremetal/lob_test/imem.hex" imem.hex
 ln -sf "$PROJECT_ROOT/software/baremetal/lob_test/dmem.hex" dmem.hex
+ln -sf "$PROJECT_ROOT/software/baremetal/kitty_ui/kitty_ui.hex" kitty_ui.hex
+ln -sf "$PROJECT_ROOT/software/baremetal/kitty_ui/kitty_font.hex" kitty_font.hex
 
 echo ">>> Analyzing RTL and Testbench files with xvlog..."
 xvlog -d SIMULATION \
@@ -31,9 +34,10 @@ xvlog -d SIMULATION \
     "$PROJECT_ROOT/rtl/network/net_parser.v" \
     "$PROJECT_ROOT/rtl/network/moldudp64_decoder.v" \
     "$PROJECT_ROOT/rtl/itch/itch_decoder.v" \
-    "$PROJECT_ROOT/rtl/display/vga_top.v" \
-    "$PROJECT_ROOT/rtl/ui/board_controls.v" \
-    "$PROJECT_ROOT/rtl/ui/board_ui_text.v" \
+    "$PROJECT_ROOT/rtl/display/kitty_video.v" \
+    "$PROJECT_ROOT/rtl/display/kitty_ui_cpu.v" \
+    "$PROJECT_ROOT/rtl/ui/ps2_keyboard.v" \
+    "$PROJECT_ROOT/rtl/ui/keyboard_controls.v" \
     "$PROJECT_ROOT/rtl/ui/order_source_arbiter.v" \
     "$PROJECT_ROOT/rtl/display/lob_display_journal.v" \
     "$PROJECT_ROOT/rtl/display/lob_level_order_count.v" \

@@ -18,9 +18,9 @@ if {$BUILD_PROFILE ni {release fast}} {
 if {[info exists ::env(FPGA_BUILD_DIR)]} {
     set BUILD_DIR [file normalize $::env(FPGA_BUILD_DIR)]
 } elseif {$BUILD_PROFILE eq "fast"} {
-    set BUILD_DIR [file normalize "$REPO_ROOT/build_dev"]
+    set BUILD_DIR [file normalize "$REPO_ROOT/build/keyboard_vga_720p_fast"]
 } else {
-    set BUILD_DIR [file normalize "$REPO_ROOT/build_system"]
+    set BUILD_DIR [file normalize "$REPO_ROOT/build/keyboard_vga_720p"]
 }
 
 file mkdir $BUILD_DIR
@@ -68,6 +68,11 @@ puts "Route Directive : $ROUTE_DIRECTIVE"
 puts "=========================================================="
 
 # 1. Prepare Memory Hex Payloads
+if {[catch {exec python3 "$REPO_ROOT/software/baremetal/kitty_ui/build.py" 2>@1} build_result]} {
+    puts "ERROR: Presentation firmware build failed: $build_result"
+    exit 1
+}
+puts $build_result
 set HEX_DIR [file normalize "$REPO_ROOT/software/baremetal/lob_test"]
 set IMEM_HEX "$HEX_DIR/imem.hex"
 set DMEM_HEX "$HEX_DIR/dmem.hex"
@@ -83,6 +88,8 @@ if {![file exists $DMEM_HEX]} {
 
 file copy -force $IMEM_HEX "$BUILD_DIR/imem.hex"
 file copy -force $DMEM_HEX "$BUILD_DIR/dmem.hex"
+file copy -force "$REPO_ROOT/software/baremetal/kitty_ui/kitty_ui.hex" "$BUILD_DIR/kitty_ui.hex"
+file copy -force "$REPO_ROOT/software/baremetal/kitty_ui/kitty_font.hex" "$BUILD_DIR/kitty_font.hex"
 
 puts "Memory payloads staged in build directory:"
 puts "  imem: $IMEM_HEX -> $BUILD_DIR/imem.hex"
@@ -112,7 +119,8 @@ read_verilog "$REPO_ROOT/rtl/ethernet/rmii_rx.v"
 read_verilog "$REPO_ROOT/rtl/network/net_parser.v"
 read_verilog "$REPO_ROOT/rtl/network/moldudp64_decoder.v"
 read_verilog "$REPO_ROOT/rtl/itch/itch_decoder.v"
-read_verilog "$REPO_ROOT/rtl/display/vga_top.v"
+read_verilog "$REPO_ROOT/rtl/display/kitty_video.v"
+read_verilog "$REPO_ROOT/rtl/display/kitty_ui_cpu.v"
 read_verilog [glob "$REPO_ROOT/rtl/ui/*.v"]
 read_verilog "$REPO_ROOT/rtl/display/lob_display_journal.v"
 read_verilog "$REPO_ROOT/rtl/display/lob_level_order_count.v"

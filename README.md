@@ -24,15 +24,17 @@ the same validation record.
 
 ## Verify
 
-The board-control RTL adds eight switch-selected VGA pages and a five-button
-order form. See [board_controls.md](docs/board_controls.md) for physical switch
-assignments, digit editing, local submission, and the laptop `--mixed-input`
-mode. SW0/SW1 remain unused; SW14/SW15 retain seven-segment selection.
-Physical UART tests verified Add, Execute E/C, Cancel and Replace using the
-board buttons and digit editor. VGA appearance and the remaining combinations
-still require physical verification; see the hardware validation record.
-The built candidate is `build/board_controls_20261102/top_system.bit`
-(routed setup +0.499 ns, hold +0.016 ns). It retains the UART snapshot protocol.
+The current source is a keyboard-only, 1280×720 VGA build. It uses the
+Nexys A7 USB Host HID-to-PS/2 bridge, the existing local order FIFO and source
+arbiter, and an on-FPGA presentation processor that reads actual book RAM and
+history. See [keyboard_vga_controls.md](docs/keyboard_vga_controls.md) for
+controls, verification state and the physical test sequence. CPU_RESETN and
+physical SW14/SW15 remain; SW2–SW13 and all five direction/Center buttons are
+removed from the current UI. The new bitstream is at
+`build/keyboard_vga_720p/top_system.bit`; post-route timing and DRC pass.
+The prior `build/board_controls_20261102/top_system.bit` and known-good UART
+snapshot remain preserved. The [old board controls guide](docs/board_controls.md)
+describes only that earlier image.
 
 From the repository root:
 

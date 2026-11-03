@@ -10,8 +10,11 @@ BUILD_DIR="${PROJECT_ROOT}/build/ci_sim"
 CORE_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/cpu/core" -maxdepth 1 -name '*.v' ! -name top_fpga.v | tr '\n' ' ')
 LOB_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/lob" -maxdepth 1 -name '*.v' | tr '\n' ' ')
 mkdir -p "${BUILD_DIR}"
+python3 "${PROJECT_ROOT}/software/baremetal/kitty_ui/build.py"
 ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/imem.hex" "${BUILD_DIR}/imem.hex"
 ln -sf "${PROJECT_ROOT}/software/baremetal/lob_test/dmem.hex" "${BUILD_DIR}/dmem.hex"
+ln -sf "${PROJECT_ROOT}/software/baremetal/kitty_ui/kitty_ui.hex" "${BUILD_DIR}/kitty_ui.hex"
+ln -sf "${PROJECT_ROOT}/software/baremetal/kitty_ui/kitty_font.hex" "${BUILD_DIR}/kitty_font.hex"
 
 TOTAL_TESTS=0
 PASSED_TESTS=0
@@ -141,21 +144,29 @@ run_test "RMII queue and ring wrap" \
     "iverilog -g2001 -s tb_rmii_rx_queue ${PROJECT_ROOT}/rtl/ethernet/rmii_rx.v ${PROJECT_ROOT}/sim/unit/tb_rmii_rx_queue.v -o ${BUILD_DIR}/tb_rmii_queue.vvp" \
     "vvp -N ${BUILD_DIR}/tb_rmii_queue.vvp"
 
-run_test "Board buttons, digit editor, seven actions and RAM browsing" \
-    "iverilog -g2001 -s tb_board_controls -o ${BUILD_DIR}/tb_board_controls.vvp ${PROJECT_ROOT}/rtl/ui/board_controls.v ${PROJECT_ROOT}/sim/unit/tb_board_controls.v" \
-    "vvp -N ${BUILD_DIR}/tb_board_controls.vvp"
+run_test "PS/2 framing, scan codes, key release and reconnect" \
+    "iverilog -g2001 -s tb_ps2_keyboard -o ${BUILD_DIR}/tb_ps2_keyboard.vvp ${PROJECT_ROOT}/rtl/ui/ps2_keyboard.v ${PROJECT_ROOT}/sim/unit/tb_ps2_keyboard.v" \
+    "vvp -N ${BUILD_DIR}/tb_ps2_keyboard.vvp"
 
-run_test "Randomized board price/tick/quantity editing" \
-    "iverilog -g2001 -s tb_board_price_random -o ${BUILD_DIR}/tb_board_price_random.vvp ${PROJECT_ROOT}/rtl/ui/board_controls.v ${PROJECT_ROOT}/sim/unit/tb_board_price_random.v" \
-    "vvp -N ${BUILD_DIR}/tb_board_price_random.vvp"
+run_test "Keyboard form editing and local Add submission" \
+    "iverilog -g2001 -s tb_keyboard_controls -o ${BUILD_DIR}/tb_keyboard_controls.vvp ${PROJECT_ROOT}/rtl/ui/keyboard_controls.v ${PROJECT_ROOT}/sim/unit/tb_keyboard_controls.v" \
+    "vvp -N ${BUILD_DIR}/tb_keyboard_controls.vvp"
 
-run_test "Mixed network and board sources under backpressure" \
+run_test "Seven keyboard actions and stale FPGA selection" \
+    "iverilog -g2001 -s tb_keyboard_actions -o ${BUILD_DIR}/tb_keyboard_actions.vvp ${PROJECT_ROOT}/rtl/ui/keyboard_controls.v ${PROJECT_ROOT}/sim/unit/tb_keyboard_actions.v" \
+    "vvp -N ${BUILD_DIR}/tb_keyboard_actions.vvp"
+
+run_test "Keyboard reconnect preserves form and clears held state" \
+    "iverilog -g2001 -s tb_keyboard_hotplug -o ${BUILD_DIR}/tb_keyboard_hotplug.vvp ${PROJECT_ROOT}/rtl/ui/ps2_keyboard.v ${PROJECT_ROOT}/rtl/ui/keyboard_controls.v ${PROJECT_ROOT}/sim/unit/tb_keyboard_hotplug.v" \
+    "vvp -N ${BUILD_DIR}/tb_keyboard_hotplug.vvp"
+
+run_test "Mixed network and keyboard-local sources under backpressure" \
     "iverilog -g2001 -s tb_order_source_arbiter -o ${BUILD_DIR}/tb_order_sources.vvp ${PROJECT_ROOT}/rtl/ui/order_source_arbiter.v ${PROJECT_ROOT}/sim/unit/tb_order_source_arbiter.v" \
     "vvp -N ${BUILD_DIR}/tb_order_sources.vvp"
 
-run_test "VGA page text and decimal order-entry feedback" \
-    "iverilog -g2001 -s tb_board_ui_text -o ${BUILD_DIR}/tb_board_ui_text.vvp ${PROJECT_ROOT}/rtl/ui/board_ui_text.v ${PROJECT_ROOT}/rtl/display/vga_top.v ${PROJECT_ROOT}/sim/unit/tb_board_ui_text.v" \
-    "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_board_ui_text.vvp)"
+run_test "1280x720 renderer from presentation firmware and quote journal" \
+    "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/cpu/core -s tb_kitty_preview -o ${BUILD_DIR}/tb_kitty_preview.vvp ${PROJECT_ROOT}/rtl/display/kitty_ui_cpu.v ${PROJECT_ROOT}/rtl/display/kitty_video.v ${PROJECT_ROOT}/rtl/common/config_cdc.v ${CORE_RTL_FILES} ${PROJECT_ROOT}/sim/unit/tb_kitty_preview.v" \
+    "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_kitty_preview.vvp)"
 
 run_test "Full Ethernet-to-book integration" \
     "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v' ! -path '*/lab5_baseline/*' ! -name 'top_fpga.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \

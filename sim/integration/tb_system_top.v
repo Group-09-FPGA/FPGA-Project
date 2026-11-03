@@ -21,8 +21,8 @@ module tb_system_top;
     // -------------------------------------------------------------------------
     reg        clk;
     reg        reset;
-    reg  [13:0] sw;
-    reg [4:0] btn;
+    reg  [1:0] sw;
+    reg ps2_clk,ps2_data;
     wire [15:0] led;
     wire [7:0] an;
     wire [6:0] seg;
@@ -53,7 +53,6 @@ module tb_system_top;
     // Device Under Test (DUT)
     // -------------------------------------------------------------------------
     top_system #(
-        .UI_DEBOUNCE_CYCLES(2),
         .DEFAULT_PRICE_BASE(32'd900000), // $90.0000
         .DEFAULT_TICK      (32'd1000),   // $0.1000 per tick
         .DEFAULT_LOCATE    (16'd1)       // Stock Locate 1 (AAPL)
@@ -61,7 +60,8 @@ module tb_system_top;
         .clk         (clk),
         .reset       (reset),
         .sw          (sw),
-        .btn         (btn),
+        .ps2_clk     (ps2_clk),
+        .ps2_data    (ps2_data),
         .led         (led),
         .an          (an),
         .seg         (seg),
@@ -177,6 +177,28 @@ module tb_system_top;
         end
     endtask
 
+    task ps2_bit(input bit_value);
+        begin
+            // Accelerated integration stimulus; timing/framing is also
+            // tested at normal PS/2 speed in tb_ps2_keyboard.
+            ps2_data=bit_value;#5000;
+            ps2_clk=0;#5000;
+            ps2_clk=1;#5000;
+        end
+    endtask
+    task send_ps2(input [7:0] code);
+        integer bit_no;
+        begin
+            ps2_bit(0);
+            for(bit_no=0;bit_no<8;bit_no=bit_no+1) ps2_bit(code[bit_no]);
+            ps2_bit(~^code);ps2_bit(1);
+            ps2_data=1;#5000;
+        end
+    endtask
+    task press_ps2(input [7:0] code);
+        begin send_ps2(code);send_ps2(8'hf0);send_ps2(code);end
+    endtask
+
     // -------------------------------------------------------------------------
     // Main Test Stimulus
     // -------------------------------------------------------------------------
@@ -188,8 +210,8 @@ module tb_system_top;
         test_errors = 0;
         clk         = 1'b0;
         reset       = 1'b0; // Hold in reset
-        sw          = 14'd0;
-        btn         = 5'd0;
+        sw          = 2'd0;
+        ps2_clk=1;ps2_data=1;
         eth_crsdv   = 1'b0;
         eth_rxerr   = 1'b0;
         eth_rxd     = 2'b00;
@@ -342,18 +364,12 @@ module tb_system_top;
         repeat (100) @(posedge clk);
         if (dut.history_quote_count_core !== 8'd2 ||
             dut.history_event_count_core !== 9'd2 ||
-            dut.vga_event_history_data[393:362] !== 32'd2 ||
-            dut.vga_event_history_data[361:316] !== {1'b1, 32'd300, 13'd605} ||
-            dut.display_slot_data[46] !== 1'b1 ||
-            dut.display_slot_data[31:0] !== 32'd300 ||
-            dut.display_price_data !== 32'd300 ||
-            dut.display_level_order_count !== 12'd1 ||
-            dut.u_vga.selected_hash_valid !== 1'b1 ||
-            dut.display_free_data !== 11'd2045) begin
-            $display("[FAIL] VGA journal or read-only RAM ports disagree with second add");
+            dut.u_display_journal.event_mem[1][393:362] !== 32'd2 ||
+            dut.u_display_journal.event_mem[1][361:316] !== {1'b1, 32'd300, 13'd605}) begin
+            $display("[FAIL] FPGA VGA journal disagrees with second add");
             test_errors = test_errors + 1;
         end else begin
-            $display("[PASS] VGA journal and direct slot/hash/price/free RAM read ports");
+            $display("[PASS] FPGA VGA journal contains the second add");
         end
         // Exercise the UART query's core->VGA->core readback bridge against
         // the actual second order slot, not only the raw VGA read port.
@@ -498,21 +514,30 @@ module tb_system_top;
             $display("   -> [PASS] Diagnostic Peripherals Verified.");
         end
 
-        // Center generates a local order after two network orders. A held
-        // button must commit once across the VGA/core FIFO and arbiter.
-        sw[4:2] = 3'd7;
-        sw[13] = 1'b1;
-        repeat (30) @(posedge clk);
-        btn[4] = 1;
-        repeat (300) @(posedge clk);
-        btn[4] = 0;
-        repeat (30) @(posedge clk);
+        // Enter generates one local order from values typed through PS/2.
+        press_ps2(8'h0a); // F8
+        press_ps2(8'h0d);press_ps2(8'h0d); // price
+        press_ps2(8'h46);press_ps2(8'h45);press_ps2(8'h49);
+        press_ps2(8'h2e);press_ps2(8'h45);press_ps2(8'h45);press_ps2(8'h45);
+        press_ps2(8'h0d); // quantity
+        press_ps2(8'h16);press_ps2(8'h45);press_ps2(8'h45);
+        press_ps2(8'h0d); // order ID
+        press_ps2(8'h32); // B
+        repeat(7) press_ps2(8'h45);
+        send_ps2(8'h5a); // Enter
+        timeout=0;
+        while(dut.core_event_count != 3 && timeout<100000) begin
+            @(posedge clk);timeout=timeout+1;
+        end
+        send_ps2(8'h5a); // held Enter repeat
+        repeat(30) @(posedge clk);
         if (dut.core_event_count !== 3 || dut.lob_active_orders !== 3 ||
             dut.lob_storage_trace[310:247] !== 64'hB0000000 ||
-            dut.cnt_itch_events !== 2 || !dut.lob_book_valid) begin
-            $display("[FAIL] Center path duplicated/lost the board order");
+            dut.cnt_itch_events !== 2 || !dut.lob_book_valid ||
+            dut.local_completion_count !== 1 || !dut.local_completion_valid) begin
+            $display("[FAIL] Enter path duplicated/lost the keyboard order");
             test_errors = test_errors + 1;
-        end else $display("[PASS] Center submitted one board order through the source arbiter");
+        end else $display("[PASS] Enter submitted one keyboard order through the source arbiter");
         // The next network sequence remains 3 after the local event.
         pkt[59] = 3;
         pkt[82] = 8'h11;
@@ -525,9 +550,9 @@ module tb_system_top;
         repeat(30) @(posedge clk);
         if(dut.core_event_count !== 5 || dut.lob_active_orders !== 5 ||
            dut.cnt_itch_events !== 4 || !dut.lob_book_valid) begin
-            $display("[FAIL] Network feed failed after a board-generated order");
+            $display("[FAIL] Network feed failed after a keyboard-generated order");
             test_errors=test_errors+1;
-        end else $display("[PASS] Laptop and board orders share a book without changing network sequencing");
+        end else $display("[PASS] Laptop and keyboard orders share a book without changing network sequencing");
 
         // A frame with a valid Ethernet FCS but bad IPv4 checksum must
         // invalidate the previously published book, even if no later

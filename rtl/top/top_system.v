@@ -13,7 +13,6 @@
 `include "lob_defines.vh"
 
 module top_system #(
-    parameter UI_DEBOUNCE_CYCLES = 250000,
     parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
     parameter [31:0] DEFAULT_TICK       = 32'd1000,
     parameter [15:0] DEFAULT_LOCATE     = 16'd1,
@@ -27,11 +26,11 @@ module top_system #(
     input  wire        reset,           // Pin C12 (CPU_RESETN, active-low push button)
 
     // -------------------------------------------------------------------------
-    // Interactive User Switches & Push Buttons
-    // sw[0]: SW14 (Pin U11), sw[1]: SW15 (Pin V10), sw[2]: Pin M13, sw[3]: Pin R15
+    // Seven-segment selection only: sw[0]=physical SW14, sw[1]=SW15.
     // -------------------------------------------------------------------------
-    input  wire [13:0] sw,
-    input  wire [4:0] btn, // {Center, Up, Down, Left, Right}
+    input  wire [1:0] sw,
+    input  wire ps2_clk,
+    input  wire ps2_data,
 
     // -------------------------------------------------------------------------
     // Diagnostic LEDs (LD0..LD15)
@@ -61,7 +60,7 @@ module top_system #(
     input  wire        uart_rxd_in,     // Pin C4 (PC TX -> FPGA RX)
 
     // -------------------------------------------------------------------------
-    // VGA 640x480 @ 60Hz Visualizer
+    // VGA 1280x720 @ 60Hz Visualizer
     // -------------------------------------------------------------------------
     output wire        vga_hs,          // Pin B11 (Horizontal Sync)
     output wire        vga_vs,          // Pin B12 (Vertical Sync)
@@ -312,8 +311,9 @@ module top_system #(
     wire         core_evt_ready;
     wire net_core_evt_valid, net_core_evt_ready;
     wire [255:0] net_core_evt_data;
-    wire board_core_evt_valid, board_core_evt_ready;
-    wire [255:0] board_core_evt_data;
+    wire local_core_evt_valid, local_core_evt_ready;
+    wire [255:0] local_core_evt_data;
+    wire core_chosen_local;
     wire ui_event_valid, ui_event_ready;
     wire [255:0] ui_event_data;
     wire         fifo_wr_overflow;
@@ -371,21 +371,21 @@ module top_system #(
         .wr_count     (fifo_wr_cnt),
         .rd_count     (fifo_rd_cnt)
     );
-    async_event_fifo #(.DATA_WIDTH(256), .ADDR_WIDTH(2)) u_board_event_fifo (
+    async_event_fifo #(.DATA_WIDTH(256), .ADDR_WIDTH(2)) u_local_event_fifo (
         .wr_clk(clk_vga), .wr_rst_n(rst_vga_n),
         .wr_valid(ui_event_valid), .wr_data(ui_event_data), .wr_ready(ui_event_ready),
         .wr_full(), .wr_overflow(), .wr_count(),
         .rd_clk(clk_core), .rd_rst_n(rst_core_n),
-        .rd_valid(board_core_evt_valid), .rd_data(board_core_evt_data),
-        .rd_ready(board_core_evt_ready), .rd_empty(), .rd_underflow(), .rd_count()
+        .rd_valid(local_core_evt_valid), .rd_data(local_core_evt_data),
+        .rd_ready(local_core_evt_ready), .rd_empty(), .rd_underflow(), .rd_count()
     );
     order_source_arbiter u_order_sources (
         .clk(clk_core), .rst_n(rst_core_n),
         .net_valid(net_core_evt_valid), .net_data(net_core_evt_data), .net_ready(net_core_evt_ready),
-        .board_valid(board_core_evt_valid), .board_data(board_core_evt_data), .board_ready(board_core_evt_ready),
-        .valid(core_evt_valid), .data(core_evt_data), .ready(core_evt_ready)
+        .local_valid(local_core_evt_valid), .local_data(local_core_evt_data), .local_ready(local_core_evt_ready),
+        .valid(core_evt_valid), .data(core_evt_data),
+        .chosen_local(core_chosen_local),.ready(core_evt_ready)
     );
-
     // =========================================================================
     // 7. Hardware Limit Order Book Accelerator Core (50 MHz Domain)
     // =========================================================================
@@ -416,6 +416,26 @@ module top_system #(
     wire [174:0] vga_quote_history_data;
     wire [174:0] vga_core_snapshot;
     wire [393:0] vga_event_history_data;
+    reg active_source_local,local_done_delay;
+    reg [31:0] local_completion_count;
+    reg local_completion_valid;
+    reg [7:0] local_completion_error;
+    always @(posedge clk_core or negedge rst_core_n) begin
+        if(!rst_core_n) begin
+            active_source_local<=0;local_done_delay<=0;
+            local_completion_count<=0;local_completion_valid<=0;
+            local_completion_error<=0;
+        end else begin
+            if(core_evt_valid && core_evt_ready) active_source_local<=core_chosen_local;
+            local_done_delay<=lob_event_done && active_source_local;
+            if(local_done_delay) begin
+                local_completion_count<=local_completion_count+1'b1;
+                local_completion_valid<=lob_book_valid;
+                local_completion_error<=lob_error_code;
+            end
+        end
+    end
+
     reg [45:0] journal_event_meta;
     always @(posedge clk_core or negedge rst_core_n) begin
         if (!rst_core_n)
@@ -434,31 +454,32 @@ module top_system #(
     wire [13:0] readback_addr;
     wire [7:0] readback_kind;
     reg [9:0] readback_scan_set;
-    wire [2:0] ui_page, ui_action, ui_hash_way;
-    wire [1:0] ui_field;
-    wire ui_side, ui_edit, ui_browse, ui_enabled, ui_selected_valid, ui_scan_busy, ui_stash;
-    wire [3:0] ui_digit;
+    wire [3:0] ui_page;
+    wire [2:0] ui_action,ui_focus,ui_hash_way;
+    wire ui_side,ui_editing,ui_focused_valid,ui_selected_valid,ui_scan_busy,ui_stash;
     wire [4:0] ui_status;
     wire [31:0] ui_price, ui_qty;
     wire [63:0] ui_id, ui_new_id, ui_selected_id;
-    wire [7:0] ui_history;
+    wire [511:0] ui_form_text;
+    wire [19:0] ui_form_lengths,ui_form_cursors;
+    wire [10:0] ui_history;
     wire [9:0] ui_hash_set;
     wire [10:0] ui_slot, ui_free_offset;
     wire [13:0] ui_level;
-    wire [10:0] renderer_slot, renderer_free;
-    wire [9:0] renderer_hash;
-    wire [2:0] renderer_stash;
-    wire [13:0] renderer_price;
-    wire ui_memory = ui_scan_busy || ui_page == 1 || ui_page == 2 ||
-                                    ui_page == 5 || ui_page == 6 || ui_page == 7;
-    assign display_slot_addr = ui_memory ? ui_slot : renderer_slot;
-    assign display_hash_set = ui_memory ? ui_hash_set : renderer_hash;
-    assign display_stash_idx = ui_memory ? ui_hash_way : renderer_stash;
-    assign display_price_addr = ui_page == 5 ? ui_level : ui_memory ?
-                               {display_slot_data[45], display_slot_data[44:32]} : renderer_price;
-    wire [11:0] ui_free_count = 12'd2048 - vga_core_snapshot[43:32];
-    assign display_free_addr = ui_page == 6 && ui_free_count != 0 ?
-        (ui_free_offset < ui_free_count ? ui_free_count[10:0]-1'b1-ui_free_offset : 11'd0) : renderer_free;
+    wire ui_ram_request,ui_ram_grant;
+    wire [3:0] ui_ram_kind;
+    wire [13:0] ui_ram_address;
+    wire [607:0] ui_ram_data;
+    wire keyboard_ram_hold;
+    assign ui_ram_grant=ui_ram_request && !readback_active && !keyboard_ram_hold;
+    assign display_slot_addr=keyboard_ram_hold ? ui_slot :
+        ui_ram_kind==1 ? ui_ram_address[10:0] : 11'd0;
+    assign display_hash_set=keyboard_ram_hold ? ui_hash_set :
+        ui_ram_kind==2 ? ui_ram_address[9:0] : 10'd0;
+    assign display_stash_idx=keyboard_ram_hold ? ui_hash_way :
+        ui_ram_kind==3 ? ui_ram_address[2:0] : 3'd0;
+    assign display_price_addr=ui_ram_address;
+    assign display_free_addr=ui_ram_address[10:0];
     assign read_slot_addr = readback_active && readback_kind == "S" ? readback_addr[10:0] : display_slot_addr;
     assign read_hash_set = readback_active && readback_kind == "B" ? readback_scan_set :
                            readback_active && readback_kind == "H" ? readback_addr[9:0] : display_hash_set;
@@ -776,7 +797,7 @@ module top_system #(
             sys_bus_rsp_valid <= sys_bus_req_valid;
             if (sys_bus_req_valid) begin
                 case (sys_bus_req_addr[7:0])
-                    8'h00: sys_bus_rsp_rdata <= {28'd0, sw};
+                    8'h00: sys_bus_rsp_rdata <= {30'd0, sw};
                     8'h04: sys_bus_rsp_rdata <= {31'd0, mmcm_locked};
                     default: sys_bus_rsp_rdata <= 32'd0;
                 endcase
@@ -937,9 +958,11 @@ module top_system #(
         .bid_qty(lob_bid_qty), .ask_valid(lob_ask_valid),
         .ask_price(lob_ask_price), .ask_qty(lob_ask_qty),
         .active_orders(lob_active_orders), .read_clk(clk_vga),
-        .quote_read_addr(readback_active && readback_kind == "Q" ? readback_addr[6:0] : vga_quote_history_addr),
+        .quote_read_addr(readback_active && readback_kind == "Q" ? readback_addr[6:0] :
+                         ui_ram_grant && ui_ram_kind==7 ? ui_ram_address[6:0] : 7'd0),
         .quote_read_data(vga_quote_history_data),
-        .event_read_addr(readback_active && readback_kind == "E" ? readback_addr[7:0] : vga_event_history_addr),
+        .event_read_addr(readback_active && readback_kind == "E" ? readback_addr[7:0] :
+                         ui_ram_grant && ui_ram_kind==8 ? ui_ram_address[7:0] : 8'd0),
         .event_read_data(vga_event_history_data),
         .quote_count(history_quote_count_core),
         .event_count(history_event_count_core),
@@ -956,6 +979,13 @@ module top_system #(
     wire [127:0] vga_net_snapshot;
     wire [95:0] vga_pipe_snapshot;
     wire [7:0] vga_error_snapshot;
+    wire [40:0] vga_local_completion;
+    config_cdc #(.WIDTH(41),.RESET_VALUE(41'd0)) u_local_completion_cdc (
+        .src_clk(clk_core),.src_rst_n(rst_core_n),
+        .src_data({local_completion_count,local_completion_valid,local_completion_error}),
+        .src_busy(),.src_ready(),.dst_clk(clk_vga),.dst_rst_n(rst_vga_n),
+        .dst_data(vga_local_completion),.dst_update()
+    );
     config_cdc #(.WIDTH(96), .RESET_VALUE(96'd0)) u_vga_pipe_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
         .src_data({pipe_eth_snapshot[127:96], pipe_eth_snapshot[63:32],
@@ -984,101 +1014,135 @@ module top_system #(
         .dst_data(vga_net_snapshot), .dst_update()
     );
     wire [63:0] ui_config;
-    // UART borrows the display RAM port for a few clocks per query. Keep the
-    // last settled display values while that port is borrowed and returns.
-    reg [2:0] render_wait;
-    reg [46:0] render_slot_data;
-    reg [607:0] render_hash_data;
-    reg [75:0] render_stash_data;
-    reg [31:0] render_price_data;
-    reg [11:0] render_level_count;
-    reg [10:0] render_free_data;
-    reg [174:0] render_quote_data;
-    reg [393:0] render_event_data;
-    always @(posedge clk_vga or negedge rst_vga_n) begin
-        if (!rst_vga_n) begin
-            render_wait<=0; render_slot_data<=0; render_hash_data<=0;
-            render_stash_data<=0; render_price_data<=0; render_level_count<=0;
-            render_free_data<=0; render_quote_data<=0; render_event_data<=0;
-        end else if (readback_active) render_wait<=0;
-        else if (render_wait != 3) render_wait<=render_wait+1'b1;
-        else begin
-            render_slot_data<=display_slot_data; render_hash_data<=display_hash_ways;
-            render_stash_data<=display_stash_data; render_price_data<=display_price_data;
-            render_level_count<=display_level_order_count; render_free_data<=display_free_data;
-            render_quote_data<=vga_quote_history_data; render_event_data<=vga_event_history_data;
-        end
-    end
     config_cdc #(.WIDTH(64), .RESET_VALUE({DEFAULT_PRICE_BASE, DEFAULT_TICK})) u_ui_config_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data({mmio_cfg_price_base, mmio_cfg_tick}),
         .src_busy(), .src_ready(), .dst_clk(clk_vga), .dst_rst_n(rst_vga_n),
         .dst_data(ui_config), .dst_update()
     );
-    board_controls #(.DEBOUNCE_CYCLES(UI_DEBOUNCE_CYCLES)) u_board_controls (
-        .clk(clk_vga), .rst_n(rst_vga_n), .switches(sw[13:2]), .buttons(btn),
-        .book_valid(vga_core_snapshot[174]), .price_base(ui_config[63:32]), .price_tick(ui_config[31:0]),
-        .ram_paused(readback_active), .hash_data(display_hash_ways),
-        .stash_data(display_stash_data), .slot_data(display_slot_data),
-        .page(ui_page), .action(ui_action), .field(ui_field), .side(ui_side),
-        .edit_mode(ui_edit), .browse_mode(ui_browse), .enabled(ui_enabled),
-        .digit(ui_digit), .price(ui_price), .quantity(ui_qty), .order_id(ui_id), .new_id(ui_new_id),
-        .history_offset(ui_history), .hash_set(ui_hash_set), .hash_way(ui_hash_way),
-        .stash_selected(ui_stash), .slot_addr(ui_slot), .level_addr(ui_level), .free_offset(ui_free_offset),
-        .selected_valid(ui_selected_valid), .scan_busy(ui_scan_busy), .selected_id(ui_selected_id),
-        .status(ui_status), .event_valid(ui_event_valid), .event_data(ui_event_data), .event_ready(ui_event_ready)
+
+    wire ps2_byte_valid,ps2_frame_error,keyboard_key_valid,keyboard_shift,keyboard_reconnect;
+    wire [7:0] ps2_byte,keyboard_key;
+    reg [31:0] keyboard_frame_errors;
+    ps2_receiver u_ps2_receiver (
+        .clk(clk_vga),.reset_n(rst_vga_n),.ps2_clk(ps2_clk),.ps2_data(ps2_data),
+        .byte_valid(ps2_byte_valid),.byte_data(ps2_byte),.frame_error(ps2_frame_error)
     );
-    vga_top u_vga (
-        .clk_vga        (clk_vga),
-        .rst_n          (rst_vga_n),
-        .book_valid     (vga_core_snapshot[174]),
-        .best_bid_valid (vga_core_snapshot[173]),
-        .best_bid_price (vga_core_snapshot[172:141]),
-        .best_bid_qty   (vga_core_snapshot[140:109]),
-        .best_ask_valid (vga_core_snapshot[108]),
-        .best_ask_price (vga_core_snapshot[107:76]),
-        .best_ask_qty   (vga_core_snapshot[75:44]),
-        .active_orders  (vga_core_snapshot[43:32]),
-        .event_count    (vga_core_snapshot[31:0]),
-        .cnt_rx_frames  (vga_net_snapshot[127:96]),
-        .cnt_crc_err    (vga_net_snapshot[95:64]),
-        .cnt_mold_msgs  (vga_net_snapshot[63:32]),
-        .cnt_seq_gaps   (vga_net_snapshot[31:0]),
-        .cnt_udp_packets(vga_pipe_snapshot[95:64]),
-        .cnt_itch_events(vga_pipe_snapshot[63:32]),
-        .cnt_fifo_events(vga_pipe_snapshot[31:0]),
-        .error_code(vga_error_snapshot),
-        .history_select (ui_history),
-        .ui_page(ui_page), .ui_action(ui_action), .ui_field(ui_field), .ui_side(ui_side),
-        .ui_edit(ui_edit), .ui_browse(ui_browse), .ui_enabled(ui_enabled), .ui_digit(ui_digit),
-        .ui_price(ui_price), .ui_qty(ui_qty), .ui_id(ui_id), .ui_new_id(ui_new_id),
-        .ui_hash_set(ui_hash_set), .ui_hash_way(ui_hash_way), .ui_stash(ui_stash),
-        .ui_slot(ui_slot), .ui_level(ui_level), .ui_free_offset(ui_free_offset),
-        .ui_selected_valid(ui_selected_valid), .ui_scan_busy(ui_scan_busy), .ui_selected_id(ui_selected_id),
-        .ui_status(ui_status), .ui_price_base(ui_config[63:32]), .ui_price_tick(ui_config[31:0]),
-        .quote_history_count(history_meta_vga[31:24]),
-        .event_history_count(history_meta_vga[23:15]),
-        .quote_history_next(history_meta_vga[14:8]),
-        .event_history_next(history_meta_vga[7:0]),
-        .quote_history_addr(vga_quote_history_addr),
-        .quote_history_data(render_quote_data),
-        .event_history_addr(vga_event_history_addr),
-        .event_history_data(render_event_data),
-        .display_slot_addr(renderer_slot),
-        .display_slot_data(render_slot_data),
-        .display_hash_set(renderer_hash),
-        .display_hash_ways(render_hash_data),
-        .display_stash_idx(renderer_stash),
-        .display_stash_data(render_stash_data),
-        .display_price_addr(renderer_price),
-        .display_price_data(render_price_data),
-        .display_level_order_count(render_level_count),
-        .display_free_addr(renderer_free),
-        .display_free_data(render_free_data),
-        .vga_hs         (vga_hs),
-        .vga_vs         (vga_vs),
-        .vga_r          (vga_r),
-        .vga_g          (vga_g),
-        .vga_b          (vga_b)
+    ps2_key_decoder u_ps2_decoder (
+        .clk(clk_vga),.reset_n(rst_vga_n),.byte_valid(ps2_byte_valid),.byte_data(ps2_byte),
+        .key_valid(keyboard_key_valid),.key(keyboard_key),.key_shift(keyboard_shift),
+        .reconnect(keyboard_reconnect)
+    );
+    always @(posedge clk_vga or negedge rst_vga_n) begin
+        if(!rst_vga_n) keyboard_frame_errors<=0;
+        else if(ps2_frame_error) keyboard_frame_errors<=keyboard_frame_errors+1'b1;
+    end
+    keyboard_controls u_keyboard_controls (
+        .clk(clk_vga),.reset_n(rst_vga_n),
+        .key_valid(keyboard_key_valid),.key_shift(keyboard_shift),.key(keyboard_key),
+        .book_valid(vga_core_snapshot[174]),
+        .price_base(ui_config[63:32]),.price_tick(ui_config[31:0]),
+        .ram_paused(readback_active),.hash_data(display_hash_ways),
+        .stash_data(display_stash_data),.slot_data(display_slot_data),
+        .page(ui_page),.action(ui_action),.side(ui_side),.focus(ui_focus),
+        .editing(ui_editing),.focused_valid(ui_focused_valid),
+        .form_text(ui_form_text),.form_lengths(ui_form_lengths),
+        .form_cursors(ui_form_cursors),.price(ui_price),.quantity(ui_qty),
+        .order_id(ui_id),.new_id(ui_new_id),
+        .history_offset(ui_history),.hash_set(ui_hash_set),.hash_way(ui_hash_way),
+        .stash_selected(ui_stash),.slot_addr(ui_slot),.level_addr(ui_level),
+        .free_offset(ui_free_offset),.selected_valid(ui_selected_valid),
+        .scan_busy(ui_scan_busy),.ram_hold(keyboard_ram_hold),
+        .selected_id(ui_selected_id),.status(ui_status),
+        .event_valid(ui_event_valid),.event_data(ui_event_data),.event_ready(ui_event_ready)
+    );
+    assign ui_ram_data =
+        ui_ram_kind==1 ? {{561{1'b0}},display_slot_data} :
+        ui_ram_kind==2 ? display_hash_ways :
+        ui_ram_kind==3 ? {{532{1'b0}},display_stash_data} :
+        ui_ram_kind==4 ? {{576{1'b0}},display_price_data} :
+        ui_ram_kind==5 ? {{597{1'b0}},display_free_data} :
+        ui_ram_kind==6 ? {{596{1'b0}},display_level_order_count} :
+        ui_ram_kind==7 ? {{433{1'b0}},vga_quote_history_data} :
+        ui_ram_kind==8 ? {{214{1'b0}},vga_event_history_data} : 608'd0;
+
+    reg [2047:0] ui_registers;
+    integer ui_f,ui_g;
+    always @* begin
+        ui_registers=0;
+        ui_registers[0*32+:32]={12'd0,ui_status,ui_scan_busy,ui_selected_valid,
+            ui_focused_valid,ui_editing,ui_side,ui_action,ui_focus,ui_page};
+        ui_registers[1*32+:32]={12'd0,ui_form_lengths};
+        ui_registers[2*32+:32]={12'd0,ui_form_cursors};
+        ui_registers[3*32+:32]=ui_price;
+        ui_registers[4*32+:32]=ui_qty;
+        ui_registers[5*32+:32]=ui_id[31:0];
+        ui_registers[6*32+:32]=ui_id[63:32];
+        ui_registers[7*32+:32]=ui_new_id[31:0];
+        ui_registers[8*32+:32]=ui_new_id[63:32];
+        ui_registers[9*32+:32]=ui_selected_id[31:0];
+        ui_registers[10*32+:32]=ui_selected_id[63:32];
+        ui_registers[11*32+:32]={18'd0,ui_stash,ui_hash_way,ui_hash_set};
+        ui_registers[12*32+:32]={10'd0,ui_free_offset,ui_slot};
+        ui_registers[13*32+:32]={18'd0,ui_level};
+        ui_registers[14*32+:32]={21'd0,ui_history};
+        ui_registers[15*32+:32]={29'd0,vga_core_snapshot[108],
+            vga_core_snapshot[173],vga_core_snapshot[174]};
+        ui_registers[16*32+:32]=vga_core_snapshot[172:141];
+        ui_registers[17*32+:32]=vga_core_snapshot[140:109];
+        ui_registers[18*32+:32]=vga_core_snapshot[107:76];
+        ui_registers[19*32+:32]=vga_core_snapshot[75:44];
+        ui_registers[20*32+:32]={20'd0,vga_core_snapshot[43:32]};
+        ui_registers[21*32+:32]=vga_core_snapshot[31:0];
+        ui_registers[22*32+:32]=vga_net_snapshot[127:96];
+        ui_registers[23*32+:32]=vga_net_snapshot[95:64];
+        ui_registers[24*32+:32]=vga_net_snapshot[63:32];
+        ui_registers[25*32+:32]=vga_net_snapshot[31:0];
+        ui_registers[26*32+:32]=vga_pipe_snapshot[95:64];
+        ui_registers[27*32+:32]=vga_pipe_snapshot[63:32];
+        ui_registers[28*32+:32]=vga_pipe_snapshot[31:0];
+        ui_registers[29*32+:32]={24'd0,vga_error_snapshot};
+        ui_registers[30*32+:32]=ui_config[63:32];
+        ui_registers[31*32+:32]=ui_config[31:0];
+        ui_registers[32*32+:32]={history_meta_vga[7:0],history_meta_vga[23:15],
+            history_meta_vga[14:8],history_meta_vga[31:24]};
+        for(ui_f=0;ui_f<4;ui_f=ui_f+1)
+            for(ui_g=0;ui_g<4;ui_g=ui_g+1)
+                ui_registers[(33+ui_f*4+ui_g)*32+:32]=
+                    ui_form_text[ui_f*128+(3-ui_g)*32+:32];
+        ui_registers[49*32+:32]=keyboard_frame_errors;
+        ui_registers[50*32+:32]=vga_local_completion[40:9];
+        ui_registers[51*32+:32]={23'd0,vga_local_completion[8:0]};
+    end
+    wire pixel_clk,pixel_reset_n,ui_cell_we,ui_plot_we,front_bank_ui;
+    wire [13:0] ui_cell_addr;
+    wire [15:0] ui_cell_data;
+    wire [10:0] ui_plot_addr;
+    wire [31:0] ui_plot_data;
+    wire requested_bank,requested_market;
+    wire [31:0] ui_frames,ui_pc;
+    wire ui_cpu_exception;
+    kitty_pixel_clock u_kitty_clock (
+        .clk100(clk),.reset_n(reset),.pixel_clk(pixel_clk),
+        .pixel_reset_n(pixel_reset_n)
+    );
+    kitty_ui_cpu u_kitty_cpu (
+        .clk(clk_vga),.reset_n(rst_vga_n),.registers(ui_registers),
+        .ram_request(ui_ram_request),.ram_kind(ui_ram_kind),
+        .ram_address(ui_ram_address),.ram_grant(ui_ram_grant),.ram_data(ui_ram_data),
+        .cell_we(ui_cell_we),.cell_addr(ui_cell_addr),.cell_data(ui_cell_data),
+        .plot_we(ui_plot_we),.plot_addr(ui_plot_addr),.plot_data(ui_plot_data),
+        .requested_bank(requested_bank),.requested_market(requested_market),
+        .front_bank(front_bank_ui),.completed_frames(ui_frames),
+        .exception(ui_cpu_exception),.pc(ui_pc)
+    );
+    kitty_video u_kitty_video (
+        .ui_clk(clk_vga),.ui_reset_n(rst_vga_n),
+        .pixel_clk(pixel_clk),.pixel_reset_n(pixel_reset_n),
+        .cell_we(ui_cell_we),.cell_addr(ui_cell_addr),.cell_data(ui_cell_data),
+        .plot_we(ui_plot_we),.plot_addr(ui_plot_addr),.plot_data(ui_plot_data),
+        .requested_bank(requested_bank),.requested_market(requested_market),
+        .front_bank_ui(front_bank_ui),
+        .hs(vga_hs),.vs(vga_vs),.red(vga_r),.green(vga_g),.blue(vga_b)
     );
 
     // =========================================================================

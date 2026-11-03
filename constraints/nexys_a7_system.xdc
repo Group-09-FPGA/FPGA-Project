@@ -19,33 +19,17 @@ set_property PACKAGE_PIN C12 [get_ports reset]
 set_property IOSTANDARD LVCMOS33 [get_ports reset]
 
 # -----------------------------------------------------------------------------
-# 3. Slide Switches (sw[3:0])
+# 3. Seven-segment switches and USB HID PS/2 input
 # Note: sw[0] mapped to SW14 (U11) and sw[1] mapped to SW15 (V10) because
 # physical board switches SW0/SW1 are non-functional.
 # -----------------------------------------------------------------------------
 set_property PACKAGE_PIN U11 [get_ports {sw[0]}]
 set_property PACKAGE_PIN V10 [get_ports {sw[1]}]
-set_property PACKAGE_PIN M13 [get_ports {sw[2]}]
-set_property PACKAGE_PIN R15 [get_ports {sw[3]}]
-set_property PACKAGE_PIN R17 [get_ports {sw[4]}]
-set_property PACKAGE_PIN T18 [get_ports {sw[5]}]
-set_property PACKAGE_PIN U18 [get_ports {sw[6]}]
-set_property PACKAGE_PIN R13 [get_ports {sw[7]}]
-set_property PACKAGE_PIN T8  [get_ports {sw[8]}]
-set_property PACKAGE_PIN U8  [get_ports {sw[9]}]
-set_property PACKAGE_PIN R16 [get_ports {sw[10]}]
-set_property PACKAGE_PIN T13 [get_ports {sw[11]}]
-set_property PACKAGE_PIN H6  [get_ports {sw[12]}]
-set_property PACKAGE_PIN U12 [get_ports {sw[13]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {sw[*]}]
-# SW8/SW9 are in the board's 1.8 V bank (Digilent Master XDC).
-set_property IOSTANDARD LVCMOS18 [get_ports {sw[8] sw[9]}]
-set_property PACKAGE_PIN N17 [get_ports {btn[4]}]
-set_property PACKAGE_PIN M18 [get_ports {btn[3]}]
-set_property PACKAGE_PIN P18 [get_ports {btn[1]}]
-set_property PACKAGE_PIN P17 [get_ports {btn[2]}]
-set_property PACKAGE_PIN M17 [get_ports {btn[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {btn[*]}]
+set_property PACKAGE_PIN F4 [get_ports ps2_clk]
+set_property PACKAGE_PIN B2 [get_ports ps2_data]
+set_property IOSTANDARD LVCMOS33 [get_ports {ps2_clk ps2_data}]
+set_property PULLUP true [get_ports {ps2_clk ps2_data}]
 
 # -----------------------------------------------------------------------------
 # 4. User Diagnostic LEDs (led[15:0])
@@ -162,8 +146,8 @@ set_property IOSTANDARD LVCMOS33 [get_ports vga_vs]
 # Async FIFO Gray pointer CDC synchronizers: ensure datapath delay < 10ns
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_sync1_reg*}] 10.000
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_board_event_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_board_event_fifo*wptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_board_event_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_board_event_fifo*rptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_event_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_event_fifo*wptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_event_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_event_fifo*rptr_gray_sync1_reg*}] 10.000
 
 # The FIFO storage now infers asynchronous-read distributed RAM. Its output
 # pins are combinational and are not valid timing startpoints; the Gray-pointer
@@ -180,7 +164,13 @@ set_false_path -from [get_cells -hier -filter {NAME =~ *u_*_cdc*held_data_reg* &
 
 # Static user input false paths
 set_false_path -from [get_ports {sw[*]}]
-set_false_path -from [get_ports {btn[*]}]
+set_false_path -from [get_ports {ps2_clk ps2_data}]
+# Pixel-bank acknowledgement crosses from the independent 74.25 MHz pixel
+# domain into the 25 MHz UI domain through a two-flop synchronizer.
+set_false_path -to [get_pins u_kitty_video/front_meta_ui_reg/D]
+# Both asynchronous event FIFOs transfer Gray-coded pointers through two-flop
+# synchronizers. Only the first receiving flop is asynchronous.
+set_false_path -to [get_pins -hier -filter {NAME =~ *ptr_gray_sync1_reg*/D}]
 set_false_path -from [get_ports reset]
 set_false_path -to [get_ports {led[*]}]
 set_false_path -to [get_ports {seg[*]}]
