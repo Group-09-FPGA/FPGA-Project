@@ -1,7 +1,7 @@
 .section .text
 .globl _start
 
-# Memory map is documented in docs/mmio.md. The CPU continuously records
+# Memory map is in docs/rtl_reference.md. The CPU continuously records
 # coherent book snapshots and the diagnostic state for host-side inspection.
 _start:
     li sp, 0x20000FF0

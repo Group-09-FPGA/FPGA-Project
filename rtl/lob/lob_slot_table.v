@@ -2,7 +2,7 @@
 // File: lob_slot_table.v
 // Description: Active order slot storage (2,048 entries x 47 bits)
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// Authoritative spec: docs/phase1_architecture_final_v7.md §12, §15
+// See docs/rtl_reference.md for how this block fits in the LOB.
 // =============================================================================
 
 `timescale 1ns / 1ps

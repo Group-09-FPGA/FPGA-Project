@@ -931,7 +931,7 @@ module top_system #(
     );
 
     // =========================================================================
-    // 10. VGA Market Data & LOB Visualizer (25 MHz Domain)
+    // 10. VGA Display (25 MHz UI domain + 74.25 MHz pixel domain)
     // =========================================================================
     lob_level_order_count u_level_order_count (
         .core_clk(clk_core), .core_rst_n(rst_core_n),

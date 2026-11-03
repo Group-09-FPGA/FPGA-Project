@@ -46,7 +46,7 @@ module data_mem (
 
 	// Declare data memory array (word-addressable, 4 KB total)
 	(* ram_style = "block" *)
-	reg [31:0] dmem [0:1023]; // TODO completed
+	reg [31:0] dmem [0:1023]; 
 
 	// Decode byte address to word index
 	wire [9:0] rindex = raddr[11:2];
@@ -55,7 +55,7 @@ module data_mem (
 	// Simulation / FPGA init
 	initial begin
 		// BUG fixed, description: changed hardcoded absolute path pointing to Lab4A_Memory to relative path dmem.hex
-		$readmemh("dmem.hex", dmem); // TODO completed
+		$readmemh("dmem.hex", dmem); 
 	end
 
 	// -------------------------
@@ -72,8 +72,8 @@ module data_mem (
     	if (we) begin
         	if (wstrb[0]) dmem[windex][7:0]   <= wdata[7:0];
         	if (wstrb[1]) dmem[windex][15:8]  <= wdata[15:8];
-        	if (wstrb[2]) dmem[windex][23:16] <= wdata[23:16]; // TODO completed
-        	if (wstrb[3]) dmem[windex][31:24] <= wdata[31:24]; // TODO completed
+        	if (wstrb[2]) dmem[windex][23:16] <= wdata[23:16]; 
+        	if (wstrb[3]) dmem[windex][31:24] <= wdata[31:24]; 
     	end
 
     	// ---- READ (1-cycle latency, RAW-safe) ----
@@ -81,9 +81,9 @@ module data_mem (
         	if (we && (rindex == windex)) begin
             	// Byte-level forwarding
             	rdata[7:0]   <= wstrb[0] ? wdata[7:0]   : dmem[rindex][7:0];
-            	rdata[15:8]  <= wstrb[1] ? wdata[15:8]  : dmem[rindex][15:8];  // TODO completed
-            	rdata[23:16] <= wstrb[2] ? wdata[23:16] : dmem[rindex][23:16]; // TODO completed
-            	rdata[31:24] <= wstrb[3] ? wdata[31:24] : dmem[rindex][31:24]; // TODO completed
+            	rdata[15:8]  <= wstrb[1] ? wdata[15:8]  : dmem[rindex][15:8];  
+            	rdata[23:16] <= wstrb[2] ? wdata[23:16] : dmem[rindex][23:16]; 
+            	rdata[31:24] <= wstrb[3] ? wdata[31:24] : dmem[rindex][31:24]; 
         	end
         	else begin
             	rdata <= dmem[rindex];

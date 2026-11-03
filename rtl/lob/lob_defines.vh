@@ -3,7 +3,7 @@
 // Description: Standard Verilog definitions header for Limit Order Book (LOB)
 // Architecture Capacities, Bit-slices, Encodings, and Macros
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C (IEEE 1364-2001 Pure Verilog)
-// Authoritative spec: docs/phase1_architecture_final_v7.md
+// Layouts here are mirrored by the Python packer in sim/golden and tools/.
 // =============================================================================
 
 `ifndef LOB_DEFINES_VH
@@ -67,7 +67,7 @@
 `define FAIL_FEED_LOSS              8'h0A
 
 // -----------------------------------------------------------------------------
-// Canonical 256-bit Event Layout Bit-Slices (v7 §10)
+// Canonical 256-bit Event Layout Bit-Slices
 // -----------------------------------------------------------------------------
 `define EVT_VER_SLICE               255:252
 `define EVT_OP_SLICE                251:248
@@ -83,7 +83,7 @@
 `define EVT_RSVD3_SLICE             31:0
 
 // -----------------------------------------------------------------------------
-// Slot Table Entry (47 bits) Layout (v7 §12, §15)
+// Slot Table Entry (47 bits) Layout
 // -----------------------------------------------------------------------------
 `define SLOT_ENTRY_WIDTH            47
 `define SLOT_VALID_BIT              46
@@ -92,7 +92,7 @@
 `define SLOT_SHARES_SLICE           31:0
 
 // -----------------------------------------------------------------------------
-// Hash Table Entry (76 bits) Layout (v7 §12, §15)
+// Hash Table Entry (76 bits) Layout
 // -----------------------------------------------------------------------------
 `define HASH_ENTRY_WIDTH            76
 `define HASH_VALID_BIT              75
@@ -100,7 +100,7 @@
 `define HASH_KEY_SLICE              63:0
 
 // -----------------------------------------------------------------------------
-// XOR-Folding Hash Function Macro (v7 §12)
+// XOR-Folding Hash Function Macro
 // -----------------------------------------------------------------------------
 `define HASH_OID(oid) ( \
     (oid)[9:0]   ^ \

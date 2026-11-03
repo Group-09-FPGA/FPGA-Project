@@ -2,7 +2,7 @@
 // File: lob_bbo.v
 // Description: Best Bid & Offer (BBO) tracking and price computation
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// Authoritative spec: docs/phase1_architecture_final_v7.md §14, §16, §18
+
 // =============================================================================
 
 `timescale 1ns / 1ps

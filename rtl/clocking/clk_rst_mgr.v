@@ -4,7 +4,8 @@
 //              Generates:
 //                - clk_core:  50.0 MHz (Core CPU, LOB accelerator, memory bus)
 //                - clk_eth:   50.0 MHz (RMII PHY refclk and network pipeline)
-//                - clk_vga:   25.0 MHz (VGA 640x480 @ 60Hz pixel clock)
+//                - clk_vga:   25.0 MHz (UI CPU / display-journal clock; the 74.25 MHz
+//                             720p pixel clock is made separately in kitty_video.v)
 //              Provides glitch-free asynchronous-assert, synchronous-deassert
 //              reset trees and LAN8720A PHY hardware power-up reset sequence.
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
@@ -23,7 +24,7 @@ module clk_rst_mgr #(
     output wire clk_core,            // 50.0 MHz
     output wire clk_eth,             // 50.0 MHz (to RMII internal logic)
     output wire clk_eth_phy,         // 50.0 MHz, 45-deg phase shifted (to pin D5 via ODDR)
-    output wire clk_vga,             // 25.0 MHz (to VGA DAC)
+    output wire clk_vga,             // 25.0 MHz (UI-side clock, not the pixel clock)
 
     // Synchronized Active-Low Resets
     output wire rst_core_n,          // Synchronized to clk_core
@@ -82,7 +83,7 @@ module clk_rst_mgr #(
         .CLKOUT1_DIVIDE(20),           // CLKOUT1 = 1000 / 20 = 50.0 MHz (Internal MAC)
         .CLKOUT1_DUTY_CYCLE(0.5),
         .CLKOUT1_PHASE(0.0),
-        .CLKOUT2_DIVIDE(40),           // CLKOUT2 = 1000 / 40 = 25.0 MHz (VGA)
+        .CLKOUT2_DIVIDE(40),           // CLKOUT2 = 1000 / 40 = 25.0 MHz (UI)
         .CLKOUT2_DUTY_CYCLE(0.5),
         .CLKOUT2_PHASE(0.0),
         .CLKOUT3_DIVIDE(20),           // CLKOUT3 = 1000 / 20 = 50.0 MHz (External LAN8720A PHY)

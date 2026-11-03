@@ -2,7 +2,7 @@
 """
 lob_golden_adapter.py - Translates Python golden model vectors to hardware canonical 256-bit events.
 Target: Artix-7 LOB Accelerator (Phase 1)
-Authoritative spec: docs/phase1_architecture_final_v7.md §10, §13
+Event layout: rtl/lob/lob_defines.vh.
 """
 
 import sys

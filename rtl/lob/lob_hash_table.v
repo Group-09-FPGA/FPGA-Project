@@ -2,7 +2,7 @@
 // File: lob_hash_table.v
 // Description: 1,024 sets x 8 ways hash table with 8-entry CAM collision stash
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// Authoritative spec: docs/phase1_architecture_final_v7.md §12, §15, §16
+// See docs/rtl_reference.md for how this block fits in the LOB.
 // =============================================================================
 
 `timescale 1ns / 1ps

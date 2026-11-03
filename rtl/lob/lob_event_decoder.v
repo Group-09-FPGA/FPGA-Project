@@ -2,7 +2,7 @@
 // File: lob_event_decoder.v
 // Description: Canonical event decoder and validation engine
 // Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// Authoritative spec: docs/phase1_architecture_final_v7.md §10
+// See docs/rtl_reference.md for how this block fits in the LOB.
 // =============================================================================
 
 `timescale 1ns / 1ps
