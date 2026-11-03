@@ -1,4 +1,4 @@
-# Keyboard VGA controls (built image; physical validation pending)
+# Keyboard and VGA controls
 
 The Nexys A7 USB Host connector (J5) is the keyboard input. The board's
 auxiliary HID controller presents PS/2 clock/data on FPGA pins F4/B2. This
@@ -10,13 +10,9 @@ and the [F4/B2 pins](https://github.com/Digilent/digilent-xdc/blob/master/Nexys-
 
 ## Physical controls
 
-CPU_RESETN remains the system reset. Physical SW14/SW15 retain their original
-seven-segment selection. SW2–SW13 and all five directional/Center buttons have
-no function in this image. The old button controller, text overlay, and
-their tests were removed from the current source. The previously built
-button-control image remains available in `build/board_controls_20261102/`.
-The new bitstream is `build/keyboard_vga_720p/top_system.bit`. The older
-`build_system/top_system.bit` is preserved as well.
+CPU_RESETN is the system reset. SW14/SW15 select the seven-segment content.
+All other switches and the five directional buttons do nothing. The image is
+`build/keyboard_vga_720p/top_system.bit` (build outputs are not in Git).
 
 ## Keyboard
 
@@ -76,7 +72,10 @@ generation. Its routed checkpoint and reports are in `build/keyboard_vga_720p/`.
 These checks do **not** establish that a particular wired keyboard or wireless receiver
 works with the Nexys A7 PIC, or that a physical unplug/reconnect produces the
 expected reset sequence. Physical compatibility and hot-plug behavior still
-require the tests below. The bitstream has not been programmed on the board.
+require the tests below. On 2026-11-02 the image was programmed: UART and
+Ethernet order processing passed, but the HP 125 keyboard in J5 was not
+detected (the board's BUSY LED never flashed), so the keyboard path is still
+unverified on hardware. See [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md).
 
 ## Physical test sequence
 

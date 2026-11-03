@@ -185,3 +185,17 @@ FCS, so the bad-FCS case remains untested on the physical Ethernet link.
 
 Do not publish a valid quote after any `V:0` or feed error. Stop the stream,
 reset the board, and replay from sequence 1 before recording a recovered book.
+
+## Keyboard and 720p image (2026-11-02)
+
+Image: `build/keyboard_vga_720p/top_system.bit` (routed setup +0.564 ns, hold +0.035 ns, 0 DRC errors).
+
+| Check | Result | Status |
+| --- | --- | --- |
+| Programming, UART `[BBO]` line, empty valid book | Seen | Pass |
+| Two Ethernet orders over a direct link | Bid $90.5000 × 100, ask $94.9000 × 200 on UART | Pass |
+| USB keyboard in J5 (HP 125 wired, Boot Keyboard on the laptop) | BUSY LED never flashed, no page change; a mouse lit in J5, so the port is powered | Not working: cause unknown |
+| VGA picture, unplug/reconnect, wireless receiver, keyboard orders | Not tested | Pending |
+
+Next step: try a second wired keyboard; if BUSY still stays dark, add a debug
+LED on `ps2_clk` activity to see whether anything reaches the FPGA.

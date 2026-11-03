@@ -1,55 +1,55 @@
 # Commands
 
-Run from the repository root unless a command changes directory. Vivado 2026.1,
-Icarus Verilog, Python, and `uv` are needed for the corresponding steps.
+Run everything from the repository root. You need Icarus Verilog and Python 3
+for tests, `uv` for the Python reference model, Vivado 2026.1 for bitstreams,
+and an RV32IM GNU toolchain only if you rebuild firmware.
 
 ## Tests
 
 ```bash
-./sim/run_ci_tests.sh
-./sim/integration/run_system_top.sh
-python3 -m unittest discover -s tests
-cd software_lob && uv sync --extra dev && uv run pytest
+./sim/run_ci_tests.sh                 # all Icarus testbenches (about 2 minutes)
+./sim/integration/run_system_top.sh   # same full-system test under Vivado XSim
+python3 -m unittest discover -s tests # host tools (dashboard, readback, feed)
+cd software_lob && uv sync --extra dev && uv run pytest   # Python reference book
 ```
 
-The Icarus and XSim scripts create ignored, disposable simulation output.
-The Python model continues after rejected events; the hardware with fail-stop
-enabled invalidates the book.
+To run one testbench, copy its `iverilog ... && vvp` line from
+`sim/run_ci_tests.sh`. Output goes to `build/ci_sim/` (ignored by Git).
 
 ## Firmware
 
 ```bash
-python3 software/baremetal/lob_test/build_firmware.py
+python3 software/baremetal/lob_test/build_firmware.py   # supervisor CPU -> imem.hex, dmem.hex
+python3 software/baremetal/kitty_ui/build.py            # VGA CPU -> kitty_ui.hex
+python3 tools/build_kitty_font.py                       # font -> kitty_font.hex
 ```
 
-The committed `imem.hex` and `dmem.hex` initialize the CPU memories. The
-firmware builder keeps ELF and binary intermediates in a temporary directory.
+The generated `.hex` files are committed because the FPGA build loads them.
 
-## Final system build
+## Bitstream
 
 ```bash
 vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
+FPGA_BUILD_PROFILE=fast vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl
 ```
 
-The only retained full-system build is `build_system/`. Review:
+Optional environment variables: `FPGA_BUILD_DIR` (output folder, default
+`build_system/`), `FPGA_MAX_THREADS` (1 to 4). The `.bit` file is written only
+if routed setup and hold timing pass. Check:
 
 ```bash
-rg 'WNS\(ns\)|WHS\(ns\)|All user specified timing constraints' build_system/post_route_timing.rpt
-sed -n '20,45p' build_system/post_route_drc.rpt
+rg 'WNS\(ns\)|WHS\(ns\)' $FPGA_BUILD_DIR/post_route_timing.rpt
 ```
 
-`build_system/top_system.bit` is generated only when routed setup and hold
-checks pass. A timing pass does not establish operation on a physical board.
-
-## Physical run
+## Program and test on the board
 
 ```bash
-vivado -mode batch -source vivado/scripts/program_fpga.tcl
-python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 10 --count 10
+vivado -mode batch -source vivado/scripts/program_fpga.tcl -tclargs path/to/top_system.bit
+python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval 5.5 --count 10
+python3 tools/fpga_control_center.py   # menu with the same tools
 ```
 
-The FPGA has a receive-only Ethernet interface and does not answer ARP. The
-script detects the active Wi-Fi broadcast by default. The FPGA must be on the
-same LAN; for a direct link, configure the host Ethernet interface and pass
-its broadcast address with `--target-ip`. Follow
-[HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) when a board is available.
+The FPGA only receives Ethernet; it never answers ARP. For a direct cable, set
+a fixed IP on the laptop's Ethernet port and pass `--target-ip` with that
+subnet's broadcast address. The advanced demo is in
+[order_journey_advanced_demo.md](order_journey_advanced_demo.md).

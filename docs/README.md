@@ -1,14 +1,17 @@
 # Documentation
 
-The RTL and reproducible tests determine implemented behavior. This directory
-also contains reports and slides from earlier project phases; those are
-historical and may describe different clocks, resource counts, or latency.
+Start here, in this order:
 
-- [Commands](commands.md): tests, firmware, the one full-system build, and board bringup.
-- [Hardware validation](HARDWARE_VALIDATION.md): physical test results and remaining checks.
-- [Audit follow-up](AUDIT_FOLLOWUP.md): remaining evidence and engineering limits.
-- [Routed DRC review](DRC_REVIEW.md): rule-by-rule warning assessment.
+1. [architecture.md](architecture.md) – how the system works, in plain language.
+2. [rtl_reference.md](rtl_reference.md) – modules, event format, register maps.
+3. [keyboard_vga_controls.md](keyboard_vga_controls.md) – keys, screens, physical test steps.
+4. [commands.md](commands.md) – run tests, build firmware and bitstream, program the board.
+5. [storage_trace_uart.md](storage_trace_uart.md) – UART status line and RAM readback protocol.
+6. [order_journey_advanced_demo.md](order_journey_advanced_demo.md) – 13-event laptop demo.
 
-For current routed timing and DRC, regenerate `build_system/` with
-`vivado/scripts/build_system_bitstream.tcl`. Do not use
-`CURRENT_IMPLEMENTATION.md` as a contract for the RTL; it is an older snapshot.
+Status records: [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md) (what was
+verified on a real board), [AUDIT_FOLLOWUP.md](AUDIT_FOLLOWUP.md) (open
+evidence gaps), [DRC_REVIEW.md](DRC_REVIEW.md) (Vivado warning review).
+
+The RTL and the tests are the source of truth. Old reports and slides were
+removed; they remain in Git history.
