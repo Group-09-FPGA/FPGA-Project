@@ -27,44 +27,10 @@ jobs:
             exit 1
           fi
           echo ">>> Linting Verilog-2001 SoC RTL with Verilator..."
-          verilator --lint-only -DSIMULATION \
+          verilator --lint-only -DSIMULATION --top-module top_system \
             -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-TIMESCALEMOD -Wno-PINMISSING \
             -Wno-CASEINCOMPLETE -Wno-MULTIDRIVEN -Wno-UNUSEDSIGNAL \
-            -Irtl/cpu/core -Irtl/lob -Irtl/common -Irtl/clocking -Irtl/ethernet \
-            -Irtl/network -Irtl/itch -Irtl/display -Irtl/telemetry -Irtl/bus -Irtl/top \
-            rtl/lob/lob_event_decoder.v \
-            rtl/lob/lob_slot_table.v \
-            rtl/lob/lob_free_list.v \
-            rtl/lob/lob_hash_table.v \
-            rtl/lob/lob_price_ram.v \
-            rtl/lob/lob_occupancy.v \
-            rtl/lob/lob_bbo.v \
-            rtl/lob/lob_core.v \
-            rtl/bus/lob_mmio_slave.v \
-            rtl/bus/net_mmio_slave.v \
-            rtl/common/async_event_fifo.v \
-            rtl/common/config_cdc.v \
-            rtl/clocking/clk_rst_mgr.v \
-            rtl/ethernet/rmii_rx.v \
-            rtl/network/net_parser.v \
-            rtl/network/moldudp64_decoder.v \
-            rtl/itch/itch_decoder.v \
-            rtl/display/vga_top.v \
-            rtl/telemetry/uart_telemetry.v \
-            rtl/cpu/core/decoder.v \
-            rtl/cpu/core/alu.v \
-            rtl/cpu/core/branch_unit.v \
-            rtl/cpu/core/reg_file.v \
-            rtl/cpu/core/forwarding_unit.v \
-            rtl/cpu/core/hazard_unit.v \
-            rtl/cpu/core/rv32m_unit.v \
-            rtl/cpu/core/cpu_core.v \
-            rtl/cpu/core/sys_bus_interconnect.v \
-            rtl/cpu/core/memory.v \
-            rtl/cpu/core/imem_slave.v \
-            rtl/cpu/core/dmem_slave.v \
-            rtl/cpu/core/seven_seg_driver.v \
-            rtl/top/top_system.v
+            -Irtl/cpu/core -Irtl/lob $(find rtl -name '*.v')
           echo ">>> Verilator elaboration passed with configured warning exclusions."
 
       - name: Publish Lint Summary
