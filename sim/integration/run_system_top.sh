@@ -17,46 +17,7 @@ echo ">>> Analyzing RTL and Testbench files with xvlog..."
 xvlog -d SIMULATION \
     -i "$PROJECT_ROOT/rtl/cpu/core" \
     -i "$PROJECT_ROOT/rtl/lob" \
-    "$PROJECT_ROOT/rtl/lob/lob_event_decoder.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_slot_table.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_free_list.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_hash_table.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_price_ram.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_occupancy.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_bbo.v" \
-    "$PROJECT_ROOT/rtl/lob/lob_core.v" \
-    "$PROJECT_ROOT/rtl/bus/lob_mmio_slave.v" \
-    "$PROJECT_ROOT/rtl/bus/net_mmio_slave.v" \
-    "$PROJECT_ROOT/rtl/common/async_event_fifo.v" \
-    "$PROJECT_ROOT/rtl/common/config_cdc.v" \
-    "$PROJECT_ROOT/rtl/clocking/clk_rst_mgr.v" \
-    "$PROJECT_ROOT/rtl/ethernet/rmii_rx.v" \
-    "$PROJECT_ROOT/rtl/network/net_parser.v" \
-    "$PROJECT_ROOT/rtl/network/moldudp64_decoder.v" \
-    "$PROJECT_ROOT/rtl/itch/itch_decoder.v" \
-    "$PROJECT_ROOT/rtl/display/kitty_video.v" \
-    "$PROJECT_ROOT/rtl/display/kitty_ui_cpu.v" \
-    "$PROJECT_ROOT/rtl/ui/ps2_keyboard.v" \
-    "$PROJECT_ROOT/rtl/ui/keyboard_controls.v" \
-    "$PROJECT_ROOT/rtl/ui/order_source_arbiter.v" \
-    "$PROJECT_ROOT/rtl/display/lob_display_journal.v" \
-    "$PROJECT_ROOT/rtl/display/lob_level_order_count.v" \
-    "$PROJECT_ROOT/rtl/telemetry/uart_telemetry.v" \
-    "$PROJECT_ROOT/rtl/telemetry/uart_readback.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/decoder.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/alu.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/branch_unit.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/reg_file.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/forwarding_unit.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/hazard_unit.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/rv32m_unit.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/cpu_core.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/sys_bus_interconnect.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/memory.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/imem_slave.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/dmem_slave.v" \
-    "$PROJECT_ROOT/rtl/cpu/core/seven_seg_driver.v" \
-    "$PROJECT_ROOT/rtl/top/top_system.v" \
+    $(find "$PROJECT_ROOT/rtl" -name '*.v') \
     "$PROJECT_ROOT/sim/integration/tb_system_top.v"
 
 echo ">>> Elaborating snapshot with xelab..."

@@ -102,34 +102,9 @@ set PART "xc7a100tcsg324-1"
 set TOP  "top_system"
 
 puts "Reading Verilog modules..."
-read_verilog "$REPO_ROOT/rtl/lob/lob_event_decoder.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_slot_table.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_free_list.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_hash_table.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_price_ram.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_occupancy.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_bbo.v"
-read_verilog "$REPO_ROOT/rtl/lob/lob_core.v"
-read_verilog "$REPO_ROOT/rtl/bus/lob_mmio_slave.v"
-read_verilog "$REPO_ROOT/rtl/bus/net_mmio_slave.v"
-read_verilog "$REPO_ROOT/rtl/common/async_event_fifo.v"
-read_verilog "$REPO_ROOT/rtl/common/config_cdc.v"
-read_verilog "$REPO_ROOT/rtl/clocking/clk_rst_mgr.v"
-read_verilog "$REPO_ROOT/rtl/ethernet/rmii_rx.v"
-read_verilog "$REPO_ROOT/rtl/network/net_parser.v"
-read_verilog "$REPO_ROOT/rtl/network/moldudp64_decoder.v"
-read_verilog "$REPO_ROOT/rtl/itch/itch_decoder.v"
-read_verilog "$REPO_ROOT/rtl/display/kitty_video.v"
-read_verilog "$REPO_ROOT/rtl/display/kitty_ui_cpu.v"
-read_verilog [glob "$REPO_ROOT/rtl/ui/*.v"]
-read_verilog "$REPO_ROOT/rtl/display/lob_display_journal.v"
-read_verilog "$REPO_ROOT/rtl/display/lob_level_order_count.v"
-read_verilog "$REPO_ROOT/rtl/telemetry/uart_telemetry.v"
-read_verilog "$REPO_ROOT/rtl/telemetry/uart_readback.v"
-read_verilog "$REPO_ROOT/rtl/top/top_system.v"
-
-puts "Reading CPU Verilog core modules..."
-read_verilog [glob "$REPO_ROOT/rtl/cpu/core/*.v"]
+foreach dir {bus clocking common cpu cpu/core display ethernet itch lob network telemetry top ui} {
+    read_verilog [glob "$REPO_ROOT/rtl/$dir/*.v"]
+}
 
 puts "Reading physical and timing constraints..."
 read_xdc "$REPO_ROOT/fpga/nexys_a7_system.xdc"

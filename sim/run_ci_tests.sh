@@ -169,7 +169,7 @@ run_test "1280x720 renderer from presentation firmware and quote journal" \
     "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_kitty_preview.vvp)"
 
 run_test "Full Ethernet-to-book integration" \
-    "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v' ! -path '*/lab5_baseline/*' ! -name 'top_fpga.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \
+    "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \
     "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_system_top.vvp)"
 
 echo "======================================================================"

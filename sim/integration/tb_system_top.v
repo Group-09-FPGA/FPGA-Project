@@ -362,10 +362,10 @@ module tb_system_top;
             $display("[PASS] FPGA slot/hash/price write trace matches second add");
         end
         repeat (100) @(posedge clk);
-        if (dut.history_quote_count_core !== 8'd2 ||
-            dut.history_event_count_core !== 9'd2 ||
-            dut.u_display_journal.event_mem[1][393:362] !== 32'd2 ||
-            dut.u_display_journal.event_mem[1][361:316] !== {1'b1, 32'd300, 13'd605}) begin
+        if (dut.u_views.quote_count !== 8'd2 ||
+            dut.u_views.event_count !== 9'd2 ||
+            dut.u_views.u_display_journal.event_mem[1][393:362] !== 32'd2 ||
+            dut.u_views.u_display_journal.event_mem[1][361:316] !== {1'b1, 32'd300, 13'd605}) begin
             $display("[FAIL] FPGA VGA journal disagrees with second add");
             test_errors = test_errors + 1;
         end else begin
@@ -373,51 +373,51 @@ module tb_system_top;
         end
         // Exercise the UART query's core->VGA->core readback bridge against
         // the actual second order slot, not only the raw VGA read port.
-        force dut.readback_req_kind = "S";
-        force dut.readback_req_addr = 14'd2046;
-        force dut.readback_req_toggle = 1'b1;
+        force dut.u_uart.req_kind = "S";
+        force dut.u_uart.req_addr = 14'd2046;
+        force dut.u_uart.req_toggle = 1'b1;
         timeout = 0;
-        while (!dut.readback_rsp_update && timeout < 100) begin
+        while (!dut.u_uart.rsp_update && timeout < 100) begin
             @(posedge clk);
             timeout = timeout + 1;
         end
-        if (timeout == 100 || dut.readback_rsp_core[629:622] !== "S" ||
-            dut.readback_rsp_core[621:608] !== 14'd2046 ||
-            dut.readback_rsp_core[46] !== 1'b1 ||
-            dut.readback_rsp_core[31:0] !== 32'd300) begin
+        if (timeout == 100 || dut.u_uart.rsp_core[629:622] !== "S" ||
+            dut.u_uart.rsp_core[621:608] !== 14'd2046 ||
+            dut.u_uart.rsp_core[46] !== 1'b1 ||
+            dut.u_uart.rsp_core[31:0] !== 32'd300) begin
             $display("[FAIL] UART readback bridge did not return actual slot RAM");
             test_errors = test_errors + 1;
         end else begin
             $display("[PASS] UART query bridge returned actual slot RAM");
         end
         repeat (4) @(posedge clk);
-        force dut.readback_req_kind = "B";
-        force dut.readback_req_addr = 14'd0;
-        force dut.readback_req_toggle = 1'b0;
+        force dut.u_uart.req_kind = "B";
+        force dut.u_uart.req_addr = 14'd0;
+        force dut.u_uart.req_toggle = 1'b0;
         timeout = 0;
-        while (!dut.readback_rsp_update && timeout < 600) begin
+        while (!dut.u_uart.rsp_update && timeout < 600) begin
             @(posedge clk);
             timeout = timeout + 1;
         end
-        if (timeout == 600 || dut.readback_rsp_core[629:622] !== "B" ||
-            dut.readback_rsp_core[621:608] !== 14'd0 ||
-            dut.readback_rsp_core[31:0] !== 32'h00000220) begin
+        if (timeout == 600 || dut.u_uart.rsp_core[629:622] !== "B" ||
+            dut.u_uart.rsp_core[621:608] !== 14'd0 ||
+            dut.u_uart.rsp_core[31:0] !== 32'h00000220) begin
             $display("[FAIL] UART occupied-hash bitmap: timeout=%0d kind=%h addr=%h bits=%h", timeout,
-                     dut.readback_rsp_core[629:622], dut.readback_rsp_core[621:608], dut.readback_rsp_core[31:0]);
+                     dut.u_uart.rsp_core[629:622], dut.u_uart.rsp_core[621:608], dut.u_uart.rsp_core[31:0]);
             test_errors = test_errors + 1;
         end else begin
             $display("[PASS] UART occupied-hash bitmap matches actual hash RAM");
         end
-        release dut.readback_req_kind;
-        release dut.readback_req_addr;
-        release dut.readback_req_toggle;
+        release dut.u_uart.req_kind;
+        release dut.u_uart.req_addr;
+        release dut.u_uart.req_toggle;
         timeout = 0;
-        while ((dut.u_dmem.DMEM.dmem[0] !== 32'd1500000 ||
-                dut.u_dmem.DMEM.dmem[2] !== 32'd1505000) && timeout < 5000) begin
+        while ((dut.u_cpu_system.u_dmem.DMEM.dmem[0] !== 32'd1500000 ||
+                dut.u_cpu_system.u_dmem.DMEM.dmem[2] !== 32'd1505000) && timeout < 5000) begin
             @(posedge clk);
             timeout = timeout + 1;
         end
-        if (timeout == 5000 || dut.u_dmem.DMEM.dmem[6][1] !== 1'b1) begin
+        if (timeout == 5000 || dut.u_cpu_system.u_dmem.DMEM.dmem[6][1] !== 1'b1) begin
             $display("[FAIL] Monitor firmware did not publish a valid BBO snapshot");
             test_errors = test_errors + 1;
         end else begin
@@ -432,9 +432,9 @@ module tb_system_top;
         $display("==================================================================");
 
         $display("1. RMII MAC RX:");
-        $display("   - Total Valid Frames Received : %0d (Expected: 1)", dut.cnt_rx_frames);
-        $display("   - CRC-32 Errors               : %0d (Expected: 0)", dut.cnt_crc_err);
-        if (dut.cnt_rx_frames != 32'd1 || dut.cnt_crc_err != 32'd0) begin
+        $display("   - Total Valid Frames Received : %0d (Expected: 1)", dut.u_ingest.cnt_rx_frames);
+        $display("   - CRC-32 Errors               : %0d (Expected: 0)", dut.u_ingest.cnt_crc_err);
+        if (dut.u_ingest.cnt_rx_frames != 32'd1 || dut.u_ingest.cnt_crc_err != 32'd0) begin
             $display("[FAIL] RMII frame count or CRC error check failed!");
             test_errors = test_errors + 1;
         end else begin
@@ -442,22 +442,22 @@ module tb_system_top;
         end
 
         $display("1.5. Network Parser (net_parser):");
-        $display("   - State                       : %0d", dut.u_net_parser.state);
-        $display("   - IPv4 Frames                 : %0d", dut.u_net_parser.cnt_ipv4_frames);
-        $display("   - UDP Packets                 : %0d", dut.u_net_parser.cnt_udp_packets);
-        $display("   - Non-IPv4 Drop               : %0d", dut.u_net_parser.cnt_non_ipv4_drop);
-        $display("   - IP Checksum Error           : %0d", dut.u_net_parser.cnt_ip_csum_err);
-        $display("   - IP Frag Drop                : %0d", dut.u_net_parser.cnt_ip_frag_drop);
-        $display("   - Non-UDP Drop                : %0d", dut.u_net_parser.cnt_non_udp_drop);
-        $display("   - Port Mismatch Drop          : %0d", dut.u_net_parser.cnt_port_mismatch_drop);
-        $display("   - Destination Port Detected   : %0d (Expected: %0d)", dut.u_net_parser.udp_dst_port, dut.u_net_parser.active_target_port);
+        $display("   - State                       : %0d", dut.u_ingest.u_net_parser.state);
+        $display("   - IPv4 Frames                 : %0d", dut.u_ingest.u_net_parser.cnt_ipv4_frames);
+        $display("   - UDP Packets                 : %0d", dut.u_ingest.u_net_parser.cnt_udp_packets);
+        $display("   - Non-IPv4 Drop               : %0d", dut.u_ingest.u_net_parser.cnt_non_ipv4_drop);
+        $display("   - IP Checksum Error           : %0d", dut.u_ingest.u_net_parser.cnt_ip_csum_err);
+        $display("   - IP Frag Drop                : %0d", dut.u_ingest.u_net_parser.cnt_ip_frag_drop);
+        $display("   - Non-UDP Drop                : %0d", dut.u_ingest.u_net_parser.cnt_non_udp_drop);
+        $display("   - Port Mismatch Drop          : %0d", dut.u_ingest.u_net_parser.cnt_port_mismatch_drop);
+        $display("   - Destination Port Detected   : %0d (Expected: %0d)", dut.u_ingest.u_net_parser.udp_dst_port, dut.u_ingest.u_net_parser.active_target_port);
 
         $display("2. Transport Layer (MoldUDP64):");
-        $display("   - Mold State                  : %0d", dut.u_mold_decoder.state);
-        $display("   - MoldUDP64 Packets Parsed    : %0d (Expected: 1)", dut.cnt_mold_pkts);
-        $display("   - Messages Un-framed          : %0d (Expected: 2)", dut.cnt_mold_msgs);
-        $display("   - Sequence Gap Detected       : %0d (Expected: 0)", dut.seq_gap_detected);
-        if (dut.cnt_mold_msgs != 32'd2 || dut.seq_gap_detected != 1'b0) begin
+        $display("   - Mold State                  : %0d", dut.u_ingest.u_mold_decoder.state);
+        $display("   - MoldUDP64 Packets Parsed    : %0d (Expected: 1)", dut.u_ingest.cnt_mold_pkts);
+        $display("   - Messages Un-framed          : %0d (Expected: 2)", dut.u_ingest.cnt_mold_msgs);
+        $display("   - Sequence Gap Detected       : %0d (Expected: 0)", dut.u_ingest.seq_gap_detected);
+        if (dut.u_ingest.cnt_mold_msgs != 32'd2 || dut.u_ingest.seq_gap_detected != 1'b0) begin
             $display("[FAIL] MoldUDP64 message count or gap check failed!");
             test_errors = test_errors + 1;
         end else begin
@@ -465,16 +465,16 @@ module tb_system_top;
         end
 
         $display("2.5. Exchange Feed Layer (ITCH 5.0):");
-        $display("   - ITCH State                  : %0d", dut.u_itch_decoder.state);
-        $display("   - ITCH Total Messages         : %0d", dut.u_itch_decoder.cnt_itch_total_msgs);
-        $display("   - ITCH Order Events           : %0d", dut.u_itch_decoder.cnt_itch_order_events);
-        $display("   - ITCH Filtered Messages      : %0d", dut.u_itch_decoder.cnt_itch_filtered_msgs);
-        $display("   - ITCH OOW Events             : %0d", dut.u_itch_decoder.cnt_itch_oow_events);
+        $display("   - ITCH State                  : %0d", dut.u_ingest.u_itch_decoder.state);
+        $display("   - ITCH Total Messages         : %0d", dut.u_ingest.u_itch_decoder.cnt_itch_total_msgs);
+        $display("   - ITCH Order Events           : %0d", dut.u_ingest.u_itch_decoder.cnt_itch_order_events);
+        $display("   - ITCH Filtered Messages      : %0d", dut.u_ingest.u_itch_decoder.cnt_itch_filtered_msgs);
+        $display("   - ITCH OOW Events             : %0d", dut.u_ingest.u_itch_decoder.cnt_itch_oow_events);
         $display("   - ITCH Decode Error           : %0d (length=%0d bytes=%0d)",
-                 dut.itch_decode_error, dut.u_itch_decoder.length, dut.u_itch_decoder.count);
-        $display("   - ITCH Msg Type Latched       : %0c (0x%02X)", dut.u_itch_decoder.msg_type, dut.u_itch_decoder.msg_type);
-        $display("   - ITCH Locate Latched         : %0d", dut.u_itch_decoder.msg_locate);
-        $display("   - FIFO Count (wr/rd)          : %0d / %0d", dut.fifo_wr_cnt, dut.fifo_rd_cnt);
+                 dut.u_ingest.itch_decode_error, dut.u_ingest.u_itch_decoder.length, dut.u_ingest.u_itch_decoder.count);
+        $display("   - ITCH Msg Type Latched       : %0c (0x%02X)", dut.u_ingest.u_itch_decoder.msg_type, dut.u_ingest.u_itch_decoder.msg_type);
+        $display("   - ITCH Locate Latched         : %0d", dut.u_ingest.u_itch_decoder.msg_locate);
+        $display("   - FIFO Count (wr/rd)          : %0d / %0d", dut.u_ingest.fifo_wr_cnt, dut.u_ingest.fifo_rd_cnt);
         $display("   - Book Valid                  : %0b (Expected: 1)", dut.lob_book_valid);
         $display("   - Active Order Count          : %0d (Expected: 2)", dut.lob_active_orders);
         $display("   - Best Bid Valid              : %0b (Expected: 1)", dut.lob_bid_valid);
@@ -533,8 +533,8 @@ module tb_system_top;
         repeat(30) @(posedge clk);
         if (dut.core_event_count !== 3 || dut.lob_active_orders !== 3 ||
             dut.lob_storage_trace[310:247] !== 64'hB0000000 ||
-            dut.cnt_itch_events !== 2 || !dut.lob_book_valid ||
-            dut.local_completion_count !== 1 || !dut.local_completion_valid) begin
+            dut.u_ingest.cnt_itch_events !== 2 || !dut.lob_book_valid ||
+            dut.u_order_merge.local_done_count !== 1 || !dut.u_order_merge.local_done_valid) begin
             $display("[FAIL] Enter path duplicated/lost the keyboard order");
             test_errors = test_errors + 1;
         end else $display("[PASS] Enter submitted one keyboard order through the source arbiter");
@@ -549,7 +549,7 @@ module tb_system_top;
         end
         repeat(30) @(posedge clk);
         if(dut.core_event_count !== 5 || dut.lob_active_orders !== 5 ||
-           dut.cnt_itch_events !== 4 || !dut.lob_book_valid) begin
+           dut.u_ingest.cnt_itch_events !== 4 || !dut.lob_book_valid) begin
             $display("[FAIL] Network feed failed after a keyboard-generated order");
             test_errors=test_errors+1;
         end else $display("[PASS] Laptop and keyboard orders share a book without changing network sequencing");
@@ -560,7 +560,7 @@ module tb_system_top;
         pkt[24] = pkt[24] ^ 8'h01;
         send_rmii_packet(pkt_len);
         timeout = 0;
-        while (dut.cnt_ip_csum_err == 0 && timeout < 5000) begin
+        while (dut.u_ingest.cnt_ip_csum_err == 0 && timeout < 5000) begin
             @(posedge clk);
             timeout = timeout + 1;
         end
