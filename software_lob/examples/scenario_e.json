@@ -1,7 +1,0 @@
-[
-  {"type": "AddOrder", "order_id": 501, "side": "BUY", "price": 1000000, "quantity": 10},
-  {"type": "AddOrder", "order_id": 502, "side": "BUY", "price": 1000000, "quantity": 20},
-  {"type": "AddOrder", "order_id": 503, "side": "BUY", "price": 1000000, "quantity": 30},
-  {"type": "ExecuteOrder", "order_id": 501, "executed_qty": 5, "match_number": 7001},
-  {"type": "ExecuteOrder", "order_id": 501, "executed_qty": 5, "match_number": 7002}
-]

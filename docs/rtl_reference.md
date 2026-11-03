@@ -114,9 +114,10 @@ UDP length errors, `28` UDP checksum errors.
 The same values appear in the source as `REG_*` localparams; if the two ever
 disagree, the RTL is right.
 
-## Python ↔ RTL contract
+## Python <-> RTL contract
 
-`software_lob/` is a pure-Python reference book. `sim/golden/` converts its
-scenarios to RTL vectors; the testbenches `tb_lob_golden` and `tb_lob_random`
-compare RTL results against it. If you change event layout, hash function or
-capacity, change `lob_defines.vh` and the Python packer together.
+`sim/golden/` holds the golden vectors (`golden_vectors.json`) and generators
+that turn them, and random event sequences checked against an independent
+dictionary model, into RTL input files. `tb_lob_golden` and `tb_lob_random`
+compare RTL results against them. If you change the event layout, hash
+function or capacity, update `lob_defines.vh` and these generators together.

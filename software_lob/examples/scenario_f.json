@@ -1,6 +1,0 @@
-[
-  {"type": "AddOrder", "order_id": 601, "side": "BUY", "price": 1000000, "quantity": 50},
-  {"type": "AddOrder", "order_id": 602, "side": "BUY", "price": 1000000, "quantity": 25},
-  {"type": "ReplaceOrder", "old_order_id": 601, "new_order_id": 603, "new_price": 1000000, "new_quantity": 40},
-  {"type": "ReplaceOrder", "old_order_id": 603, "new_order_id": 604, "new_price": 1010000, "new_quantity": 30}
-]

@@ -1,7 +1,7 @@
 # Commands
 
 Run everything from the repository root. You need Icarus Verilog and Python 3
-for tests, `uv` for the Python reference model, Vivado 2026.1 for bitstreams,
+for tests, Vivado 2026.1 for bitstreams,
 and an RV32IM GNU toolchain only if you rebuild firmware.
 
 ## Tests
@@ -10,7 +10,6 @@ and an RV32IM GNU toolchain only if you rebuild firmware.
 ./sim/run_ci_tests.sh                 # all Icarus testbenches (about 2 minutes)
 ./sim/integration/run_system_top.sh   # same full-system test under Vivado XSim
 python3 -m unittest discover -s tests # host tools (dashboard, readback, feed)
-cd software_lob && uv sync --extra dev && uv run pytest   # Python reference book
 ```
 
 To run one testbench, copy its `iverilog ... && vvp` line from

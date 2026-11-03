@@ -23,8 +23,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install pytest hypothesis rich sortedcontainers
-          pip install -e ./software_lob
+          pip install pytest rich
 
       - name: Run Syntax and Compilation Checks
         run: |
@@ -33,10 +32,6 @@ jobs:
       - name: Run Hardware Adapter & Feed Unit Tests
         run: |
           python3 -m unittest discover -s tests -v
-
-      - name: Run Software LOB Reference Model Tests
-        run: |
-          pytest software_lob/tests -v
 
       - name: Publish Python Test Summary
         if: success()
@@ -47,5 +42,4 @@ jobs:
           echo "| MoldUDP64 / ITCH 5.0 Packet Encoder | Validated NASDAQ ITCH Type 'A' Add Order packet layout | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| 256-bit Canonical Event Packer | Validated bit-level packing matching \`lob_defines.vh\` | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Golden Vector Schema & Validation | 32 pre-computed market vectors verified | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Software LOB Core Engine | 30 unit tests covering BBO tracking, price levels, recovery | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY
           echo "| Market Feed Scenarios | 8 end-to-end NASDAQ ITCH trading scenarios | ✅ PASSED |" >> $GITHUB_STEP_SUMMARY

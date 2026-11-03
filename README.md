@@ -16,11 +16,10 @@ USB keyboard → order form → local FIFO ─────┴→ arbiter → ord
 ```bash
 ./sim/run_ci_tests.sh                    # RTL simulation suite
 python3 -m unittest discover -s tests    # host-tool tests
-cd software_lob && uv sync --extra dev && uv run pytest   # reference model
 vivado -mode batch -source vivado/scripts/build_system_bitstream.tcl   # bitstream
 ```
 
-Needs Icarus Verilog, Python 3, `uv`, and Vivado 2026.1 (bitstream only).
+Needs Icarus Verilog, Python 3, and Vivado 2026.1 (bitstream only).
 More commands: [docs/commands.md](docs/commands.md).
 
 ## Repository map
@@ -30,7 +29,6 @@ More commands: [docs/commands.md](docs/commands.md).
 | `rtl/` | All synthesizable Verilog (network, order book, CPU, keyboard, VGA, UART) |
 | `sim/` | Unit tests, golden-vector tests, full-system integration test |
 | `software/baremetal/` | Firmware for the supervisor CPU (`lob_test`) and the VGA CPU (`kitty_ui`) |
-| `software_lob/` | Python reference order book used to generate and check test vectors |
 | `tools/`, `tests/` | Host tools: order sender, UART dashboard, RAM readback, and their tests |
 | `constraints/`, `vivado/` | Pin/timing constraints, build and programming scripts |
 | `docs/` | Documentation (start at [docs/README.md](docs/README.md)) |
@@ -39,7 +37,7 @@ Build outputs (`build*/`, bitstreams, Vivado logs) are ignored by Git.
 
 ## Status
 
-* Simulation: all RTL testbenches and the Python tests pass.
+* Simulation: all RTL testbenches and the host-tool tests pass.
 * Board (checked 2026-10-24 and 2026-11-02): Ethernet ingest, order book
   operations, fail-stop, UART readback and the cold-attach dashboard work.
 * Keyboard/720p image: builds and meets timing; UART and Ethernet work on the

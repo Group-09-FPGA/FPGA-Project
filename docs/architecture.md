@@ -125,9 +125,8 @@ handle data hazards. Register map: [rtl_reference.md](rtl_reference.md#cpu-memor
 ## Verification
 
 * `sim/unit/*` – one testbench per block.
-* `sim/golden/*` – a Python reference book (`software_lob`) generates event
-  and expected-result vectors, and the RTL is compared against them, plus
-  three random sequences against an independent dictionary model.
+* `sim/golden/*` – committed event and expected-result vectors, plus Python
+  generators for random sequences, compared against the RTL.
 * `sim/integration/tb_system_top.v` – Ethernet frames and PS/2 keystrokes into
   the full `top_system`.
 * Vivado produces routed timing and DRC reports; see [commands.md](commands.md).
