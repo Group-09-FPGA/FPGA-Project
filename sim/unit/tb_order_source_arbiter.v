@@ -6,8 +6,8 @@ module tb_order_source_arbiter;
     reg [255:0] nd=0,bd=0;
     wire nr,br,valid;
     wire [255:0] data;
-    order_source_arbiter dut(.clk(clk),.rst_n(rst_n),.net_valid(nv),.board_valid(bv),
-        .net_data(nd),.board_data(bd),.net_ready(nr),.board_ready(br),
+    order_source_arbiter dut(.clk(clk),.rst_n(rst_n),.net_valid(nv),.local_valid(bv),
+        .net_data(nd),.local_data(bd),.net_ready(nr),.local_ready(br),
         .valid(valid),.data(data),.ready(ready));
     integer n=0,b=0,cycles=0;
     reg held=0;
@@ -17,7 +17,7 @@ module tb_order_source_arbiter;
         held=valid && !ready; previous=data;
         if(valid && ready) begin
             if(data[255]) begin
-                if(data[31:0]!==b) $fatal(1,"Board event lost/reordered");
+                if(data[31:0]!==b) $fatal(1,"Local event lost/reordered");
                 b=b+1;
             end else begin
                 if(data[31:0]!==n) $fatal(1,"Network event lost/reordered");
