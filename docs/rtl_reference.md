@@ -97,7 +97,7 @@ return a bus error.
 | Off | Name | Notes |
 | --- | --- | --- |
 | 00 | CTRL | bit 0 enable, bit 2 snapshot request |
-| 04 | STATUS | init done, book valid, busy, fail-stop, bid valid, ask valid, event ready |
+| 04 | STATUS | bit 0 init done, 1 book valid, 2 busy, 3 error latched, 4 bid valid, 5 ask valid, 6 event ready, 7 config ready |
 | 08 | ERROR_CODE | `[7:0]` code, bit 16 valid, write-1-to-clear |
 | 0C | ACTIVE_ORDERS | `[11:0]` |
 | 10–1C | SNAP_BID_P/Q, SNAP_ASK_P/Q | reading the first latches a consistent snapshot |

@@ -2,6 +2,7 @@
 
 Start here, in this order:
 
+0. [study/README.md](study/README.md) – a guided, chapter-by-chapter RTL study guide (start here to learn the code).
 1. [architecture.md](architecture.md) – how the system works, in plain language.
 2. [rtl_reference.md](rtl_reference.md) – modules, event format, register maps.
 3. [keyboard_vga_controls.md](keyboard_vga_controls.md) – keys, screens, physical test steps.
