@@ -24,9 +24,7 @@ module cpu_core
     wire stall_pipeline;
     wire [31:0] ex_mem_address;
 
-    // --------------------------------------------------------
     // STALL AND HAZARD LOGIC
-    // --------------------------------------------------------
     // stall_pipeline removed, using stall_pipeline directly
 
     wire wb_stall_first, wb_stall_second, wb_stall;
@@ -46,9 +44,7 @@ module cpu_core
 
     wire branch_stall = wb_stall_first || wb_branch;
 
-    // --------------------------------------------------------
     // FETCH STAGE
-    // --------------------------------------------------------
     reg [31:0] fetch_pc;
     wire [31:0] next_pc;
     wire branch_taken;
@@ -81,9 +77,7 @@ module cpu_core
         else exception <= 1'b0;
     end
 
-    // --------------------------------------------------------
     // DECODE STAGE
-    // --------------------------------------------------------
     wire [4:0] id_rs1, id_rs2, id_rd;
     wire [2:0] id_funct3;
     wire [31:0] id_imm;
@@ -102,9 +96,7 @@ module cpu_core
         .illegal_inst(illegal_inst)
     );
 
-    // --------------------------------------------------------
     // ID -> EX PIPELINE REGISTERS
-    // --------------------------------------------------------
     reg [31:0] ex_pc, ex_imm;
     reg [4:0] ex_rd, ex_rs1, ex_rs2;
     reg [2:0] ex_alu_op;
@@ -128,9 +120,7 @@ module cpu_core
         end
     end
 
-    // --------------------------------------------------------
     // REGISTER FILE & FORWARDING (IN EX STAGE!)
-    // --------------------------------------------------------
     wire [31:0] reg_rdata1_raw, reg_rdata2_raw;
     wire [31:0] ex_rdata1, ex_rdata2;
     reg wb_reg_write_en;
@@ -156,9 +146,7 @@ module cpu_core
         .rdata1(ex_rdata1), .rdata2(ex_rdata2)
     );
 
-    // --------------------------------------------------------
     // EXECUTE STAGE
-    // --------------------------------------------------------
     wire [31:0] alu_operand1 = ex_rdata1;
     wire [31:0] alu_operand2 = ex_imm_sel ? ex_imm : ex_rdata2;
     wire [31:0] alu_out;
@@ -177,9 +165,7 @@ module cpu_core
 
     assign ex_mem_address = alu_operand1 + ex_imm;
 
-    // --------------------------------------------------------
     // RV32M MULTIPLY / DIVIDE UNIT
-    // --------------------------------------------------------
     wire m_busy, m_done;
     wire [31:0] m_result;
     reg  m_started;
@@ -237,9 +223,7 @@ module cpu_core
     
     
 
-    // --------------------------------------------------------
     // EX -> WB PIPELINE REGISTERS
-    // --------------------------------------------------------
     reg wb_mem_write, wb_branch_nxt;
     reg [2:0] wb_alu_operation;
     reg [31:0] wb_mem_address, wb_reg_rdata2;
@@ -264,9 +248,7 @@ module cpu_core
         end
     end
 
-    // --------------------------------------------------------
     // WRITEBACK STAGE (LOAD / STORE ALIGNMENT)
-    // --------------------------------------------------------
 
     
     reg [31:0] wb_write_data;
@@ -338,10 +320,7 @@ wire [1:0] wb_read_address = wb_mem_address[1:0];
     end
     assign wb_read_data = wb_read_data_out;
 
-
-    // --------------------------------------------------------
     // BUS MASTER ARBITER
-    // --------------------------------------------------------
     localparam ST_IDLE    = 2'b00;
     localparam ST_WAIT_IF = 2'b01;
     localparam ST_WAIT_EX = 2'b10;

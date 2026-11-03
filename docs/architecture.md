@@ -96,7 +96,7 @@ Enter is pressed on a valid form it builds a canonical event and pushes it
 into a small local FIFO.
 
 `order_source_arbiter` chooses between the network FIFO and the local FIFO
-and hands exactly one event to `lob_core`. `top_system` remembers which
+and hands exactly one event to `lob_core`. `order_merge` remembers which
 source is active so the completion result goes back to the right place.
 Keyboard events skip the Ethernet parser, so the network counters only ever
 count real network traffic. Details and the full key list are in

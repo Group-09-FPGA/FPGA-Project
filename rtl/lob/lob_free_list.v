@@ -1,9 +1,5 @@
-// =============================================================================
-// File: lob_free_list.v
-// Description: LIFO free slot allocator and reclamation stack (2,048 x 11 bits)
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
+// LIFO free slot allocator and reclamation stack (2,048 x 11 bits)
 // See docs/rtl_reference.md for how this block fits in the LOB.
-// =============================================================================
 
 `timescale 1ns / 1ps
 

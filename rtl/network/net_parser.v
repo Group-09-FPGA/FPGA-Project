@@ -1,9 +1,5 @@
-// =============================================================================
-// File: net_parser.v
-// Description: Hardware Ethernet II + IPv4 + UDP packet header parser
+// Hardware Ethernet II + IPv4 + UDP packet header parser
 //              with IPv4 header checksum verification and destination port filter
-// Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
-// =============================================================================
 
 `timescale 1ns / 1ps
 

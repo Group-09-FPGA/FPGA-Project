@@ -1,10 +1,6 @@
-// =============================================================================
-// File: moldudp64_decoder.v
-// Description: Hardware MoldUDP64 protocol downstream framing and sequence tracker
+// Hardware MoldUDP64 protocol downstream framing and sequence tracker
 //              Maintains authoritative 64-bit sequence, detects gaps/duplicates,
 //              and un-frames length-prefixed ITCH 5.0 messages
-// Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
-// =============================================================================
 
 `timescale 1ns / 1ps
 

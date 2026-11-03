@@ -1,6 +1,4 @@
-// =============================================================================
-// File: net_mmio_slave.v
-// Description: Network Diagnostics MMIO Slave (CPU bus address 0x5000_0000)
+// Network Diagnostics MMIO Slave (CPU bus address 0x5000_0000)
 //
 // Presents the 352-bit net_diag_snapshot (already clock-domain-crossed from
 // clk_eth to clk_core via config_cdc) as an 11-register read-only window to
@@ -33,7 +31,6 @@
 //   0x20  status_flags    [ 31:  0]  {29'd0, itch_err, seq_gap, feed_loss}
 //   0x24  cnt_udp_len_err [ 95: 64]
 //   0x28  cnt_udp_csum_err[ 63: 32]
-// =============================================================================
 
 `timescale 1ns/1ps
 
@@ -51,12 +48,10 @@ module net_mmio_slave (
     input  wire [351:0] net_diag_snapshot
 );
 
-    // -------------------------------------------------------------------------
     // Stage 0: Latching stage — register every snapshot slice every cycle.
     // This is a pure register stage with no address dependency.  Vivado will
     // place these FFs close to the config_cdc dst_data_reg cells, keeping the
     // fan-in of the mux entirely within the local net MMIO region.
-    // -------------------------------------------------------------------------
     reg [31:0] snap_cnt_rx_frames;
     reg [31:0] snap_cnt_crc_err;
     reg [31:0] snap_cnt_mold_msgs;
@@ -97,9 +92,7 @@ module net_mmio_slave (
         end
     end
 
-    // -------------------------------------------------------------------------
     // Stage 1: Address pipeline — sample the request address one cycle early.
-    // -------------------------------------------------------------------------
     reg         req_pending;
     reg  [7:0]  req_addr_d;
 
@@ -114,10 +107,8 @@ module net_mmio_slave (
         end
     end
 
-    // -------------------------------------------------------------------------
     // Stage 2: Mux + output register — reads only from snap_* FFs (Stage 0).
     // No combinational path from any CPU signal reaches this mux.
-    // -------------------------------------------------------------------------
     always @(posedge clk or negedge reset) begin
         if (!reset) begin
             bus_rsp_valid <= 1'b0;

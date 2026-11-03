@@ -1,9 +1,5 @@
-// =============================================================================
-// File: uart_telemetry.v
-// Description: 115200 Baud UART Transmitter & Hardware Telemetry Engine
+// 115200 Baud UART Transmitter & Hardware Telemetry Engine
 //              Supports MMIO CPU transmit and optional automated hardware BBO streaming.
-// Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T)
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -65,9 +61,7 @@ module uart_telemetry #(
         .head_byte(tx_head), .txd(uart_txd)
     );
 
-    // -------------------------------------------------------------------------
     // 3. Hardware Automated BBO String Formatter FSM
-    // -------------------------------------------------------------------------
     reg auto_telem_en;
     reg [8:0] telem_step;
     reg       telem_busy;
@@ -410,9 +404,7 @@ module uart_telemetry #(
         end
     end
 
-    // -------------------------------------------------------------------------
     // 4. MMIO Bus Transactions & Multiplexing
-    // -------------------------------------------------------------------------
     // Register the CPU request before it reaches the FIFO controls. This
     // isolates the long CPU register-file/bus decode path from the FIFO CE.
     reg        req_pending;

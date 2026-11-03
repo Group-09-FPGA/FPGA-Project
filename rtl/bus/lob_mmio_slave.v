@@ -1,8 +1,5 @@
-// =============================================================================
-// File: lob_mmio_slave.v
-// Description: MMIO slave peripheral for LOB accelerator on CPU system bus
+// MMIO slave peripheral for LOB accelerator on CPU system bus
 // Base Address: 0x4000_0000
-// =============================================================================
 
 `timescale 1ns / 1ps
 

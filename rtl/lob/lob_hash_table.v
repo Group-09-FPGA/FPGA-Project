@@ -1,18 +1,12 @@
-// =============================================================================
-// File: lob_hash_table.v
-// Description: 1,024 sets x 8 ways hash table with 8-entry CAM collision stash
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
+// 1,024 sets x 8 ways hash table with 8-entry CAM collision stash
 // See docs/rtl_reference.md for how this block fits in the LOB.
-// =============================================================================
 
 `timescale 1ns / 1ps
 
 `include "lob_defines.vh"
 
-// -----------------------------------------------------------------------------
 // Helper Module: 1,024 x 76-bit Simple Dual-Port Block RAM for one Hash Way
 // Infers dedicated RAMB18E1 primitives cleanly without registers
-// -----------------------------------------------------------------------------
 module lob_hash_way_ram (
     input  wire        clk,
     input  wire        wr_en,
@@ -103,9 +97,7 @@ module lob_hash_table #(
     output reg  [75:0]            dbg_stash_data
 );
 
-    // -------------------------------------------------------------------------
     // 8 Ways of 1,024 Sets (each 76 bits: valid, slot[10:0], key[63:0])
-    // -------------------------------------------------------------------------
     // 8-entry CAM Stash (Registers/FFs)
     reg [75:0] stash [0:STASH_ENTRIES-1];
     always @(posedge dbg_clk)
@@ -117,9 +109,7 @@ module lob_hash_table #(
 
     assign init_busy = initializing;
 
-    // -------------------------------------------------------------------------
     // Synchronous Read Pipeline
-    // -------------------------------------------------------------------------
     wire [75:0]            way_rd_data [0:HASH_WAYS-1];
     reg  [63:0]            key_q;
     reg                    rd_en_q;
@@ -185,9 +175,7 @@ module lob_hash_table #(
         end
     endgenerate
 
-    // -------------------------------------------------------------------------
     // Lookup Compare & Free-Bucket Search Logic (Cycle t+1)
-    // -------------------------------------------------------------------------
     reg                    way_hit;
     reg [SLOT_ADDR_W-1:0]  way_hit_slot;
     reg [HASH_WAY_W-1:0]   way_hit_idx;
@@ -300,9 +288,7 @@ module lob_hash_table #(
         end
     end
 
-    // -------------------------------------------------------------------------
     // Initialization FSM (1,024 cycles)
-    // -------------------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             init_cnt     <= {HASH_SET_W+1{1'b0}};

@@ -46,11 +46,11 @@ Board tools: `python3 tools/order_journey.py --uart-port /dev/ttyUSB1 --interval
 
 ## Architecture
 
-Top level is `rtl/top/top_system.v`; read it to see how everything is wired. Key structure:
+Top level is `rtl/top/top_system.v`; it only wires subsystem modules (`net_ingest`, `order_merge`, `cpu_system`, `uart_system`, `display_system`, `book_views`, `status_to_ui`, `board_status`). Clock-crossing instances must keep a `_cdc` suffix and the FIFOs the names `u_event_fifo` / `u_local_fifo`: the XDC timing exceptions match on those names. Key structure:
 
 - **Two 50 MHz domains, not one**: Ethernet (`rst_eth_n`, RMII clock) and core (`rst_core_n`), plus a VGA domain (`rst_vga_n`). All crossings go through `rtl/common/async_event_fifo.v` (256-bit canonical events) or `rtl/common/config_cdc.v` (bundled-value CDC for counters/config/diagnostics/readback buses of arbitrary `WIDTH`). Add new cross-domain signals via these, not ad-hoc synchronizers.
 - **Ingest path** (`rtl/ethernet`, `rtl/network`, `rtl/itch`): `rmii_rx` → `net_parser` (IP/UDP, checksum and length counters) → `moldudp64_decoder` (gap ⇒ fail-stop) → `itch_decoder` → canonical 256-bit event (layout in `rtl/lob/lob_defines.vh`; mirrored by the Python packer in `tests`/`sim/golden`).
-- **Order sources**: `rtl/ui/order_source_arbiter.v` merges network events with a local FIFO of keyboard-entered orders (`ps2_keyboard.v` → `keyboard_controls.v`); `top_system.v` tracks which source is active so completions are routed back correctly.
+- **Order sources**: `rtl/ui/order_source_arbiter.v` merges network events with a local FIFO of keyboard-entered orders (`ps2_keyboard.v` → `keyboard_controls.v`); `order_merge.v` tracks which source is active so completions are routed back correctly.
 - **LOB** (`rtl/lob/`): `lob_core` composes event decoder, slot table, free list, hash table, price RAM, occupancy bitmaps and BBO. With fail-stop enabled, a rejected event (e.g. duplicate order) invalidates the book.
 - **CPU** (`rtl/cpu/core/`): 3-stage RV32IM with a bus interconnect, `imem_slave`/`dmem_slave`, and MMIO slaves (`rtl/bus/lob_mmio_slave.v`, `net_mmio_slave.v`). It is out-of-band supervisor/telemetry, not on the order fast path. 
 - **Display/telemetry**: `rtl/display/kitty_ui_cpu.v` is a second small CPU running `firmware/kitty_ui` firmware that reads book RAM/history (`lob_display_journal`, `lob_level_order_count`) and feeds `kitty_video.v`. `rtl/telemetry/uart_telemetry.v` and `uart_readback.v` implement the UART protocol (e.g. `B` occupied-set queries, `E` 99-digit journal records) that `tools/fpga_readback.py` and `order_book_dashboard.py` parse — host tools and UART RTL must change together, and a protocol change needs a new bitstream.

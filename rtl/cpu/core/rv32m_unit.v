@@ -13,9 +13,7 @@ module rv32m_unit (
     output wire [31:0] result          // Architectural result
 );
 
-    // --------------------------------------------------------
     // OPERATION ENCODINGS
-    // --------------------------------------------------------
     localparam F3_MUL    = 3'b000;
     localparam F3_MULH   = 3'b001;
     localparam F3_MULHSU = 3'b010;
@@ -25,9 +23,7 @@ module rv32m_unit (
     localparam F3_REM    = 3'b110;
     localparam F3_REMU   = 3'b111;
 
-    // --------------------------------------------------------
     // FSM STATES
-    // --------------------------------------------------------
     localparam STATE_IDLE = 2'b00;
     localparam STATE_MULT = 2'b01;
     localparam STATE_DIV  = 2'b10;
@@ -35,9 +31,7 @@ module rv32m_unit (
 
     reg [1:0] state;
 
-    // --------------------------------------------------------
     // MULTIPLIER (3-STAGE PIPELINED)
-    // --------------------------------------------------------
     // Operand extension to 33 bits signed
     wire sign_a = (funct3 == F3_MULH) || (funct3 == F3_MULHSU);
     wire sign_b = (funct3 == F3_MULH);
@@ -56,9 +50,7 @@ module rv32m_unit (
 
     reg [1:0] mult_cnt;
 
-    // --------------------------------------------------------
     // DIVIDER (32-ITERATION RESTORING)
-    // --------------------------------------------------------
     wire op1_is_signed = (funct3 == F3_DIV) || (funct3 == F3_REM);
     wire op2_is_signed = (funct3 == F3_DIV) || (funct3 == F3_REM);
 

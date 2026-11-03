@@ -24,11 +24,7 @@ module instr_mem (
 
 endmodule
 
-
-
-//====================================
 // Data Memory (DMEM) - FPGA-safe
-//====================================
 module data_mem (
 	input     	clk,
 
@@ -58,9 +54,7 @@ module data_mem (
 		$readmemh("dmem.hex", dmem); 
 	end
 
-	// -------------------------
 	// WRITE + READ (SYNC)
-	// -------------------------
 
 	// Synchronous write and read logic
 	// - Support byte-wise writes using wstrb

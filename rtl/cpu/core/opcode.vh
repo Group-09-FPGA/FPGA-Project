@@ -7,7 +7,6 @@
 `define RS1         19:15
 `define RS2         24:20
 
-
 localparam  [31: 0] NOP        = 32'h0000_0013;     // addi x0, x0, 0
 
 // OPCODE, INST[6:0]
@@ -20,8 +19,6 @@ localparam  [ 6: 0] LUI     = 7'b0110111,        // U-type
                     STORE   = 7'b0100011,        // S-type
                     ARITHI  = 7'b0010011,        // I-type
                     ARITHR  = 7'b0110011;        // R-type
-
-
 
 // FUNC3, INST[14:12], INST[6:0] = 7'b1100011
 localparam  [ 2: 0] BEQ     = 3'b000,

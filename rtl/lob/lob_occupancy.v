@@ -1,9 +1,5 @@
-// =============================================================================
-// File: lob_occupancy.v
-// Description: 3-level hierarchical occupancy bitmask trees and priority encoders
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
+// 3-level hierarchical occupancy bitmask trees and priority encoders
 // See docs/rtl_reference.md for how this block fits in the LOB.
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -46,9 +42,7 @@ module lob_occupancy #(
     output wire        ask_has_orders
 );
 
-    // -------------------------------------------------------------------------
     // Leaf Memories (256 words x 32 bits per side)
-    // -------------------------------------------------------------------------
     (* ram_style = "distributed" *)
     reg [31:0] leaf_mem_bid [0:OCC_LEAF_WORDS-1];
 
@@ -72,9 +66,7 @@ module lob_occupancy #(
 
     assign init_busy = initializing;
 
-    // -------------------------------------------------------------------------
     // Priority Encoder Functions
-    // -------------------------------------------------------------------------
     function [2:0] prio_enc_high_8;
         input [7:0] in;
         integer i;
@@ -119,9 +111,7 @@ module lob_occupancy #(
         end
     endfunction
 
-    // -------------------------------------------------------------------------
     // Search FSM (S0..S4: 4-stage pipelined search)
-    // -------------------------------------------------------------------------
     localparam [2:0] SRCH_IDLE = 3'd0,
                      SRCH_S0   = 3'd1,
                      SRCH_S1   = 3'd2,
@@ -262,9 +252,7 @@ module lob_occupancy #(
         end
     end
 
-    // -------------------------------------------------------------------------
     // Memory Write & Hierarchy Updates (Leaf, L1, L0)
-    // -------------------------------------------------------------------------
     wire [7:0]  upd_word_addr = leaf_upd_pidx[12:5];
     wire [4:0]  upd_bit_pos   = leaf_upd_pidx[4:0];
     wire [2:0]  upd_grp_idx   = leaf_upd_pidx[12:10];

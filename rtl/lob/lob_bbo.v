@@ -1,9 +1,4 @@
-// =============================================================================
-// File: lob_bbo.v
-// Description: Best Bid & Offer (BBO) tracking and price computation
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-
-// =============================================================================
+// Best Bid & Offer (BBO) tracking and price computation
 
 `timescale 1ns / 1ps
 
@@ -67,9 +62,7 @@ module lob_bbo (
         end
     end
 
-    // -------------------------------------------------------------------------
     // BBO Tracking Registers
-    // -------------------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             bid_valid_r    <= 1'b0;
@@ -138,9 +131,7 @@ module lob_bbo (
         end
     end
 
-    // -------------------------------------------------------------------------
     // 2-Stage Pipelined Price DSP Multiplier & Adder
-    // -------------------------------------------------------------------------
     reg        s1_bid_valid;
     reg [12:0] s1_bid_pidx;
     reg [31:0] s1_bid_qty;

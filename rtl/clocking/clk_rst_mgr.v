@@ -1,6 +1,4 @@
-// =============================================================================
-// File: clk_rst_mgr.v
-// Description: Clock Generation and Reset Management Module
+// Clock Generation and Reset Management Module
 //              Generates:
 //                - clk_core:  50.0 MHz (Core CPU, LOB accelerator, memory bus)
 //                - clk_eth:   50.0 MHz (RMII PHY refclk and network pipeline)
@@ -8,8 +6,6 @@
 //                             720p pixel clock is made separately in kitty_video.v)
 //              Provides glitch-free asynchronous-assert, synchronous-deassert
 //              reset trees and LAN8720A PHY hardware power-up reset sequence.
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -39,9 +35,7 @@ module clk_rst_mgr #(
 );
 
 `ifdef SIMULATION
-    // =========================================================================
     // Simulation Clock Generator (Immediate lock, deterministic behavioral RTL)
-    // =========================================================================
     assign clk_core = clk_100mhz_in;
 
     reg clk_50_reg = 1'b0;
@@ -66,9 +60,7 @@ module clk_rst_mgr #(
     assign mmcm_locked = 1'b1;
 
 `else
-    // =========================================================================
     // Hardware Xilinx 7-Series MMCM Primitive
-    // =========================================================================
     wire clkfbout, clkfbout_buf;
     wire clk_core_unbuf, clk_eth_unbuf, clk_eth_phy_unbuf, clk_vga_unbuf;
 
@@ -121,9 +113,7 @@ module clk_rst_mgr #(
 
 `endif
 
-    // =========================================================================
     // Synchronous Reset Deassertion Generator (per clock domain)
-    // =========================================================================
     wire global_rst_condition = rst_btn_n && mmcm_locked;
 
     // Core Domain Reset Synchronizer
@@ -156,10 +146,8 @@ module clk_rst_mgr #(
     end
     assign rst_vga_n = rst_vga_sync[3];
 
-    // =========================================================================
     // External LAN8720A PHY Power-Up Hardware Reset Controller
     // Holds PHY in reset for ~65,536 cycles (~1.3ms at 50MHz) after clock lock
-    // =========================================================================
     reg [16:0] phy_rst_cnt;
     always @(posedge clk_eth or negedge global_rst_condition) begin
         if (!global_rst_condition) begin

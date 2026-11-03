@@ -1,11 +1,7 @@
-// =============================================================================
-// File: async_event_fifo.v
-// Description: Dual-clock Asynchronous FIFO for Clock Domain Crossing (CDC)
+// Dual-clock Asynchronous FIFO for Clock Domain Crossing (CDC)
 //              Crosses 256-bit canonical market data events from 50 MHz RMII/Network
 //              domain to the independent Core/LOB domain with Gray pointer synchronizers
 //              and First-Word Fall-Through (FWFT) ready/valid handshaking.
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -14,9 +10,7 @@ module async_event_fifo #(
     parameter ADDR_WIDTH = 6,               // Depth = 2^ADDR_WIDTH = 64
     parameter RAM_STYLE  = "distributed"    // "distributed" or "block"
 ) (
-    // -------------------------------------------------------------------------
     // Write Clock Domain (50 MHz RMII / ITCH Parser)
-    // -------------------------------------------------------------------------
     input  wire                  wr_clk,
     input  wire                  wr_rst_n,
     input  wire                  wr_valid,
@@ -25,9 +19,7 @@ module async_event_fifo #(
     output wire                  wr_full,
     output reg                   wr_overflow,
 
-    // -------------------------------------------------------------------------
     // Read Clock Domain (Core / LOB Engine)
-    // -------------------------------------------------------------------------
     input  wire                  rd_clk,
     input  wire                  rd_rst_n,
     input  wire                  rd_ready,
@@ -36,18 +28,14 @@ module async_event_fifo #(
     output wire                  rd_empty,
     output reg                   rd_underflow,
 
-    // -------------------------------------------------------------------------
     // Diagnostics & Occupancy
-    // -------------------------------------------------------------------------
     output wire [ADDR_WIDTH:0]   wr_count,
     output wire [ADDR_WIDTH:0]   rd_count
 );
 
     localparam DEPTH = 1 << ADDR_WIDTH;
 
-    // -------------------------------------------------------------------------
     // Dual-Port Memory Storage
-    // -------------------------------------------------------------------------
     (* ram_style = RAM_STYLE *)
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
@@ -59,9 +47,7 @@ module async_event_fifo #(
     reg [ADDR_WIDTH:0] rptr_bin;
     reg [ADDR_WIDTH:0] rptr_gray;
 
-    // -------------------------------------------------------------------------
     // Gray to Binary Conversion Function
-    // -------------------------------------------------------------------------
     function [ADDR_WIDTH:0] gray_to_bin;
         input [ADDR_WIDTH:0] g;
         reg   [ADDR_WIDTH:0] b;
@@ -75,9 +61,7 @@ module async_event_fifo #(
         end
     endfunction
 
-    // -------------------------------------------------------------------------
     // Clock Domain Crossing: 2-Stage Flip-Flop Synchronizers
-    // -------------------------------------------------------------------------
     (* ASYNC_REG = "TRUE" *) reg [ADDR_WIDTH:0] rptr_gray_sync1, rptr_gray_sync2;
     (* ASYNC_REG = "TRUE" *) reg [ADDR_WIDTH:0] wptr_gray_sync1, wptr_gray_sync2;
 
@@ -103,9 +87,7 @@ module async_event_fifo #(
         end
     end
 
-    // -------------------------------------------------------------------------
     // Write Logic & Full Generation
-    // -------------------------------------------------------------------------
     wire [ADDR_WIDTH:0] wptr_bin_next  = wptr_bin + (wr_valid && wr_ready ? 1'b1 : 1'b0);
     wire [ADDR_WIDTH:0] wptr_gray_next = wptr_bin_next ^ (wptr_bin_next >> 1);
 
@@ -152,9 +134,7 @@ module async_event_fifo #(
     wire [ADDR_WIDTH:0] rptr_bin_in_wr = gray_to_bin(rptr_gray_sync2);
     assign wr_count = wptr_bin - rptr_bin_in_wr;
 
-    // -------------------------------------------------------------------------
     // Read Logic & Empty Generation (First-Word Fall-Through)
-    // -------------------------------------------------------------------------
     wire [ADDR_WIDTH:0] rptr_bin_next  = rptr_bin + (rd_valid && rd_ready ? 1'b1 : 1'b0);
     wire [ADDR_WIDTH:0] rptr_gray_next = rptr_bin_next ^ (rptr_bin_next >> 1);
 

@@ -1,9 +1,5 @@
-// =============================================================================
-// File: rmii_rx.v
-// Description: RMII 100Mbps Ethernet Receiver with CRC-32 (FCS) verification
+// RMII 100Mbps Ethernet Receiver with CRC-32 (FCS) verification
 //              and BRAM Store-and-Forward Frame Buffer
-// Target: AMD/Xilinx Artix-7 (Digilent Nexys A7-100T, LAN8720A PHY)
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -35,9 +31,7 @@ module rmii_rx #(
     output reg  [31:0] cnt_overflow_err // Buffer overflow drops
 );
 
-    // -------------------------------------------------------------------------
     // 1. Dibit-to-Byte Assembler & Preamble / SFD Detection
-    // -------------------------------------------------------------------------
     localparam [2:0]
         RX_IDLE       = 3'd0,
         RX_PREAMBLE   = 3'd1,
@@ -84,9 +78,7 @@ module rmii_rx #(
     // Inactive only when CRS_DV stays low for >= 2 consecutive 50MHz cycles.
     wire crs_dv_active = cur_crs_dv | crs_dv_d1;
 
-    // -------------------------------------------------------------------------
     // 2. IEEE 802.3 CRC-32 Calculation (Bit-serial / Dibit or Byte-wide)
-    // -------------------------------------------------------------------------
     reg [31:0] crc32_reg;
 
     function [31:0] calc_crc32_byte;
@@ -106,9 +98,7 @@ module rmii_rx #(
         end
     endfunction
 
-    // -------------------------------------------------------------------------
     // 3. Store-and-Forward Dual-Port BRAM Frame Buffer
-    // -------------------------------------------------------------------------
     (* ram_style = "distributed" *)
     reg [7:0] frame_mem [0:BUFFER_DEPTH-1];
     reg [10:0] wr_ptr;
@@ -129,9 +119,7 @@ module rmii_rx #(
     assign frame_byte_out = frame_mem[rd_ptr];
     assign frame_byte_last = (rd_ptr == read_last_ptr);
 
-    // -------------------------------------------------------------------------
     // 4. Receiver FSM & Packet Parsing
-    // -------------------------------------------------------------------------
     reg had_phy_error;
 
     always @(posedge clk_50 or negedge rst_n) begin

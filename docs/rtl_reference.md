@@ -5,20 +5,21 @@ big picture. All RTL is Verilog-2001 (`.v` / `.vh`); no SystemVerilog.
 
 ## Directory map
 
+`rtl/top/top_system.v` only connects the subsystems below. Each subsystem is
+a module with one job.
+
 | Path | Contents |
 | --- | --- |
-| `rtl/top/top_system.v` | Wires everything together; owns the clock-domain crossings |
-| `rtl/clocking/clk_rst_mgr.v` | MMCM (100 MHz → 50/50/25 MHz + 45° PHY clock), reset synchronizers, PHY reset |
-| `rtl/ethernet/rmii_rx.v` | RMII receiver, CRC-32, runt/error/overflow rejection |
-| `rtl/network/` | `net_parser` (Ethernet/IPv4/UDP), `moldudp64_decoder` (sequence check, fail-stop) |
-| `rtl/itch/itch_decoder.v` | ITCH message → canonical 256-bit event |
-| `rtl/common/` | `async_event_fifo` (event crossing), `config_cdc` (bundled-value crossing) |
-| `rtl/lob/` | Order book engine and its memories |
-| `rtl/ui/` | PS/2 keyboard, form logic, network/local order arbiter |
-| `rtl/display/` | 720p video, presentation CPU, journal and per-level order count |
-| `rtl/telemetry/` | UART status line and RAM readback |
-| `rtl/bus/` | MMIO slaves for the LOB and network counters |
-| `rtl/cpu/core/` | RV32IM CPU, bus interconnect, memories, seven-segment driver |
+| `top/` | `top_system` (wiring), `board_status` (LEDs, seven-segment display) |
+| `clocking/` | `clk_rst_mgr` (MMCM and resets), `phy_refclk_out` (PHY clock pin) |
+| `ethernet/`, `network/`, `itch/` | `rmii_rx`, `net_parser`, `moldudp64_decoder`, `itch_decoder`; `network/net_ingest` chains them into one block (frame to event, statistics, feed-loss flag) |
+| `common/` | `async_event_fifo`, `config_cdc` (clock crossings), `event_counter` |
+| `lob/` | Order book engine: `lob_core` and its memories (see below), `lob_storage_trace` |
+| `ui/` | `ps2_keyboard`, `keyboard_controls` (+ `form_parser`, `price_divider`, `bin_to_decimal`), `order_source_arbiter`, `order_merge` (network + keyboard sources) |
+| `display/` | `display_system` (keyboard, display CPU, video), `ui_registers`, `ram_ports`, `book_views`, `status_to_ui`, `kitty_ui_cpu`, `kitty_video`, history/level memories |
+| `telemetry/` | `uart_system` (+ `readback_engine`), `uart_telemetry` (status line), `uart_tx`, `uart_readback` |
+| `bus/` | MMIO slaves for the LOB and network counters |
+| `cpu/` | `cpu_system` (CPU, memories, MMIO), `core/` the RV32IM pipeline and bus |
 
 ## Canonical event (256 bits)
 
@@ -52,7 +53,7 @@ are required, or an invalid opcode fail with `FAIL_EVT_FORMAT` /
 | `lob_price_ram` | 16384 quantities (bid half and ask half); initialisation takes 16384 cycles after reset |
 | `lob_occupancy` | 256-leaf / 256-bit / 8-bit bitmap tree with priority encoders |
 | `lob_bbo` | Best bid/ask and quantities; searches the occupancy tree when a best level empties |
-| `lob_core` | Sequencer: for each opcode it steps through prefetch → check → commit states (add ≈ 6 states, execute/cancel/delete ≈ 10, replace ≈ 12), then the BBO search if needed |
+| `lob_core` | Sequencer: for each opcode it steps through prefetch → check → commit states (add ≈ 6 states, execute/cancel/delete ≈ 10, replace ≈ 12), then the BBO search if needed. Small tasks (`fail`, `hash_insert`, `price_write`, ...) name each one-cycle command |
 
 `lob_core` also exposes the last event's RAM write controls (the *storage
 trace* sent over UART) and read-only ports used by the display.

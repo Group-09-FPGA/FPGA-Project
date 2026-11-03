@@ -1,9 +1,5 @@
-// =============================================================================
-// File: lob_price_ram.v
-// Description: Price-level aggregate quantity RAM (16,384 x 32 bits, 3-cycle read latency)
-// Target: AMD/Xilinx Artix-7 XC7A100T-1CSG324C
+// Price-level aggregate quantity RAM (16,384 x 32 bits, 3-cycle read latency)
 // See docs/rtl_reference.md for how this block fits in the LOB.
-// =============================================================================
 
 `timescale 1ns / 1ps
 
@@ -65,9 +61,7 @@ module lob_price_ram #(
     always @(posedge dbg_clk)
         dbg_data <= price_mem[dbg_addr];
 
-    // -------------------------------------------------------------------------
     // 3-Stage Read Pipeline (DOB_REG + Registered Output Mux)
-    // -------------------------------------------------------------------------
     // Stage 1: Memory primitive output register (Latency 1)
     reg [31:0] stage1_data;
     always @(posedge clk) begin
@@ -108,9 +102,7 @@ module lob_price_ram #(
     assign rd_data  = stage3_data;
     assign rd_valid = stage3_valid;
 
-    // -------------------------------------------------------------------------
     // Initialization FSM (16,384 cycles)
-    // -------------------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             init_cnt     <= {PRICE_ADDR_W+1{1'b0}};
