@@ -50,98 +50,20 @@ module uart_telemetry #(
     output wire        readback_ready,
 
     // Physical Serial Pin (Nexys A7 pin D4)
-    output reg         uart_txd
+    output wire        uart_txd
 );
 
     localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE; // ~868 cycles
 
-    // -------------------------------------------------------------------------
-    // 1. Transmit Byte FIFO (64 entries)
-    // -------------------------------------------------------------------------
-    reg [7:0] fifo_mem [0:63];
-    reg [5:0] fifo_wptr;
-    reg [5:0] fifo_rptr;
-    reg [6:0] fifo_count;
+    // ---- transmitter and its byte FIFO ---------------------------------
+    wire       fifo_full, fifo_empty, tx_busy, tx_wr_en;
+    wire [7:0] tx_wr_data, tx_head;
 
-    wire fifo_empty = (fifo_count == 7'd0);
-    wire fifo_full  = (fifo_count >= 7'd64);
-
-    reg        fifo_wr_en;
-    reg  [7:0] fifo_wr_data;
-    wire       fifo_rd_en;
-    wire [7:0] fifo_rd_data = fifo_mem[fifo_rptr];
-
-    // -------------------------------------------------------------------------
-    // 2. Hardware UART Baud & Bit Transmitter FSM
-    // -------------------------------------------------------------------------
-    localparam [1:0]
-        TX_IDLE  = 2'd0,
-        TX_START = 2'd1,
-        TX_DATA  = 2'd2,
-        TX_STOP  = 2'd3;
-
-    reg [1:0] tx_state;
-    reg [15:0] baud_cnt;
-    reg [ 2:0] bit_idx;
-    reg [ 7:0] tx_shift;
-
-    assign fifo_rd_en = (tx_state == TX_IDLE) && !fifo_empty;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            tx_state  <= TX_IDLE;
-            uart_txd  <= 1'b1; // Mark state
-            baud_cnt  <= 16'd0;
-            bit_idx   <= 3'd0;
-            tx_shift  <= 8'd0;
-        end else begin
-            case (tx_state)
-                TX_IDLE: begin
-                    uart_txd <= 1'b1;
-                    if (!fifo_empty) begin
-                        tx_shift <= fifo_rd_data;
-                        baud_cnt <= 16'd0;
-                        tx_state <= TX_START;
-                    end
-                end
-
-                TX_START: begin
-                    uart_txd <= 1'b0; // Start bit
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
-                        baud_cnt <= 16'd0;
-                        bit_idx  <= 3'd0;
-                        tx_state <= TX_DATA;
-                    end else begin
-                        baud_cnt <= baud_cnt + 16'd1;
-                    end
-                end
-
-                TX_DATA: begin
-                    uart_txd <= tx_shift[bit_idx];
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
-                        baud_cnt <= 16'd0;
-                        if (bit_idx == 3'd7) begin
-                            tx_state <= TX_STOP;
-                        end else begin
-                            bit_idx <= bit_idx + 3'd1;
-                        end
-                    end else begin
-                        baud_cnt <= baud_cnt + 16'd1;
-                    end
-                end
-
-                TX_STOP: begin
-                    uart_txd <= 1'b1; // Stop bit
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
-                        baud_cnt <= 16'd0;
-                        tx_state <= TX_IDLE;
-                    end else begin
-                        baud_cnt <= baud_cnt + 16'd1;
-                    end
-                end
-            endcase
-        end
-    end
+    uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT)) u_tx (
+        .clk(clk), .rst_n(rst_n), .wr_en(tx_wr_en), .wr_data(tx_wr_data),
+        .full(fifo_full), .empty(fifo_empty), .busy(tx_busy),
+        .head_byte(tx_head), .txd(uart_txd)
+    );
 
     // -------------------------------------------------------------------------
     // 3. Hardware Automated BBO String Formatter FSM
@@ -502,9 +424,6 @@ module uart_telemetry #(
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            fifo_wptr     <= 6'd0;
-            fifo_rptr     <= 6'd0;
-            fifo_count    <= 7'd0;
             auto_telem_en <= DEFAULT_AUTO_TELEM; // Enabled on reset by default
             req_pending   <= 1'b0;
             req_write_d   <= 1'b0;
@@ -524,8 +443,8 @@ module uart_telemetry #(
             bus_rsp_valid <= req_pending;
             if (req_pending) begin
                 case (req_addr_d)
-                    8'h00: bus_rsp_rdata <= {24'd0, fifo_mem[fifo_rptr]};
-                    8'h04: bus_rsp_rdata <= {29'd0, fifo_empty, fifo_full, (tx_state != TX_IDLE)};
+                    8'h00: bus_rsp_rdata <= {24'd0, tx_head};
+                    8'h04: bus_rsp_rdata <= {29'd0, fifo_empty, fifo_full, tx_busy};
                     8'h08: bus_rsp_rdata <= {31'd0, auto_telem_en};
                     default: bus_rsp_rdata <= 32'd0;
                 endcase
@@ -539,28 +458,14 @@ module uart_telemetry #(
             // Keep each readback line contiguous; automated telemetry starts
             // only after its newline. MMIO writes retain their old behavior
             // outside a readback line.
-            if (readback_valid && readback_ready) begin
-                fifo_mem[fifo_wptr] <= readback_byte;
-                fifo_wptr <= fifo_wptr + 6'd1;
-                if (!fifo_rd_en) fifo_count <= fifo_count + 7'd1;
+            if (readback_valid && readback_ready)
                 readback_line_active <= (readback_byte != 8'h0A);
-            end else if (mmio_wr_tx && !fifo_full) begin
-                fifo_mem[fifo_wptr] <= req_wdata_d[7:0];
-                fifo_wptr <= fifo_wptr + 6'd1;
-                if (!fifo_rd_en) fifo_count <= fifo_count + 7'd1;
-            end else if (hw_wr_en && !fifo_full) begin
-                fifo_mem[fifo_wptr] <= hw_char;
-                fifo_wptr <= fifo_wptr + 6'd1;
-                if (!fifo_rd_en) fifo_count <= fifo_count + 7'd1;
-            end else if (fifo_rd_en) begin
-                fifo_count <= fifo_count - 7'd1;
-            end
-
-            // FIFO Read Advance
-            if (fifo_rd_en) begin
-                fifo_rptr <= fifo_rptr + 6'd1;
-            end
         end
     end
 
+    // Byte source priority: readback line, then CPU write, then automatic telemetry.
+    wire rb_wr   = readback_valid && readback_ready;
+    wire mmio_wr = mmio_wr_tx && !fifo_full;
+    assign tx_wr_en   = rb_wr || mmio_wr || (hw_wr_en && !fifo_full);
+    assign tx_wr_data = rb_wr ? readback_byte : mmio_wr ? req_wdata_d[7:0] : hw_char;
 endmodule

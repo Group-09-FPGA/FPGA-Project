@@ -168,6 +168,26 @@ run_test "1280x720 renderer from presentation firmware and quote journal" \
     "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/cpu/core -s tb_kitty_preview -o ${BUILD_DIR}/tb_kitty_preview.vvp ${PROJECT_ROOT}/rtl/display/kitty_ui_cpu.v ${PROJECT_ROOT}/rtl/display/kitty_video.v ${PROJECT_ROOT}/rtl/common/config_cdc.v ${CORE_RTL_FILES} ${PROJECT_ROOT}/sim/unit/tb_kitty_preview.v" \
     "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_kitty_preview.vvp)"
 
+run_test "UART transmitter frames and FIFO flags" \
+    "iverilog -g2001 -s tb_uart_tx -o ${BUILD_DIR}/tb_uart_tx.vvp ${PROJECT_ROOT}/rtl/telemetry/uart_tx.v ${PROJECT_ROOT}/sim/unit/tb_uart_tx.v" \
+    "vvp -N ${BUILD_DIR}/tb_uart_tx.vvp"
+
+run_test "UART status line carries storage trace and price configuration" \
+    "iverilog -g2001 -s tb_uart_storage_trace -o ${BUILD_DIR}/tb_uart_storage_trace.vvp ${PROJECT_ROOT}/rtl/telemetry/uart_telemetry.v ${PROJECT_ROOT}/rtl/telemetry/uart_tx.v ${PROJECT_ROOT}/sim/unit/tb_uart_storage_trace.v" \
+    "vvp -N ${BUILD_DIR}/tb_uart_storage_trace.vvp"
+
+run_test "UART RAM readback request and response" \
+    "iverilog -g2001 -s tb_uart_readback -o ${BUILD_DIR}/tb_uart_readback.vvp ${PROJECT_ROOT}/rtl/telemetry/uart_readback.v ${PROJECT_ROOT}/sim/unit/tb_uart_readback.v" \
+    "vvp -N ${BUILD_DIR}/tb_uart_readback.vvp"
+
+run_test "Quote/event history rings" \
+    "iverilog -g2001 -s tb_lob_display_journal -o ${BUILD_DIR}/tb_lob_display_journal.vvp ${PROJECT_ROOT}/rtl/display/lob_display_journal.v ${PROJECT_ROOT}/sim/unit/tb_lob_display_journal.v" \
+    "vvp -N ${BUILD_DIR}/tb_lob_display_journal.vvp"
+
+run_test "Orders per price level" \
+    "iverilog -g2001 -s tb_lob_level_order_count -o ${BUILD_DIR}/tb_lob_level_order_count.vvp ${PROJECT_ROOT}/rtl/display/lob_level_order_count.v ${PROJECT_ROOT}/sim/unit/tb_lob_level_order_count.v" \
+    "vvp -N ${BUILD_DIR}/tb_lob_level_order_count.vvp"
+
 run_test "Full Ethernet-to-book integration" \
     "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/lob -I${PROJECT_ROOT}/rtl/cpu/core -s tb_system_top -o ${BUILD_DIR}/tb_system_top.vvp \$(find ${PROJECT_ROOT}/rtl -name '*.v') ${PROJECT_ROOT}/sim/integration/tb_system_top.v" \
     "(cd ${BUILD_DIR} && vvp -N ${BUILD_DIR}/tb_system_top.vvp)"
