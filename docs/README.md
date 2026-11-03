@@ -2,6 +2,7 @@
 
 Start here, in this order:
 
+0. [team/README.md](team/README.md) – five per-person folders (difficulty-labelled) for the viva: each owner's modules in depth plus the rest of the system at a high level.
 0. [study/README.md](study/README.md) – a guided, chapter-by-chapter RTL study guide (start here to learn the code).
 1. [architecture.md](architecture.md) – how the system works, in plain language.
 2. [rtl_reference.md](rtl_reference.md) – modules, event format, register maps.
