@@ -1,12 +1,8 @@
 # Vivado build outputs & checkpoints
 build/
-build_system/
-build_dev/
-build_system_candidate/
-build_snapshot_*/
+build_*/
 sim/build/
 sim/build_*/
-sim/build_system_top/
 .Xil/
 *.bit
 *.dcp
@@ -54,3 +50,9 @@ __pycache__/
 .pytest_cache/
 .hypothesis/
 
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
