@@ -144,10 +144,10 @@ set_property IOSTANDARD LVCMOS33 [get_ports vga_vs]
 # 9. Clock Domain Crossing & False Path Constraints
 # -----------------------------------------------------------------------------
 # Async FIFO Gray pointer CDC synchronizers: ensure datapath delay < 10ns
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*wptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_async_fifo*rptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_event_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_event_fifo*wptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_event_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_event_fifo*rptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_event_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_event_fifo*wptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_event_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_event_fifo*rptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_fifo*wptr_gray_sync1_reg*}] 10.000
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_fifo*rptr_gray_sync1_reg*}] 10.000
 
 # The FIFO storage now infers asynchronous-read distributed RAM. Its output
 # pins are combinational and are not valid timing startpoints; the Gray-pointer
@@ -167,7 +167,7 @@ set_false_path -from [get_ports {sw[*]}]
 set_false_path -from [get_ports {ps2_clk ps2_data}]
 # Pixel-bank acknowledgement crosses from the independent 74.25 MHz pixel
 # domain into the 25 MHz UI domain through a two-flop synchronizer.
-set_false_path -to [get_pins u_kitty_video/front_meta_ui_reg/D]
+set_false_path -to [get_pins -hier -filter {NAME =~ *u_video/front_meta_ui_reg/D}]
 # Both asynchronous event FIFOs transfer Gray-coded pointers through two-flop
 # synchronizers. Only the first receiving flop is asynchronous.
 set_false_path -to [get_pins -hier -filter {NAME =~ *ptr_gray_sync1_reg*/D}]

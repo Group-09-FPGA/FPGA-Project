@@ -37,40 +37,40 @@ module status_to_ui #(
     output wire [31:0]  history,
     output wire [40:0]  local_done     // {count, valid, error}
 );
-    config_cdc #(.WIDTH(175)) u_book (
+    config_cdc #(.WIDTH(175)) u_book_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
         .src_data({book_valid, bid_valid, bid_price, bid_qty, ask_valid, ask_price,
                    ask_qty, active_orders, event_count}),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(book), .dst_update()
     );
-    config_cdc #(.WIDTH(128)) u_net (
+    config_cdc #(.WIDTH(128)) u_net_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data(net_diag[351:224]),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(net), .dst_update()
     );
-    config_cdc #(.WIDTH(96)) u_pipe (
+    config_cdc #(.WIDTH(96)) u_pipe_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
         .src_data({pipe_stats[127:96], pipe_stats[63:32], pipe_stats[31:0]}),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(pipe), .dst_update()
     );
-    config_cdc #(.WIDTH(8)) u_error (
+    config_cdc #(.WIDTH(8)) u_error_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data(error_code),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(error), .dst_update()
     );
-    config_cdc #(.WIDTH(64), .RESET_VALUE({DEFAULT_PRICE_BASE, DEFAULT_TICK})) u_config (
+    config_cdc #(.WIDTH(64), .RESET_VALUE({DEFAULT_PRICE_BASE, DEFAULT_TICK})) u_config_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data({price_base, tick}),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(settings), .dst_update()
     );
-    config_cdc #(.WIDTH(32)) u_history (
+    config_cdc #(.WIDTH(32)) u_history_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data(history_meta),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(history), .dst_update()
     );
-    config_cdc #(.WIDTH(41)) u_local_done (
+    config_cdc #(.WIDTH(41)) u_local_done_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
         .src_data({local_done_count, local_done_valid, local_done_error}),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
