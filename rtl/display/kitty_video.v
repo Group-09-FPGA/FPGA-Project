@@ -42,7 +42,7 @@ module kitty_video #(
     input wire [13:0] cell_addr,
     input wire [15:0] cell_data,
     input wire plot_we,
-    input wire [10:0] plot_addr,
+    input wire [11:0] plot_addr,
     input wire [31:0] plot_data,
     input wire requested_bank,
     input wire requested_market,
@@ -56,14 +56,19 @@ module kitty_video #(
     // Bid and ask lines live in separate column RAMs so both are read every pixel.
     (* ram_style="block" *) reg [31:0] plots_bid[0:1023];
     (* ram_style="block" *) reg [31:0] plots_ask[0:1023];
+    // Overview chart (bottom right of the Market page): same two-line format.
+    (* ram_style="block" *) reg [31:0] plots_ov_bid[0:1023];
+    (* ram_style="block" *) reg [31:0] plots_ov_ask[0:1023];
     (* rom_style="block" *) reg [31:0] font[0:4095];
     initial $readmemh(FONT_FILE,font);
     always @(posedge ui_clk) begin
 `ifndef SYNTHESIS
         if(cell_we) cells[cell_addr]<=cell_data;
 `endif
-        if(plot_we && !plot_addr[9]) plots_bid[{plot_addr[10],plot_addr[8:0]}]<=plot_data;
-        if(plot_we &&  plot_addr[9]) plots_ask[{plot_addr[10],plot_addr[8:0]}]<=plot_data;
+        if(plot_we && plot_addr[10:9]==2'd0) plots_bid[{plot_addr[11],plot_addr[8:0]}]<=plot_data;
+        if(plot_we && plot_addr[10:9]==2'd1) plots_ask[{plot_addr[11],plot_addr[8:0]}]<=plot_data;
+        if(plot_we && plot_addr[10:9]==2'd2) plots_ov_bid[{plot_addr[11],plot_addr[8:0]}]<=plot_data;
+        if(plot_we && plot_addr[10:9]==2'd3) plots_ov_ask[{plot_addr[11],plot_addr[8:0]}]<=plot_data;
     end
     wire [1:0] present_pixel;
     config_cdc #(.WIDTH(2)) u_present_cdc (
@@ -105,6 +110,13 @@ module kitty_video #(
     wire [8:0] local_y=y-96;
     wire [10:0] dx=x-11'd104;
     wire chart=front_market && x>=104 && x<616 && y>=96 && y<608;
+    // Overview plot area: x 752..1263, y 512..671 (one plotted row per pixel row).
+    wire [8:0] ov_x=x-752;
+    wire [8:0] ov_y=y-512;
+    wire [10:0] ov_dx=x-11'd752;
+    wire ov=front_market && x>=752 && x<1264 && y>=512 && y<672;
+    wire ov_axis=front_market && ((x==751 && y>=512 && y<=672) || (y==672 && x>=751 && x<1264));
+    wire ov_grid=ov && ((y[4:0]==5'd0 && !x[2] && y!=512) || (ov_dx[5:0]==0 && ov_dx!=0 && !y[2]));
     wire axis=front_market && (
         (x==103 && y>=96 && y<=608) || (y==608 && x>=103 && x<616) ||
         (x>=98 && x<103 && y[5:0]==6'd40 && y>=104 && y<=552) ||
@@ -134,7 +146,9 @@ module kitty_video #(
     reg [2:0] fx1,fx2;
     reg [3:0] fy1;
     reg [7:0] attributes2;
-    reg active1,active2,hs1,hs2,vs1,vs2,chart1,chart2,axis1,axis2,grid1,grid2;
+    reg active1,active2,hs1,hs2,vs1,vs2,chart1,chart2,axis1,axis2,grid1,grid2,ov1,ov2;
+    reg [31:0] plot_ovb_q,plot_ova_q,plot_ovb2,plot_ova2;
+    reg [7:0] ov_y1,ov_y2;
     reg [7:0] plot_y1,plot_y2;
     reg [31:0] plot_bid2,plot_ask2;
     always @(posedge pixel_clk) begin
@@ -143,11 +157,13 @@ module kitty_video #(
 `endif
         plot_bid_q<=plots_bid[{front_bank,local_x}];
         plot_ask_q<=plots_ask[{front_bank,local_x}];
+        plot_ovb_q<=plots_ov_bid[{front_bank,ov_x}];
+        plot_ova_q<=plots_ov_ask[{front_bank,ov_x}];
         fx1<=x[2:0];fy1<=y[3:0];active1<=active;hs1<=hs_now;vs1<=vs_now;
-        chart1<=chart;plot_y1<=local_y[8:1];axis1<=axis;grid1<=grid;
+        chart1<=chart;plot_y1<=local_y[8:1];axis1<=axis||ov_axis;grid1<=grid||ov_grid;ov1<=ov;ov_y1<=ov_y[7:0];
         font_q<=font[{char_q[7:0],fy1}];
         attributes2<=char_q[15:8];fx2<=fx1;active2<=active1;hs2<=hs1;vs2<=vs1;
-        chart2<=chart1;plot_y2<=plot_y1;plot_bid2<=plot_bid_q;plot_ask2<=plot_ask_q;axis2<=axis1;grid2<=grid1;
+        chart2<=chart1;plot_y2<=plot_y1;plot_bid2<=plot_bid_q;plot_ask2<=plot_ask_q;axis2<=axis1;grid2<=grid1;ov2<=ov1;ov_y2<=ov_y1;plot_ovb2<=plot_ovb_q;plot_ova2<=plot_ova_q;
     end
     function [11:0] palette;
         input [3:0] n;
@@ -167,7 +183,8 @@ module kitty_video #(
                 11:palette=12'hF83; // ask line
                 12:palette=12'h99B; // axes
                 13:palette=12'h446; // grid
-                14:palette=12'h234; // spread fill
+                14:palette=12'h547; // spread band
+                15:palette=12'h136; // area under the bid
                 default:palette=12'heDF;
             endcase
         end
@@ -191,15 +208,26 @@ module kitty_video #(
     wire ask_on=chart2 && plot_ask2[28:27]!=3 &&
         ((hya<256 && py==hya) || (vloa<256 && vhia<256 && py>=vloa && py<=vhia));
     wire fill_on=chart2 && hyb<256 && hya<256 && py>hya && py<hyb;
-    wire [11:0] line_color=palette(ask_on ? 4'd11 : 4'd10);
-    wire [11:0] under_color=palette(axis2 ? 4'd12 : grid2 ? 4'd13 : 4'd14);
+    // Overview: lines are two pixels thick; the band between them and the area
+    // under the bid are shaded.
+    wire [8:0] ohb=plot_ovb2[8:0],olb=plot_ovb2[17:9],ohib=plot_ovb2[26:18];
+    wire [8:0] oha=plot_ova2[8:0],ola=plot_ova2[17:9],ohia=plot_ova2[26:18];
+    wire [8:0] oy={1'b0,ov_y2};
+    wire ov_bid_on=ov2 && plot_ovb2[28:27]!=3 &&
+        ((ohb<256 && oy>=ohb && oy<=ohb+1) || (olb<256 && ohib<256 && oy>=olb && oy<=ohib));
+    wire ov_ask_on=ov2 && plot_ova2[28:27]!=3 &&
+        ((oha<256 && oy>=oha && oy<=oha+1) || (ola<256 && ohia<256 && oy>=ola && oy<=ohia));
+    wire ov_band=ov2 && ohb<256 && oha<256 && oy>oha && oy<ohb;
+    wire ov_area=ov2 && ohb<256 && oy>ohb;
+    wire [11:0] line_color=palette((ask_on||ov_ask_on) ? 4'd11 : 4'd10);
+    wire [11:0] under_color=palette(axis2 ? 4'd12 : grid2 ? 4'd13 : (fill_on||ov_band) ? 4'd14 : 4'd15);
     always @(posedge pixel_clk or negedge pixel_reset_n) begin
         if(!pixel_reset_n) begin hs<=0;vs<=0;red<=0;green<=0;blue<=0;end
         else begin
             hs<=hs2;vs<=vs2;
             if(!active2 || !front_valid) begin red<=0;green<=0;blue<=0;end
-            else if(bid_on || ask_on) begin red<=line_color[11:8];green<=line_color[7:4];blue<=line_color[3:0];end
-            else if(axis2 || grid2 || fill_on) begin red<=under_color[11:8];green<=under_color[7:4];blue<=under_color[3:0];end
+            else if(bid_on || ask_on || ov_bid_on || ov_ask_on) begin red<=line_color[11:8];green<=line_color[7:4];blue<=line_color[3:0];end
+            else if(axis2 || grid2 || fill_on || ov_band || ov_area) begin red<=under_color[11:8];green<=under_color[7:4];blue<=under_color[3:0];end
             else begin
                 red<=blend(foreground[11:8],background[11:8],coverage);
                 green<=blend(foreground[7:4],background[7:4],coverage);

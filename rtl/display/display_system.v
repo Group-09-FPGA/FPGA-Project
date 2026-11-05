@@ -125,7 +125,7 @@ module display_system #(
     wire        cell_we, plot_we, front_bank, requested_bank, requested_market;
     wire [13:0] cell_addr;
     wire [15:0] cell_data;
-    wire [10:0] plot_addr;
+    wire [11:0] plot_addr;
     wire [31:0] plot_data;
 
     kitty_ui_cpu u_ui_cpu (

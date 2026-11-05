@@ -16,7 +16,7 @@ module kitty_ui_cpu #(
     output reg [13:0] cell_addr,
     output reg [15:0] cell_data,
     output reg plot_we,
-    output reg [10:0] plot_addr,
+    output reg [11:0] plot_addr,
     output reg [31:0] plot_data,
     output reg requested_bank,requested_market,
     input wire front_bank,
@@ -86,7 +86,7 @@ module kitty_ui_cpu #(
                     end else if(address[31:16]==16'h3000 && write) begin
                         cell_we<=1;cell_addr<=address[15:2];cell_data<=wdata[15:0];
                     end else if(address[31:16]==16'h4000 && write) begin
-                        plot_we<=1;plot_addr<=address[12:2];plot_data<=wdata;
+                        plot_we<=1;plot_addr<=address[13:2];plot_data<=wdata;
                     end
                 end
             end

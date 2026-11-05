@@ -8,7 +8,7 @@ module tb_kitty_preview;
     wire [3:0] ram_kind;
     wire [13:0] ram_address,cell_addr;
     wire [15:0] cell_data;
-    wire [10:0] plot_addr;
+    wire [11:0] plot_addr;
     wire [31:0] plot_data,frames,pc;
     wire exception,front_bank,hs,vs;
     wire [3:0] red,green,blue;

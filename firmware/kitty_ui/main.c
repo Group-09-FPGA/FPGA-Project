@@ -132,13 +132,13 @@ static void plot_point(int chart,int x,int y,int last_y) {
     if(x<0 || x>=512 || y<0 || y>=256) return;
     int lo=y<last_y?y:last_y,hi=y>last_y?y:last_y;
     uint32_t word=(uint32_t)y | ((uint32_t)lo<<9) | ((uint32_t)hi<<18);
-    PLOT[bank*1024+chart*512+x]=word;
+    PLOT[bank*2048+chart*512+x]=word;
 }
 static int y_of(uint32_t v) {
     return 255-(int)(((uint64_t)(v-scale_low)*255)/(scale_high-scale_low));
 }
 static void draw_line(int chart,const uint32_t *values,int count) {
-    for(int x=0;x<512;x++) PLOT[bank*1024+chart*512+x]=0x1fffffff;
+    for(int x=0;x<512;x++) PLOT[bank*2048+chart*512+x]=0x1fffffff;
     int previous=-1,previous_y=0;
     for(int i=0;i<count;i++) if(values[i]) {
         int x=count==1?511:i*511/(count-1);
@@ -157,13 +157,67 @@ static int draw_graph(int count) {
         if(bid_values[i]) {if(bid_values[i]<low) low=bid_values[i];if(bid_values[i]>high) high=bid_values[i];}
         if(ask_values[i]) {if(ask_values[i]<low) low=ask_values[i];if(ask_values[i]>high) high=ask_values[i];}
     }
-    for(int c=0;c<2;c++) for(int x=0;x<512;x++) PLOT[bank*1024+c*512+x]=0x1fffffff;
+    for(int c=0;c<4;c++) for(int x=0;x<512;x++) PLOT[bank*2048+c*512+x]=0x1fffffff;
     if(low==0xffffffffu) return 0;
     if(high==low) {high+=1000;low=low>1000?low-1000:0;}
     else {uint32_t pad=(high-low)/8+1;high+=pad;low=low>pad?low-pad:0;}
     scale_low=low;scale_high=high;
     draw_line(0,bid_values,count);draw_line(1,ask_values,count);
     return 1;
+}
+// Long history kept by this CPU (the FPGA journal only holds the last 128 changes).
+// One point is saved every `hist_stride` events; when the buffer fills, every other
+// point is dropped and the stride doubles, so it always spans the whole session.
+#define HIST 512
+static uint32_t hist_mid[HIST],hist_event[HIST],hist_stride=2,hist_last;
+static int hist_n;
+static uint32_t ov_low,ov_high;
+static void record_history(void) {
+    uint32_t ev=cached[21];
+    // The event count restarts at 0 when the board is reset: forget the old session.
+    // (CPU RAM is not cleared by a reset, so this must be done explicitly.)
+    if(ev<hist_last || ev==0) {hist_n=0;hist_stride=2;hist_last=0;}
+    if((cached[15]&6)!=6) return;
+    if(hist_n && ev-hist_last<hist_stride) return;
+    if(hist_n==HIST) {
+        for(int i=0;i<HIST/2;i++) {hist_mid[i]=hist_mid[2*i];hist_event[i]=hist_event[2*i];}
+        hist_n=HIST/2;hist_stride*=2;
+    }
+    hist_mid[hist_n]=(cached[16]+cached[18])/2;hist_event[hist_n]=ev;hist_n++;hist_last=ev;
+}
+static int ov_y(uint32_t v) {
+    return 159-(int)(((uint64_t)(v-ov_low)*159)/(ov_high-ov_low));
+}
+// The whole session squeezed into one small picture (bottom right of the Market page).
+static void overview(void) {
+    int n=hist_n;
+    text(92,31,"OVERVIEW: THE WHOLE SESSION IN ONE PICTURE",PURPLE);
+    if(n<2) {text(100,36,"collecting data...",DIM);return;}
+    uint32_t low=0xffffffffu,high=0;
+    for(int i=0;i<n;i++) {
+        if(hist_mid[i]<low) low=hist_mid[i];
+        if(hist_mid[i]>high) high=hist_mid[i];
+    }
+    if(high==low) {high+=1000;low=low>1000?low-1000:0;}
+    else {uint32_t pad=(high-low)/10+1;high+=pad;low=low>pad?low-pad:0;}
+    ov_low=low;ov_high=high;
+    int previous=-1,previous_y=0;
+    for(int i=0;i<n;i++) {
+        int x=i*511/(n-1),y=ov_y(hist_mid[i]);
+        if(previous>=0) {
+            for(int k=previous+1;k<x;k++) plot_point(2,k,previous_y,previous_y);
+            plot_point(2,x,y,previous_y);
+        } else plot_point(2,x,y,y);
+        previous=x;previous_y=y;
+    }
+    for(int k=0;k<5;k++) {
+        int row=k==0?32:32+k*2;
+        uint32_t v=high-(uint32_t)(((uint64_t)(k==0?0:k*32)*(high-low))/159);
+        b_reset();b_money2(v);text(93-bn,row,buf,DIM);
+    }
+    b_reset();b_str("event ");b_dec(hist_event[0]);text(94,42,buf,DIM);
+    b_reset();b_str("event ");b_dec(hist_event[n-1]);text(159-bn,42,buf,DIM);
+    text(108,42,"price over time ->",DIM);
 }
 static void load_quotes(void) {
     uint32_t meta=cached[32];
@@ -183,7 +237,7 @@ static void load_quotes(void) {
 }
 static int chart_row(uint32_t value) {
     int row=(96+2*y_of(value))/16;
-    return row<6?6:row>37?37:row;
+    return row<6?6:row>31?31:row;
 }
 static void market(void) {
     header("MARKET","H = every past price   Up/Down or PgUp/PgDn = scroll back in time   1-6 = switch page");
@@ -255,7 +309,8 @@ static void market(void) {
         b_reset();b_str("Viewing history: ");b_dec(cached[14]);b_str(" samples back (PgDn = newer)");
         text(x,28,buf,GOLD);
     }
-    if(!(cached[15]&1)) text(x,30,"BOOK INVALID: an order was rejected. Reset the board.",RED);
+    if(!(cached[15]&1)) text(x,29,"BOOK INVALID: an order was rejected. Reset the board.",RED);
+    overview();
 }
 static void explain(int x,int y,const char *title,const char *a,const char *b,const char *c,const char *d) {
     text(x,y,title,PURPLE);
@@ -503,6 +558,7 @@ static void orders_page(void) {
 int main(void) {
     for(;;) {
         for(int i=0;i<64;i++) cached[i]=UI[i];
+        record_history();
         bank=FRONT_BANK?0:1;
         clear_screen();
         switch(cached[0]&15) {
