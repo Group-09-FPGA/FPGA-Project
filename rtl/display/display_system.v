@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// Keyboard-driven 720p display: PS/2 input and order form, the display CPU, and
+// Read-only 720p display: PS/2 page navigation, the display CPU, and
 // the video output, plus arbitration of the book's read ports.
 module display_system #(
     parameter [31:0] DEFAULT_PRICE_BASE = 32'd900000,
@@ -14,11 +14,6 @@ module display_system #(
     input  wire         ps2_clk,
     input  wire         ps2_data,
 
-    // Orders typed on the keyboard
-    output wire         event_valid,
-    output wire [255:0] event_data,
-    input  wire         event_ready,
-
     // Live state, already in the UI clock domain
     input  wire [174:0] book,
     input  wire [127:0] net,
@@ -26,7 +21,6 @@ module display_system #(
     input  wire [7:0]   error,
     input  wire [63:0]  settings,
     input  wire [31:0]  history,
-    input  wire [40:0]  local_done,
 
     // Book read ports and their data
     input  wire         readback_active,
@@ -82,50 +76,29 @@ module display_system #(
     event_counter u_frame_errors (.clk(clk), .rst_n(rst_n), .inc(frame_error), .count(frame_errors));
 
     wire [3:0]   page;
-    wire [2:0]   action, focus, hash_way;
-    wire         side, editing, focused_valid, selected_valid, scan_busy, stash_selected, ram_hold;
-    wire [4:0]   status;
-    wire [31:0]  price, quantity;
-    wire [63:0]  order_id, new_id, selected_id;
-    wire [511:0] form_text;
-    wire [19:0]  form_lengths, form_cursors;
-    wire [10:0]  history_offset, slot, free_offset;
+    wire [2:0]   focus, hash_way;
+    wire         stash_selected;
+    wire [10:0]  history_offset, slot;
     wire [9:0]   hash_set_ui;
     wire [13:0]  level;
 
     keyboard_controls u_keyboard (
         .clk(clk), .reset_n(rst_n),
         .key_valid(key_valid), .key_shift(key_shift), .key(key),
-        .book_valid(book[174]),
-        .price_base(settings[63:32]), .price_tick(settings[31:0]),
-        .ram_paused(readback_active), .hash_data(hash_ways),
-        .stash_data(stash_data), .slot_data(slot_data),
-        .page(page), .action(action), .side(side), .focus(focus),
-        .editing(editing), .focused_valid(focused_valid),
-        .form_text(form_text), .form_lengths(form_lengths), .form_cursors(form_cursors),
-        .price(price), .quantity(quantity), .order_id(order_id), .new_id(new_id),
-        .history_offset(history_offset), .hash_set(hash_set_ui), .hash_way(hash_way),
-        .stash_selected(stash_selected), .slot_addr(slot), .level_addr(level),
-        .free_offset(free_offset), .selected_valid(selected_valid),
-        .scan_busy(scan_busy), .ram_hold(ram_hold), .selected_id(selected_id),
-        .status(status),
-        .event_valid(event_valid), .event_data(event_data), .event_ready(event_ready)
+        .page(page), .focus(focus), .history_offset(history_offset),
+        .hash_set(hash_set_ui), .hash_way(hash_way), .stash_selected(stash_selected),
+        .slot_addr(slot), .level_addr(level)
     );
 
     // ---- display CPU ------------------------------------------------------
     wire [2047:0] registers;
     ui_registers u_registers (
-        .page(page), .action(action), .focus(focus), .side(side), .editing(editing),
-        .focused_valid(focused_valid), .selected_valid(selected_valid),
-        .scan_busy(scan_busy), .status(status),
-        .form_lengths(form_lengths), .form_cursors(form_cursors),
-        .price(price), .quantity(quantity), .order_id(order_id), .new_id(new_id),
-        .selected_id(selected_id), .stash_selected(stash_selected), .hash_way(hash_way),
-        .hash_set(hash_set_ui), .free_offset(free_offset), .slot(slot), .level(level),
-        .history_offset(history_offset), .form_text(form_text),
+        .page(page), .focus(focus), .stash_selected(stash_selected), .hash_way(hash_way),
+        .hash_set(hash_set_ui), .slot(slot), .level(level),
+        .history_offset(history_offset),
         .keyboard_frame_errors(frame_errors),
         .book(book), .net(net), .pipe(pipe), .error(error), .settings(settings),
-        .history(history), .local_done(local_done),
+        .history(history),
         .registers(registers)
     );
 
@@ -138,7 +111,7 @@ module display_system #(
         .readback_active(readback_active), .readback_kind(readback_kind),
         .readback_addr(readback_addr), .readback_scan_set(readback_scan_set),
         .ui_request(ram_request), .ui_kind(ram_kind), .ui_address(ram_address),
-        .ui_hold(ram_hold), .ui_hold_slot(slot), .ui_hold_hash_set(hash_set_ui),
+        .ui_hold(1'b0), .ui_hold_slot(slot), .ui_hold_hash_set(hash_set_ui),
         .ui_hold_hash_way(hash_way), .ui_grant(ram_grant),
         .slot_addr(slot_addr), .hash_set(hash_set), .stash_idx(stash_idx),
         .price_addr(price_addr), .free_addr(free_addr),

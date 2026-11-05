@@ -25,17 +25,13 @@ module status_to_ui #(
     input  wire [351:0] net_diag,
     input  wire [159:0] pipe_stats,
     input  wire [31:0]  history_meta,
-    input  wire [31:0]  local_done_count,
-    input  wire         local_done_valid,
-    input  wire [7:0]   local_done_error,
 
     output wire [174:0] book,          // {book valid, bid valid, bid px/qty, ask valid, ask px/qty, orders, events}
     output wire [127:0] net,           // rx frames, crc errors, mold messages, sequence gaps
     output wire [95:0]  pipe,          // udp packets, itch events, fifo events
     output wire [7:0]   error,
     output wire [63:0]  settings,        // {price base, tick}
-    output wire [31:0]  history,
-    output wire [40:0]  local_done     // {count, valid, error}
+    output wire [31:0]  history
 );
     config_cdc #(.WIDTH(175)) u_book_cdc (
         .src_clk(clk_core), .src_rst_n(rst_core_n),
@@ -69,11 +65,5 @@ module status_to_ui #(
         .src_clk(clk_core), .src_rst_n(rst_core_n), .src_data(history_meta),
         .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
         .dst_data(history), .dst_update()
-    );
-    config_cdc #(.WIDTH(41)) u_local_done_cdc (
-        .src_clk(clk_core), .src_rst_n(rst_core_n),
-        .src_data({local_done_count, local_done_valid, local_done_error}),
-        .src_busy(), .src_ready(), .dst_clk(clk_ui), .dst_rst_n(rst_ui_n),
-        .dst_data(local_done), .dst_update()
     );
 endmodule

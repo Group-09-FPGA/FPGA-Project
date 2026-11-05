@@ -117,18 +117,14 @@ static void header(const char *page,const char *help) {
     text(130,0,"FPGA LIVE",GREEN);
     stripe(43,9);
     int p=(int)(cached[0]&15);
-    if(p==7 && ((cached[0]>>4)&7)>=2 && ((cached[0]>>4)&7)<=5)
-        text(2,43,"TYPING A NUMBER: digits go into the field   Tab = next field once the value is valid",FG);
-    else {
-        static const char *const names[7]={"1 Market","2 My Orders","3 Hash Table","4 Event Log",
-            "5 Price Levels","6 Order Slots","7 Place Order"};
-        static const int pages[7]={0,1,2,3,5,6,7};
-        int x=2;
-        for(int i=0;i<7;i++) {
-            if(pages[i]==p) highlight(x,43,names[i]);else text(x,43,names[i],FG);
-            for(const char *c=names[i];*c;c++) x++;
-            x+=3;
-        }
+    static const char *const names[6]={"1 Market","2 My Orders","3 Hash Table","4 Event Log",
+        "5 Price Levels","6 Order Slots"};
+    static const int pages[6]={0,1,2,3,5,6};
+    int x=2;
+    for(int i=0;i<6;i++) {
+        if(pages[i]==p) highlight(x,43,names[i]);else text(x,43,names[i],FG);
+        for(const char *c=names[i];*c;c++) x++;
+        x+=3;
     }
     text(2,44,help,DIM);
 }
@@ -190,7 +186,7 @@ static int chart_row(uint32_t value) {
     return row<6?6:row>37?37:row;
 }
 static void market(void) {
-    header("MARKET","H = every past price   Up/Down or PgUp/PgDn = scroll back in time   7 = place your own order");
+    header("MARKET","H = every past price   Up/Down or PgUp/PgDn = scroll back in time   1-6 = switch page");
     char s[24];
     int bid_ok=cached[15]&2,ask_ok=cached[15]&4;
     text(2,2,"BEST BUY PRICE (BID)",BLUE);text(34,2,"BEST SELL PRICE (ASK)",ORANGE);text(66,2,"SPREAD (THE GAP)",FG);
@@ -269,7 +265,7 @@ static void explain(int x,int y,const char *title,const char *a,const char *b,co
     if(d) text(x,y+5,d,DIM);
 }
 static void history(void) {
-    header("PRICE HISTORY","Up/Down or PgUp/PgDn = scroll   1-7 = leave this page");
+    header("PRICE HISTORY","Up/Down or PgUp/PgDn = scroll   1-6 = leave this page");
     text(2,2,"EVENT #               BEST BUY (BID)         BEST SELL (ASK)",DIM);
     uint32_t meta=cached[32];int count=(int)(meta&255),next=(int)((meta>>8)&127);
     int offset=(int)cached[14];
@@ -282,137 +278,69 @@ static void history(void) {
     }
     explain(96,4,"WHAT AM I LOOKING AT?","Every time the best buy or sell price changes,","the board saves one line here (newest first).","<-- Left: the event number when it changed.","Press 1 to go back to the graph.");
 }
-static void order_entry(void) {
-    header("PLACE AN ORDER","Tab = next field   Left/Right = change choice   Enter = send   Esc = undo your edit");
-    uint32_t flags=cached[0];int focus=(flags>>4)&7,action=(flags>>7)&7;
-    if(action>6) action=0;
-    int sell=(flags&(1u<<10))!=0,field_ok=(flags&(1u<<12))!=0;
-    static const char *actions[7]={"A  Add a new order","F  Add (with trader tag)","E  Order was traded",
-        "C  Order was traded at a price","X  Cancel some shares","D  Delete the whole order","U  Replace with a new order"};
-    // Which of PRICE, QUANTITY, ORDER ID, NEW ID this action needs.
-    static const uint8_t used[7]={0x7,0x7,0x6,0x6,0x6,0x4,0xF};
-    text(2,2,"Type an order below and press Enter. It joins the same book as the network orders.",DIM);
-    text(2,4,"WHAT TO DO",DIM);text(28,4,actions[action],focus==0?GOLD:FG);
-    text(2,6,"BUY OR SELL",DIM);
-    if(action<2) {text(28,6,sell?"SELL":"BUY",focus==1?GOLD:(sell?ORANGE:BLUE));}
-    else text(28,6,"(taken from the order you pick)",DIM);
-    if(focus==0) text(60,4,"<-- Left/Right to pick",GOLD);
-    if(focus==1) text(40,6,"<-- Left/Right: buy or sell",GOLD);
-    static const char *labels[4]={"PRICE ($)","QUANTITY (shares)","ORDER ID","NEW ORDER ID"};
-    static const char *hints[4]={"<-- dollars, 4 decimals","<-- whole number above 0",
-        "<-- 1-16 digits 0-9, A-F","<-- 1-16 digits 0-9, A-F"};
-    for(int f=0;f<4;f++) {
-        int y=8+f*3,len=(cached[1]>>(f*5))&31,cursor=(cached[2]>>(f*5))&31;
-        int on=(used[action]>>f)&1,here=focus==f+2;
-        text(2,y,labels[f],on?DIM:BG);
-        if(!on) {text(28,y,"not needed for this action",DIM);continue;}
-        for(int c=0;c<len && c<16;c++) {
-            uint32_t word=cached[33+f*4+c/4];
-            cell(28+c,y,(char)(word>>((3-c%4)*8)),here?(field_ok?GOLD:RED):FG,BG);
-        }
-        if(here) {
-            cell(28+cursor,y+1,'^',GOLD,BG);
-            text(46,y,hints[f],field_ok?GOLD:RED);
-        }
-    }
-    text(2,21,"ORDER YOU PICKED",PURPLE);
-    if(flags&(1u<<13)) {
-        b_reset();b_str("Order ");b_id(cached[9],cached[10]);b_str(" is selected from the book.");
-        text(2,23,buf,FG);
-    } else if(action>=2) text(2,23,"Open 2 My Orders, pick one and press Enter, or use Up/Down here.",DIM);
-    else text(2,23,"Not needed: an Add creates a brand new order.",DIM);
-    if(flags&(1u<<14)) text(2,25,"Looking the order up...",GOLD);
-
-    text(2,29,"RESULT",PURPLE);
-    int result=(flags>>15)&31;
-    static const char *messages[12]={"Ready - fill in the fields and press Enter.","Order queued...","Order sent to the book.",
-        "That field is not valid yet.","Queue is busy, try again.","Price must be at or above the base price.",
-        "Quantity must be a whole number above 0.","Order ID must be 1-16 hex digits.",
-        "The book changed - pick the order again.","Keyboard orders are disabled.",
-        "The book is invalid - reset the board.","Quantity is more than the order has left."};
-    const char *m=messages[result<12?result:0];
-    if(result==3) {
-        if(focus==2) m="Price needs 4 decimals, e.g. 95.5000.";
-        else if(focus==3) m="Quantity must be a whole number above 0.";
-        else if(focus==4 || focus==5) m="ID may only use digits 0-9 and letters A-F.";
-    }
-    text(2,31,m,result>2?RED:GREEN);
-    if(!field_ok) text(2,33,"The field with the red cursor must be fixed before Tab or Enter.",RED);
-    if(cached[50]) {
-        b_reset();b_str("Orders you sent so far: ");b_dec(cached[50]);text(2,36,buf,FG);
-        text(2,37,(cached[51]&256)?"Last one: ACCEPTED by the book.":"Last one: REJECTED by the book.",
-             (cached[51]&256)?GREEN:RED);
-        if(!(cached[51]&256)) label_hex(2,38,"Error code",cached[51]&255);
-    }
-
-    int x=84;
-    text(x,4,"WHAT YOU ARE ABOUT TO SEND",PURPLE);
-    b_reset();
-    switch(action) {
-        case 0:case 1:
-            b_str(sell?"SELL ":"BUY ");b_dec(cached[4]);b_str(" shares at ");b_money(cached[3]);break;
-        case 2:b_str("A trade of ");b_dec(cached[4]);b_str(" shares of order ");b_id(cached[5],cached[6]);break;
-        case 3:b_str("A trade of ");b_dec(cached[4]);b_str(" shares of order ");b_id(cached[5],cached[6]);break;
-        case 4:b_str("Cancel ");b_dec(cached[4]);b_str(" shares of order ");b_id(cached[5],cached[6]);break;
-        case 5:b_str("Remove order ");b_id(cached[5],cached[6]);b_str(" completely");break;
-        default:b_str("Swap order ");b_id(cached[5],cached[6]);b_str(" for ");b_id(cached[7],cached[8]);break;
-    }
-    text(x,6,buf,field_ok?GREEN:DIM);
-    if(action<2) {b_reset();b_str("as order ");b_id(cached[5],cached[6]);text(x,7,buf,DIM);}
-    if(action==6) {b_reset();b_dec(cached[4]);b_str(" shares at ");b_money(cached[3]);text(x,7,buf,DIM);}
-    text(x,9,"WHAT THIS MEANS",PURPLE);
-    switch(action) {
-        case 0:case 1:
-            text(x,11,"A new order joins the book and waits for a match.",FG);
-            text(x,12,"A BUY sets or raises the bid (blue line).",BLUE);
-            text(x,13,"A SELL sets or lowers the ask (orange line).",ORANGE);break;
-        case 2:case 3:
-            text(x,11,"Shares of an existing order were bought or sold.",FG);
-            text(x,12,"The order shrinks; it disappears when empty.",FG);break;
-        case 4:
-            text(x,11,"Takes some shares off an order without a trade.",FG);
-            text(x,12,"The order stays, with fewer shares.",FG);break;
-        case 5:
-            text(x,11,"Removes the order from the book entirely.",FG);break;
-        default:
-            text(x,11,"Cancels the old order and adds a new one",FG);
-            text(x,12,"with the new ID, quantity and price.",FG);break;
-    }
-    text(x,15,"ORDER JOURNEY",PURPLE);
-    int stage=result==1?1:result==2?2:0;
-    if(cached[50] && (cached[51]&256)) stage=3;
-    text(x,17,"Keyboard",stage==0?GOLD:FG);text(x+9,17,"->",DIM);
-    text(x+12,17,"Queue",stage==1?GOLD:FG);text(x+18,17,"->",DIM);
-    text(x+21,17,"Order book",stage==2?GOLD:FG);text(x+32,17,"->",DIM);
-    text(x+35,17,"Done",stage==3?GREEN:FG);
-    text(x,19,"The order is checked, queued, then applied to the",DIM);
-    text(x,20,"book by the FPGA. Check 1 Market for the result.",DIM);
+static int set_used(int set) {
+    static const uint8_t word[8]={2,4,7,9,11,14,16,18};
+    static const uint8_t shift[8]={11,23,3,15,27,7,19,31};
+    QUERY_CMD=(uint32_t)((2<<16)|set);
+    int n=0;
+    for(int w=0;w<8;w++) n+=(int)((QUERY_DATA[word[w]]>>shift[w])&1);
+    return n;
 }
 static void hash_page(void) {
-    header("HASH TABLE","Up/Down = next set   Left/Right = way   Tab = switch   PgUp/PgDn = jump");
-    int set=cached[11]&1023;
-    char s[24];text(2,2,"SET",((cached[0]>>4)&7)==0?GOLD:DIM);
-    decimal(s,set);text(8,2,s,GOLD);
-    text(2,4,"WAY  USED?  SLOT   ORDER ID",((cached[0]>>4)&7)==1?GOLD:DIM);
-    query(2,set,19);
-    for(int way=0;way<8;way++) {
-        int bit=way*76,y=6+way*2;
-        decimal(s,way);text(2,y,s,FG);
-        text(8,y,bits(bit+75,1)?"YES":"NO",bits(bit+75,1)?GREEN:DIM);
-        decimal(s,bits(bit+64,11));text(16,y,s,FG);
-        char id[17];hex64(id,bits(bit,32),bits(bit+32,32));text(24,y,id,FG);
+    header("HASH TABLE","Arrows = move the selected square   Tab = pick a way   PgUp/PgDn = jump 256 sets");
+    int set=cached[11]&1023,sel_way=(cached[11]>>10)&7;
+    char s[24];
+    text(2,2,"ALL 1024 SETS",PURPLE);
+    text(8,3,"0 . . . 4 . . . 8 . . .12 . . .16 . . .20 . . .24 . . .28 . . .",DIM);
+    for(int row=0;row<32;row++) {
+        decimal(s,row*32);text(2,4+row,s,DIM);
+        for(int col=0;col<32;col++) {
+            int index=row*32+col,n=set_used(index);
+            char c=n?(char)('0'+n):'.';
+            if(index==set) {cell(8+col*2,4+row,c,FG,SELECTED);cell(9+col*2,4+row,' ',FG,SELECTED);}
+            else cell(8+col*2,4+row,c,n?(n==8?ORANGE:GREEN):DIM,BG);
+        }
     }
-    text(2,24,"COLLISION STASH",PURPLE);
+    text(2,37,"Each square is one set. The digit is how many of its 8 ways hold an order",DIM);
+    text(2,38,"(. = empty, 8 = full). The highlighted square is shown on the right.",DIM);
+    text(2,39,"Set number = row number + column (row label is the first set of that row).",DIM);
+
+    int x=80;
+    b_reset();b_str("SELECTED SET ");b_dec((uint32_t)set);text(x,2,buf,PURPLE);
+    text(x,3,"An order ID is hashed to pick a set. Each set has 8 ways (slots).",DIM);
+    text(x,5,"WAY",DIM);text(x+6,5,"USED?",DIM);text(x+14,5,"ORDER ID",DIM);
+    text(x+34,5,"SIDE",DIM);text(x+41,5,"PRICE ($)",DIM);text(x+53,5,"SHARES",DIM);
+    query(2,set,19);
+    uint32_t id_lo[8],id_hi[8],slots[8];int used[8];
+    for(int way=0;way<8;way++) {
+        int bit=way*76;
+        used[way]=(int)bits(bit+75,1);slots[way]=bits(bit+64,11);
+        id_lo[way]=bits(bit,32);id_hi[way]=bits(bit+32,32);
+    }
+    for(int way=0;way<8;way++) {
+        int y=7+way*3;
+        char tag[4]={' ',(char)('0'+way),' ',0};
+        if(way==sel_way) highlight(x,y,tag);else text(x,y,tag,FG);
+        text(x+6,y,used[way]?"YES":"NO",used[way]?GREEN:DIM);
+        if(used[way]) {
+            char id[17];hex64(id,id_lo[way],id_hi[way]);text(x+14,y,id,FG);
+            query(1,(int)slots[way],2);
+            text(x+34,y,bits(45,1)?"SELL":"BUY",bits(45,1)?ORANGE:BLUE);
+            money(s,cached[30]+bits(32,13)*cached[31]);text(x+41,y,s,FG);
+            decimal(s,bits(0,32));text(x+53,y,s,FG);
+        } else text(x+14,y,"(free)",DIM);
+    }
+    text(x,32,"COLLISION STASH (orders that did not fit in their set)",PURPLE);
+    int shown=0;
     for(int index=0;index<8;index++) {
         query(3,index,3);
         if(bits(75,1)) {
             char id[17];hex64(id,bits(0,32),bits(32,32));
-            decimal(s,index);text(2,26+index,s,FG);
-            text(8,26+index,id,FG);
+            if(shown<4) text(x,34+shown,id,FG);
+            shown++;
         }
     }
-    explain(60,4,"UNDER THE HOOD: FINDING ORDERS FAST","The FPGA finds an order by its ID using a lookup table.","Each ID lands in one of 1024 sets, which hold 8 orders (ways).","<-- YES means a way holds an order. NO means it is free.","<-- The stash holds orders when a set is full.");
-    text(2,36,"Read live from the FPGA's memory.",DIM);
+    if(!shown) text(x,34,"empty",DIM);
 }
 static void events_page(void) {
     header("EVENT LOG","Up/Down = scroll   PgUp/PgDn = next screen");
@@ -431,40 +359,108 @@ static void events_page(void) {
     explain(60,4,"WHAT AM I LOOKING AT?","A log of every change the order book has finished,","newest at the top.","<-- Added: a new buy or sell order arrived.","<-- Traded / cancelled / deleted / replaced: it changed.");
     text(2,42,"Each row is a real record stored by the FPGA.",DIM);
 }
-static void levels_page(void) {
-    header("PRICE LEVELS","Up/Down = rows   PgUp/PgDn = next screen");
-    int center=cached[13]&8191;
-    text(2,2,"STEP   PRICE ($)    BUY SHARES  BUY ORDERS   SELL SHARES  SELL ORDERS",DIM);
-    for(int row=0;row<36;row++) {
-        int index=center+row;if(index>=8192) break;
-        char s[12];int y=row+4;
-        decimal(s,index);text(2,y,s,DIM);
-        money(s,cached[30]+(uint32_t)index*cached[31]);text(9,y,s,FG);
-        query(4,index,1);decimal(s,words[0]);text(22,y,s,BLUE);
-        query(6,index,1);decimal(s,words[0]&4095);text(34,y,s,BLUE);
-        query(4,8192+index,1);decimal(s,words[0]);text(47,y,s,ORANGE);
-        query(6,8192+index,1);decimal(s,words[0]&4095);text(60,y,s,ORANGE);
+static void grid_header(int x,int y,int cols) {
+    for(int c=0;c<cols;c+=4) {
+        char t[4];decimal(t,(uint32_t)c);text(x+c*(cols==32?2:1),y,t,DIM);
     }
-    explain(80,4,"UNDER THE HOOD: PRICE LEVELS","The book keeps one row per possible price step.","Each row totals the shares waiting at that price.","<-- Blue: buyers at that price.","<-- Orange: sellers at that price.");
+}
+static void levels_page(void) {
+    header("PRICE LEVELS","Arrows = move the selected square   PgUp/PgDn = jump 256 squares");
+    int sel=cached[13]&1023;
+    text(2,2,"ALL 8192 PRICE STEPS  (one square = 8 steps)",PURPLE);
+    grid_header(8,3,32);
+    for(int row=0;row<32;row++) {
+        char s[24];decimal(s,(uint32_t)(row*256));text(2,4+row,s,DIM);
+        for(int col=0;col<32;col++) {
+            int bucket=row*32+col,mask=0;
+            for(int l=0;l<8;l++) {
+                int idx=bucket*8+l;
+                QUERY_CMD=(uint32_t)((4<<16)|idx);if(QUERY_DATA[0]) mask|=1;
+                QUERY_CMD=(uint32_t)((4<<16)|(8192+idx));if(QUERY_DATA[0]) mask|=2;
+            }
+            char c=mask==0?'.':mask==1?'B':mask==2?'S':'X';
+            int color=mask==0?DIM:mask==1?BLUE:mask==2?ORANGE:GOLD;
+            if(bucket==sel) {cell(8+col*2,4+row,c,FG,SELECTED);cell(9+col*2,4+row,' ',FG,SELECTED);}
+            else cell(8+col*2,4+row,c,color,BG);
+        }
+    }
+    text(2,37,"B = buyers waiting   S = sellers waiting   X = both   . = nothing",DIM);
+    text(2,38,"The highlighted square is shown on the right. Row label = first step in the row.",DIM);
+    text(2,39,"Price of a step = base price + step number x tick size.",DIM);
+
+    int x=80;
+    b_reset();b_str("SELECTED SQUARE ");b_dec((uint32_t)sel);b_str("  (steps ");
+    b_dec((uint32_t)(sel*8));b_str(" to ");b_dec((uint32_t)(sel*8+7));b_str(")");
+    text(x,2,buf,PURPLE);
+    text(x,3,"Each step is one possible price. It lists the shares waiting there.",DIM);
+    text(x,5,"STEP",DIM);text(x+8,5,"PRICE ($)",DIM);text(x+22,5,"BUY SHARES",BLUE);
+    text(x+36,5,"BUY ORDERS",BLUE);text(x+50,5,"SELL SHARES",ORANGE);text(x+64,5,"SELL ORDERS",ORANGE);
+    for(int l=0;l<8;l++) {
+        int idx=sel*8+l,y=7+l*3;
+        char s[24];
+        decimal(s,(uint32_t)idx);text(x,y,s,FG);
+        money(s,cached[30]+(uint32_t)idx*cached[31]);text(x+8,y,s,FG);
+        query(4,idx,1);uint32_t bq=words[0];
+        query(6,idx,1);uint32_t bo=words[0]&4095;
+        query(4,8192+idx,1);uint32_t aq=words[0];
+        query(6,8192+idx,1);uint32_t ao=words[0]&4095;
+        decimal(s,bq);text(x+22,y,s,bq?BLUE:DIM);
+        decimal(s,bo);text(x+36,y,s,bo?BLUE:DIM);
+        decimal(s,aq);text(x+50,y,s,aq?ORANGE:DIM);
+        decimal(s,ao);text(x+64,y,s,ao?ORANGE:DIM);
+    }
+    text(x,32,"WHAT AM I LOOKING AT?",PURPLE);
+    text(x,34,"The book keeps one row per possible price. A row with shares means",FG);
+    text(x,35,"people are waiting to buy (blue) or sell (orange) at that price.",FG);
 }
 static void slots_page(void) {
-    header("ORDER SLOTS","Up/Down = rows   PgUp/PgDn = next screen");
-    int center=cached[12]&2047;
-    text(2,2,"SLOT  IN USE?  SIDE  PRICE ($)    SHARES LEFT",DIM);
-    for(int row=0;row<36;row++) {
-        int index=center+row;if(index>=2048) break;
-        query(1,index,2);
-        char s[12];int y=row+4;
-        decimal(s,index);text(2,y,s,FG);
-        text(8,y,bits(46,1)?"YES":"NO",bits(46,1)?GREEN:DIM);
-        text(16,y,bits(45,1)?"SELL":"BUY",bits(45,1)?ORANGE:BLUE);
-        money(s,cached[30]+bits(32,13)*cached[31]);text(22,y,s,FG);
-        decimal(s,bits(0,32));text(36,y,s,FG);
+    header("ORDER SLOTS","Arrows = move the selected square   PgUp/PgDn = jump 512 slots");
+    int sel=cached[12]&2047,used_total=0;
+    text(2,2,"ALL 2048 ORDER SLOTS  (one square = one slot)",PURPLE);
+    grid_header(8,3,64);
+    for(int row=0;row<32;row++) {
+        char s[24];decimal(s,(uint32_t)(row*64));text(2,4+row,s,DIM);
+        for(int col=0;col<64;col++) {
+            int slot=row*64+col;
+            QUERY_CMD=(uint32_t)((1<<16)|slot);
+            uint32_t w1=QUERY_DATA[1];
+            int used=(int)((w1>>14)&1),sell=(int)((w1>>13)&1);
+            used_total+=used;
+            char c=used?(sell?'S':'B'):'.';
+            if(slot==sel) cell(8+col,4+row,c,FG,SELECTED);
+            else cell(8+col,4+row,c,used?(sell?ORANGE:BLUE):DIM,BG);
+        }
     }
-    explain(70,4,"UNDER THE HOOD: ORDER SLOTS","The FPGA keeps up to 2048 orders in numbered slots.","YES = the slot holds a real order.","<-- Slots reused after an order leaves the book.","<-- Rows with NO are free space.");
+    text(2,37,"B = slot holds a buy order   S = holds a sell order   . = free",DIM);
+    text(2,38,"The highlighted square is shown on the right. Row label = first slot in the row.",DIM);
+
+    int x=80;
+    b_reset();b_str("SLOTS ");b_dec((uint32_t)(sel&~7));b_str(" TO ");b_dec((uint32_t)((sel&~7)+7));
+    b_str("  (selected: ");b_dec((uint32_t)sel);b_str(")");
+    text(x,2,buf,PURPLE);
+    b_reset();b_str("Slots in use: ");b_dec((uint32_t)used_total);b_str(" of 2048");text(x,3,buf,GREEN);
+    text(x,5,"SLOT",DIM);text(x+8,5,"IN USE?",DIM);text(x+18,5,"SIDE",DIM);
+    text(x+26,5,"PRICE ($)",DIM);text(x+40,5,"SHARES LEFT",DIM);
+    for(int k=0;k<8;k++) {
+        int slot=(sel&~7)+k,y=7+k*3;
+        char s[24];
+        query(1,slot,2);
+        int used=(int)bits(46,1),sell=(int)bits(45,1);
+        decimal(s,(uint32_t)slot);
+        if(slot==sel) highlight(x,y,s);else text(x,y,s,FG);
+        text(x+8,y,used?"YES":"NO",used?GREEN:DIM);
+        if(used) {
+            text(x+18,y,sell?"SELL":"BUY",sell?ORANGE:BLUE);
+            money(s,cached[30]+bits(32,13)*cached[31]);text(x+26,y,s,FG);
+            decimal(s,bits(0,32));text(x+40,y,s,FG);
+        } else text(x+18,y,"(free)",DIM);
+    }
+    text(x,33,"WHAT AM I LOOKING AT?",PURPLE);
+    text(x,35,"Every order gets a numbered slot in the FPGA's memory. When an order",FG);
+    text(x,36,"leaves the book its slot becomes free and is reused.",FG);
 }
 static void orders_page(void) {
-    header("MY ORDERS","Up/Down = browse   Enter = edit the selected order   PgUp/PgDn = next screen");
+    header("MY ORDERS","Up/Down = scroll the list   PgUp/PgDn = next screen");
     text(2,2,"ORDER ID           SIDE  PRICE ($)   SHARES  PRICE STEP  MEMORY SLOT",DIM);
     int skip=(int)cached[14],seen=0,row=0;
     for(int set=0;set<1024 && row<36;set++) {
@@ -477,7 +473,7 @@ static void orders_page(void) {
             query(1,slot,2);
             char s[24],id[17];int y=4+row++;
             hex64(id,idlo,idhi);
-            text(2,y,id,(idlo==cached[9] && idhi==cached[10] && (cached[0]&(1u<<13)))?GOLD:FG);
+            text(2,y,id,FG);
             text(22,y,bits(45,1)?"SELL":"BUY",bits(45,1)?ORANGE:BLUE);
             money(s,cached[30]+bits(32,13)*cached[31]);text(28,y,s,FG);
             decimal(s,bits(0,32));text(40,y,s,FG);
@@ -502,8 +498,6 @@ static void orders_page(void) {
         decimal(s,slot);text(62,y,s,DIM);
     }
         explain(84,4,"WHAT AM I LOOKING AT?","Every order that is waiting in the book right now.","BUY orders (BID) are blue, SELL orders (ASK) are orange.","<-- PRICE and SHARES: what the person wants.","<-- Other columns show where the FPGA stores it.");
-    text(84,11,"Select a row with Up/Down, press Enter",DIM);
-    text(84,12,"to change or cancel it in 7 Place Order.",DIM);
     text(2,42,"Read live from the FPGA's memory, including new orders.",DIM);
 }
 int main(void) {
@@ -518,7 +512,6 @@ int main(void) {
             case 3:events_page();break;
             case 5:levels_page();break;
             case 6:slots_page();break;
-            case 7:order_entry();break;
             default:history();break;
         }
         PRESENT=(uint32_t)bank|(((cached[0]&15)==0)?2u:0u);

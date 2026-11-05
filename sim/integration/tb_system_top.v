@@ -514,45 +514,33 @@ module tb_system_top;
             $display("   -> [PASS] Diagnostic Peripherals Verified.");
         end
 
-        // Enter generates one local order from values typed through PS/2.
-        press_ps2(8'h83); // F7
-        press_ps2(8'h0d);press_ps2(8'h0d); // price
+        // Keys that used to build and submit an order must now do nothing.
+        press_ps2(8'h83); // F7 (no longer a page)
+        press_ps2(8'h0d);press_ps2(8'h0d);
         press_ps2(8'h46);press_ps2(8'h45);press_ps2(8'h49);
         press_ps2(8'h2e);press_ps2(8'h45);press_ps2(8'h45);press_ps2(8'h45);
-        press_ps2(8'h0d); // quantity
-        press_ps2(8'h16);press_ps2(8'h45);press_ps2(8'h45);
-        press_ps2(8'h0d); // order ID
-        press_ps2(8'h32); // B
-        repeat(7) press_ps2(8'h45);
         send_ps2(8'h5a); // Enter
-        timeout=0;
-        while(dut.core_event_count != 3 && timeout<100000) begin
-            @(posedge clk);timeout=timeout+1;
-        end
-        send_ps2(8'h5a); // held Enter repeat
-        repeat(30) @(posedge clk);
-        if (dut.core_event_count !== 3 || dut.lob_active_orders !== 3 ||
-            dut.lob_storage_trace[310:247] !== 64'hB0000000 ||
-            dut.u_ingest.cnt_itch_events !== 2 || !dut.lob_book_valid ||
-            dut.u_order_merge.local_done_count !== 1 || !dut.u_order_merge.local_done_valid) begin
-            $display("[FAIL] Enter path duplicated/lost the keyboard order");
+        repeat(200) @(posedge clk);
+        if (dut.core_event_count !== 2 || dut.lob_active_orders !== 2 ||
+            dut.u_ingest.cnt_itch_events !== 2 || !dut.lob_book_valid) begin
+            $display("[FAIL] Keyboard produced an order; the display must be read-only");
             test_errors = test_errors + 1;
-        end else $display("[PASS] Enter submitted one keyboard order through the source arbiter");
-        // The next network sequence remains 3 after the local event.
+        end else $display("[PASS] Keyboard keys cannot submit orders (display is read-only)");
+        // Network sequencing continues unchanged.
         pkt[59] = 3;
         pkt[82] = 8'h11;
         pkt[120] = 8'h11;
         send_rmii_packet(pkt_len);
         timeout=0;
-        while(dut.core_event_count != 5 && timeout<5000) begin
+        while(dut.core_event_count != 4 && timeout<5000) begin
             @(posedge clk); timeout=timeout+1;
         end
         repeat(30) @(posedge clk);
-        if(dut.core_event_count !== 5 || dut.lob_active_orders !== 5 ||
+        if(dut.core_event_count !== 4 || dut.lob_active_orders !== 4 ||
            dut.u_ingest.cnt_itch_events !== 4 || !dut.lob_book_valid) begin
-            $display("[FAIL] Network feed failed after a keyboard-generated order");
+            $display("[FAIL] Network feed failed after ignored keyboard input");
             test_errors=test_errors+1;
-        end else $display("[PASS] Laptop and keyboard orders share a book without changing network sequencing");
+        end else $display("[PASS] Network orders continue after ignored keyboard input");
 
         // A frame with a valid Ethernet FCS but bad IPv4 checksum must
         // invalidate the previously published book, even if no later
@@ -566,7 +554,7 @@ module tb_system_top;
         end
         repeat (20) @(posedge clk);
         if (timeout == 5000 || dut.lob_book_valid !== 1'b0 ||
-            dut.lob_error_code !== 8'h0A || dut.core_event_count !== 32'd5) begin
+            dut.lob_error_code !== 8'h0A || dut.core_event_count !== 32'd4) begin
             $display("[FAIL] Bad IPv4 checksum did not fail-stop the book");
             test_errors = test_errors + 1;
         end else begin

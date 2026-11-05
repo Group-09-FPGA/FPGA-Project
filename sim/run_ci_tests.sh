@@ -8,7 +8,7 @@ set -e -o pipefail
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BUILD_DIR="${PROJECT_ROOT}/build/ci_sim"
 CORE_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/cpu/core" -maxdepth 1 -name '*.v' ! -name top_fpga.v | tr '\n' ' ')
-KEYBOARD_RTL="${PROJECT_ROOT}/rtl/ui/keyboard_controls.v ${PROJECT_ROOT}/rtl/ui/form_parser.v ${PROJECT_ROOT}/rtl/ui/price_divider.v ${PROJECT_ROOT}/rtl/ui/bin_to_decimal.v"
+KEYBOARD_RTL="${PROJECT_ROOT}/rtl/ui/keyboard_controls.v"
 LOB_RTL_FILES=$(find "${PROJECT_ROOT}/rtl/lob" -maxdepth 1 -name '*.v' | tr '\n' ' ')
 mkdir -p "${BUILD_DIR}"
 python3 "${PROJECT_ROOT}/firmware/kitty_ui/build.py"
@@ -149,21 +149,9 @@ run_test "PS/2 framing, scan codes, key release and reconnect" \
     "iverilog -g2001 -s tb_ps2_keyboard -o ${BUILD_DIR}/tb_ps2_keyboard.vvp ${PROJECT_ROOT}/rtl/ui/ps2_keyboard.v ${PROJECT_ROOT}/sim/unit/tb_ps2_keyboard.v" \
     "vvp -N ${BUILD_DIR}/tb_ps2_keyboard.vvp"
 
-run_test "Keyboard form editing and local Add submission" \
+run_test "Read-only keyboard page navigation" \
     "iverilog -g2001 -s tb_keyboard_controls -o ${BUILD_DIR}/tb_keyboard_controls.vvp ${KEYBOARD_RTL} ${PROJECT_ROOT}/sim/unit/tb_keyboard_controls.v" \
     "vvp -N ${BUILD_DIR}/tb_keyboard_controls.vvp"
-
-run_test "Seven keyboard actions and stale FPGA selection" \
-    "iverilog -g2001 -s tb_keyboard_actions -o ${BUILD_DIR}/tb_keyboard_actions.vvp ${KEYBOARD_RTL} ${PROJECT_ROOT}/sim/unit/tb_keyboard_actions.v" \
-    "vvp -N ${BUILD_DIR}/tb_keyboard_actions.vvp"
-
-run_test "Keyboard reconnect preserves form and clears held state" \
-    "iverilog -g2001 -s tb_keyboard_hotplug -o ${BUILD_DIR}/tb_keyboard_hotplug.vvp ${PROJECT_ROOT}/rtl/ui/ps2_keyboard.v ${KEYBOARD_RTL} ${PROJECT_ROOT}/sim/unit/tb_keyboard_hotplug.v" \
-    "vvp -N ${BUILD_DIR}/tb_keyboard_hotplug.vvp"
-
-run_test "Mixed network and keyboard-local sources under backpressure" \
-    "iverilog -g2001 -s tb_order_source_arbiter -o ${BUILD_DIR}/tb_order_sources.vvp ${PROJECT_ROOT}/rtl/ui/order_source_arbiter.v ${PROJECT_ROOT}/sim/unit/tb_order_source_arbiter.v" \
-    "vvp -N ${BUILD_DIR}/tb_order_sources.vvp"
 
 run_test "1280x720 renderer from presentation firmware and quote journal" \
     "iverilog -g2001 -DSIMULATION -I${PROJECT_ROOT}/rtl/cpu/core -s tb_kitty_preview -o ${BUILD_DIR}/tb_kitty_preview.vvp ${PROJECT_ROOT}/rtl/display/kitty_ui_cpu.v ${PROJECT_ROOT}/rtl/display/kitty_video.v ${PROJECT_ROOT}/rtl/common/config_cdc.v ${CORE_RTL_FILES} ${PROJECT_ROOT}/sim/unit/tb_kitty_preview.v" \

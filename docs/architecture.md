@@ -15,7 +15,7 @@ This project does the whole job in hardware on a Nexys A7-100T (Artix-7)
 board: network packets go in on the Ethernet port, a fixed pipeline of
 circuits decodes them, and a hardware order book updates its memories. A
 small RISC-V CPU supervises, and results appear on a VGA monitor and over
-UART. Orders can also be typed on a USB keyboard.
+UART. The VGA display is read-only; orders come only from the laptop.
 
 ```
  Ethernet ─► rmii_rx ─► net_parser ─► moldudp64_decoder ─► itch_decoder ─┐
@@ -23,9 +23,7 @@ UART. Orders can also be typed on a USB keyboard.
                                                                          ▼
                                      async_event_fifo (eth → core clock crossing)
                                                                          │
- USB keyboard ─► ps2_keyboard ─► keyboard_controls ─► local FIFO ───────►│
-                                                                         ▼
-                                              order_source_arbiter (one event at a time)
+                                                  order_merge (network events only)
                                                                          ▼
                                                               lob_core (order book)
                                                                 │             │
@@ -90,16 +88,12 @@ is reset. It never guesses. Error codes are in `lob_defines.vh` (`FAIL_*`).
 `ps2_keyboard` receives the keyboard through the board's USB-HID-to-PS/2
 bridge: it checks start/parity/stop bits, decodes scan-code set 2 (including
 key release and the `E0` extended prefix) and clears held keys when the
-keyboard is unplugged. `keyboard_controls` owns the order form (action, side,
-price, quantity, IDs), the focus/cursor state and the page selection. When
-Enter is pressed on a valid form it builds a canonical event and pushes it
-into a small local FIFO.
+keyboard is unplugged. `keyboard_controls` only selects the page and scroll
+position; it cannot create orders.
 
-`order_source_arbiter` chooses between the network FIFO and the local FIFO
-and hands exactly one event to `lob_core`. `order_merge` remembers which
-source is active so the completion result goes back to the right place.
-Keyboard events skip the Ethernet parser, so the network counters only ever
-count real network traffic. Details and the full key list are in
+`order_merge` passes network events to `lob_core` and remembers the last
+accepted event's side, shares and price index for the display journal. The
+network is the only order source. Details and the full key list are in
 [keyboard_vga_controls.md](keyboard_vga_controls.md).
 
 ## 4. The CPU

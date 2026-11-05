@@ -72,12 +72,9 @@ module top_system #(
         .ip_csum_errors(ip_csum_errors), .pipe_stats(pipe_stats)
     );
 
-    // ---- order sources -> order book --------------------------------------
-    wire         ui_valid, ui_ready, evt_valid, evt_ready;
-    wire [255:0] ui_data, evt_data;
-    wire [31:0]  local_done_count;
-    wire         local_done_valid;
-    wire [7:0]   local_done_error;
+    // ---- network -> order book ---------------------------------------------
+    wire         evt_valid, evt_ready;
+    wire [255:0] evt_data;
     wire [45:0]  event_meta;
     wire         lob_event_done, lob_book_valid, lob_init_done, lob_busy;
     wire         lob_error_valid, lob_bid_valid, lob_ask_valid;
@@ -89,13 +86,8 @@ module top_system #(
     order_merge u_order_merge (
         .clk_core(clk_core), .rst_core_n(rst_core_n),
         .net_valid(net_valid), .net_data(net_data), .net_ready(net_ready),
-        .clk_ui(clk_ui), .rst_ui_n(rst_ui_n),
-        .ui_valid(ui_valid), .ui_data(ui_data), .ui_ready(ui_ready),
         .evt_valid(evt_valid), .evt_data(evt_data), .evt_ready(evt_ready),
-        .lob_event_done(lob_event_done), .lob_book_valid(lob_book_valid),
-        .lob_error_code(lob_error_code),
-        .local_done_count(local_done_count), .local_done_valid(local_done_valid),
-        .local_done_error(local_done_error), .event_meta(event_meta)
+        .event_meta(event_meta)
     );
 
     wire [10:0]  slot_addr, free_addr;
@@ -173,7 +165,6 @@ module top_system #(
     wire [95:0]  ui_pipe;
     wire [7:0]   ui_error;
     wire [63:0]  ui_config;
-    wire [40:0]  ui_local_done;
 
     book_views u_views (
         .core_clk(clk_core), .core_rst_n(rst_core_n),
@@ -199,10 +190,8 @@ module top_system #(
         .active_orders(lob_active_orders), .event_count(core_event_count),
         .error_code(lob_error_code), .price_base(cfg_price_base), .tick(cfg_tick),
         .net_diag(net_diag), .pipe_stats(pipe_stats), .history_meta(history_meta),
-        .local_done_count(local_done_count), .local_done_valid(local_done_valid),
-        .local_done_error(local_done_error),
         .book(ui_book), .net(ui_net), .pipe(ui_pipe), .error(ui_error),
-        .settings(ui_config), .history(ui_history), .local_done(ui_local_done)
+        .settings(ui_config), .history(ui_history)
     );
 
     // ---- UART and display -------------------------------------------------
@@ -242,9 +231,8 @@ module top_system #(
     display_system #(.DEFAULT_PRICE_BASE(DEFAULT_PRICE_BASE), .DEFAULT_TICK(DEFAULT_TICK)) u_display (
         .clk_100(clk), .rst_100_n(reset), .clk(clk_ui), .rst_n(rst_ui_n),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),
-        .event_valid(ui_valid), .event_data(ui_data), .event_ready(ui_ready),
         .book(ui_book), .net(ui_net), .pipe(ui_pipe), .error(ui_error),
-        .settings(ui_config), .history(ui_history), .local_done(ui_local_done),
+        .settings(ui_config), .history(ui_history),
         .readback_active(readback_active), .readback_kind(readback_kind),
         .readback_addr(readback_addr), .readback_scan_set(readback_scan_set),
         .slot_addr(slot_addr), .hash_set(hash_set), .stash_idx(stash_idx),

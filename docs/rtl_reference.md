@@ -15,7 +15,7 @@ a module with one job.
 | `ethernet/`, `network/`, `itch/` | `rmii_rx`, `net_parser`, `moldudp64_decoder`, `itch_decoder`; `network/net_ingest` chains them into one block (frame to event, statistics, feed-loss flag) |
 | `common/` | `async_event_fifo`, `config_cdc` (clock crossings), `event_counter` |
 | `lob/` | Order book engine: `lob_core` and its memories (see below), `lob_storage_trace` |
-| `ui/` | `ps2_keyboard`, `keyboard_controls` (+ `form_parser`, `price_divider`, `bin_to_decimal`), `order_source_arbiter`, `order_merge` (network + keyboard sources) |
+| `ui/` | `ps2_keyboard`, `keyboard_controls` (page navigation only), `keyboard_diag`, `order_merge` (network events + journal metadata) |
 | `display/` | `display_system` (keyboard, display CPU, video), `ui_registers`, `ram_ports`, `book_views`, `status_to_ui`, `kitty_ui_cpu`, `kitty_video`, history/level memories |
 | `telemetry/` | `uart_system` (+ `readback_engine`), `uart_telemetry` (status line), `uart_tx`, `uart_readback` |
 | `bus/` | MMIO slaves for the LOB and network counters |
@@ -66,7 +66,6 @@ trace* sent over UART) and read-only ports used by the display.
 * `keyboard_controls` – form state machine: focus order, digit entry with a
   cursor, Escape restore, validation, page selection, order browsing, and
   the Enter-once-per-press rule. Output is a canonical event plus a valid bit.
-* `order_source_arbiter` – round-robins network and local FIFOs into the LOB
   without losing an accepted event under backpressure.
 
 ## Display (`rtl/display`)

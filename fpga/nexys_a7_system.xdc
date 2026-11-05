@@ -146,8 +146,6 @@ set_property IOSTANDARD LVCMOS33 [get_ports vga_vs]
 # Async FIFO Gray pointer CDC synchronizers: ensure datapath delay < 10ns
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_event_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_event_fifo*wptr_gray_sync1_reg*}] 10.000
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_event_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_event_fifo*rptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_fifo*wptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_fifo*wptr_gray_sync1_reg*}] 10.000
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME =~ *u_local_fifo*rptr_gray_reg*}] -to [get_cells -hier -filter {NAME =~ *u_local_fifo*rptr_gray_sync1_reg*}] 10.000
 
 # The FIFO storage now infers asynchronous-read distributed RAM. Its output
 # pins are combinational and are not valid timing startpoints; the Gray-pointer
