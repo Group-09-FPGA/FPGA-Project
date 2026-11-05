@@ -56,3 +56,6 @@ __pycache__/
 .idea/
 *.swp
 .DS_Store
+
+# Documentation kept locally only
+docs/

@@ -20,7 +20,6 @@ vivado -mode batch -source fpga/build_bitstream.tcl   # bitstream
 ```
 
 Needs Icarus Verilog, Python 3, and Vivado 2026.1 (bitstream only).
-More commands: [docs/commands.md](docs/commands.md).
 
 ## Repository map
 
@@ -31,7 +30,6 @@ More commands: [docs/commands.md](docs/commands.md).
 | `firmware/` | Firmware for the supervisor CPU (`lob_test`) and the VGA CPU (`kitty_ui`) |
 | `tools/` | Demo scripts (order sender, UART dashboard, RAM readback) and their tests in `tools/tests/` |
 | `fpga/` | Pin constraints, bitstream build and programming scripts |
-| `docs/` | Documentation (start at [docs/README.md](docs/README.md)) |
 
 Build outputs (`build*/`, bitstreams, Vivado logs) are ignored by Git.
 
@@ -43,11 +41,3 @@ Build outputs (`build*/`, bitstreams, Vivado logs) are ignored by Git.
 * Keyboard/720p image: builds and meets timing; UART and Ethernet work on the
   board, but the keyboard was not detected in the first hardware try, so
   keyboard input and the VGA picture are **not yet verified on hardware**.
-
-Details and evidence: [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
-
-## Where to read next
-
-* How it works: [docs/architecture.md](docs/architecture.md)
-* Modules and register maps: [docs/rtl_reference.md](docs/rtl_reference.md)
-* Keys and screens: [docs/keyboard_vga_controls.md](docs/keyboard_vga_controls.md)

@@ -1,5 +1,4 @@
 // Active order slot storage (2,048 entries x 47 bits)
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Verilog-2001 market-data pipeline for the Nexys A7-100T: RMII Ethernet → IPv4/UDP → MoldUDP64 → ITCH decode → async event FIFO → hardware limit order book (LOB), supervised by an RV32IM softcore. UART, VGA (a read-only 1280×720 status UI; keyboard only changes pages), LEDs and 7-seg expose status. **The RTL under `rtl/` is the source of truth**; most of `docs/` (architecture.md, reports, slides, `presentation/`) is explicitly historical and may contradict the code. Use `docs/commands.md`, `docs/HARDWARE_VALIDATION.md` and `docs/keyboard_vga_controls.md` for current behavior. Sources must be plain `.v`/`.vh` Verilog-2001 (CI rejects `.sv`/`.svh`).
+Verilog-2001 market-data pipeline for the Nexys A7-100T: RMII Ethernet → IPv4/UDP → MoldUDP64 → ITCH decode → async event FIFO → hardware limit order book (LOB), supervised by an RV32IM softcore. UART, VGA (a read-only 1280×720 status UI; keyboard only changes pages), LEDs and 7-seg expose status. **The RTL under `rtl/` is the source of truth.** Documentation lives only in the local, gitignored `docs/` folder. Sources must be plain `.v`/`.vh` Verilog-2001 (CI rejects `.sv`/`.svh`).
 
 ## Commands
 
@@ -56,12 +56,7 @@ Top level is `rtl/top/top_system.v`; it only wires subsystem modules (`net_inges
 - **Display/telemetry**: `rtl/display/kitty_ui_cpu.v` is a second small CPU running `firmware/kitty_ui` firmware that reads book RAM/history (`lob_display_journal`, `lob_level_order_count`) and feeds `kitty_video.v`. `rtl/telemetry/uart_telemetry.v` and `uart_readback.v` implement the UART protocol (e.g. `B` occupied-set queries, `E` 99-digit journal records) that `tools/fpga_readback.py` and `order_book_dashboard.py` parse — host tools and UART RTL must change together, and a protocol change needs a new bitstream.
 - **Verification layers**: unit testbenches in `sim/unit/`; golden vectors in `sim/golden/` (`golden_vectors.json`, generated RTL vector files compared via `tb_lob_golden`/`tb_lob_random`); full-path test in `sim/integration/tb_system_top.v` (compiles every `rtl/**/*.v`).
 
-## Docs
-
-`docs/architecture.md` (overview) and `docs/rtl_reference.md` (modules, event layout, register maps) describe the current design; keep them in sync with RTL changes.
-
 ## Gotchas
 
 - `sim/run_ci_tests.sh` hard-codes file lists per testbench; when adding or moving an RTL module, update the matching `run_test` entry. The CI Verilator lint uses `find rtl`, so no list needs editing there.
 - Simulation-only code is gated by `` `ifdef SIMULATION `` (`-DSIMULATION` in integration/preview builds).
-- Physical-board validation status (what is and isn't verified on hardware) is recorded in `docs/HARDWARE_VALIDATION.md`; update it rather than claiming hardware results elsewhere.

@@ -1,5 +1,4 @@
 // 1,024 sets x 8 ways hash table with 8-entry CAM collision stash
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 

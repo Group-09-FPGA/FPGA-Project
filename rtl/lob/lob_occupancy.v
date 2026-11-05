@@ -1,5 +1,4 @@
 // 3-level hierarchical occupancy bitmask trees and priority encoders
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 

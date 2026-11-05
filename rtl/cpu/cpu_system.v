@@ -1,7 +1,6 @@
 `timescale 1ns / 1ps
 
 // Supervisor RV32IM CPU with its memories and memory-mapped peripherals.
-// Address map: see docs/rtl_reference.md.
 module cpu_system (
     input  wire         clk,
     input  wire         rst_n,

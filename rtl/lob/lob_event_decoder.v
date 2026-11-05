@@ -1,5 +1,4 @@
 // Canonical event decoder and validation engine
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 

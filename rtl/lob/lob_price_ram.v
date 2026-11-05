@@ -1,5 +1,4 @@
 // Price-level aggregate quantity RAM (16,384 x 32 bits, 3-cycle read latency)
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 

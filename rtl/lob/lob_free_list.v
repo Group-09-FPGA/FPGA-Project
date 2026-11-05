@@ -1,5 +1,4 @@
 // LIFO free slot allocator and reclamation stack (2,048 x 11 bits)
-// See docs/rtl_reference.md for how this block fits in the LOB.
 
 `timescale 1ns / 1ps
 
