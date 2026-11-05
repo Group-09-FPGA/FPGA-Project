@@ -51,6 +51,8 @@ module display_system #(
     output wire [607:0] readback_data,
     output wire [7:0]   hash_valid,
 
+    output wire [75:0]  kbd_diag,
+
     output wire         vga_hs,
     output wire         vga_vs,
     output wire [3:0]   vga_r,
@@ -68,6 +70,12 @@ module display_system #(
     ps2_key_decoder u_ps2_decoder (
         .clk(clk), .reset_n(rst_n), .byte_valid(byte_valid), .byte_data(byte_data),
         .key_valid(key_valid), .key(key), .key_shift(key_shift), .reconnect()
+    );
+
+    keyboard_diag u_keyboard_diag (
+        .clk(clk), .rst_n(rst_n), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
+        .byte_valid(byte_valid), .frame_error(frame_error), .key_valid(key_valid),
+        .byte_data(byte_data), .diag(kbd_diag)
     );
 
     wire [31:0] frame_errors;

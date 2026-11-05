@@ -212,6 +212,13 @@ module top_system #(
     wire [9:0]   readback_scan_set;
     wire [607:0] readback_data;
 
+    wire [75:0] kbd_diag_ui, kbd_diag_core;
+    config_cdc #(.WIDTH(76), .RESET_VALUE(76'd0)) u_kbd_diag_cdc (
+        .src_clk(clk_ui), .src_rst_n(rst_ui_n), .src_data(kbd_diag_ui),
+        .src_busy(), .src_ready(), .dst_clk(clk_core), .dst_rst_n(rst_core_n),
+        .dst_data(kbd_diag_core), .dst_update()
+    );
+
     uart_system u_uart (
         .clk_core(clk_core), .rst_core_n(rst_core_n), .clk_ui(clk_ui), .rst_ui_n(rst_ui_n),
         .uart_rxd(uart_rxd_in), .uart_txd(uart_txd_out),
@@ -226,6 +233,7 @@ module top_system #(
         .price_base(cfg_price_base), .price_tick(cfg_tick),
         .net_diag(net_diag), .ip_csum_errors(ip_csum_errors),
         .pipe_stats(pipe_stats), .done_events(core_event_count),
+        .kbd_diag(kbd_diag_core),
         .readback_active(readback_active), .readback_kind(readback_kind),
         .readback_addr(readback_addr), .readback_scan_set(readback_scan_set),
         .readback_hash_valid(readback_hash_valid), .readback_data(readback_data)
@@ -246,6 +254,7 @@ module top_system #(
         .price_data(price_data), .free_data(free_data), .level_count(level_count),
         .quote_data(quote_data), .event_history(event_history),
         .readback_data(readback_data), .hash_valid(readback_hash_valid),
+        .kbd_diag(kbd_diag_ui),
         .vga_hs(vga_hs), .vga_vs(vga_vs), .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b)
     );
 

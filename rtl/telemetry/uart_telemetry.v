@@ -41,6 +41,8 @@ module uart_telemetry #(
     input  wire [315:0] storage_trace,
     input  wire [31:0] price_base,
     input  wire [31:0] price_tick,
+    // Keyboard bring-up: {clk edges, bytes, frame errors, keys (16 b each), last byte, {data,clk} levels}.
+    input  wire [75:0] kbd_diag,
     input  wire        readback_valid,
     input  wire [7:0]  readback_byte,
     output wire        readback_ready,
@@ -73,6 +75,7 @@ module uart_telemetry #(
     reg [31:0] lat_rx, lat_udp, lat_mold, lat_itch, lat_fifo, lat_done;
     reg [315:0] lat_trace;
     reg [31:0] lat_price_base, lat_price_tick;
+    reg [75:0] lat_kbd;
 
     function [7:0] hex2ascii;
         input [3:0] nibble;
@@ -208,8 +211,13 @@ module uart_telemetry #(
                 9'd307: hw_char = "C";
                 9'd308: hw_char = "K";
                 9'd309: hw_char = ":";
-                9'd318: hw_char = 8'h0D;
-                9'd319: hw_char = 8'h0A;
+                9'd319: hw_char = "|";
+                9'd321: hw_char = "K";
+                9'd322: hw_char = "B";
+                9'd323: hw_char = ":";
+                9'd328, 9'd333, 9'd338, 9'd343, 9'd346: hw_char = "-";
+                9'd348: hw_char = 8'h0D;
+                9'd349: hw_char = 8'h0A;
                 default: hw_char = " ";
             endcase
             if (telem_step >= 7'd48 && telem_step <= 7'd55)
@@ -242,6 +250,18 @@ module uart_telemetry #(
                 hw_char = hex_digit(lat_price_base, telem_step - 9'd294);
             else if (telem_step >= 9'd310 && telem_step <= 9'd317)
                 hw_char = hex_digit(lat_price_tick, telem_step - 9'd310);
+            else if (telem_step >= 9'd324 && telem_step <= 9'd327)
+                hw_char = hex2ascii(lat_kbd[75 - ((telem_step - 9'd324) * 4) -: 4]);
+            else if (telem_step >= 9'd329 && telem_step <= 9'd332)
+                hw_char = hex2ascii(lat_kbd[59 - ((telem_step - 9'd329) * 4) -: 4]);
+            else if (telem_step >= 9'd334 && telem_step <= 9'd337)
+                hw_char = hex2ascii(lat_kbd[43 - ((telem_step - 9'd334) * 4) -: 4]);
+            else if (telem_step >= 9'd339 && telem_step <= 9'd342)
+                hw_char = hex2ascii(lat_kbd[27 - ((telem_step - 9'd339) * 4) -: 4]);
+            else if (telem_step >= 9'd344 && telem_step <= 9'd345)
+                hw_char = hex2ascii(lat_kbd[11 - ((telem_step - 9'd344) * 4) -: 4]);
+            else if (telem_step == 9'd347)
+                hw_char = hex2ascii(lat_kbd[3:0]);
         end
     end
 
@@ -254,6 +274,7 @@ module uart_telemetry #(
     reg [31:0] pend_rx, pend_udp, pend_mold, pend_itch, pend_fifo, pend_done;
     reg [315:0] pend_trace;
     reg [31:0] pend_price_base, pend_price_tick;
+    reg [75:0] pend_kbd;
     reg prev_book_valid;
     reg [7:0] prev_error_code;
 
@@ -313,6 +334,7 @@ module uart_telemetry #(
             lat_itch <= 0; lat_fifo <= 0; lat_done <= 0;
             lat_trace <= 316'd0;
             lat_price_base <= 32'd0; lat_price_tick <= 32'd0;
+            lat_kbd <= 76'd0; pend_kbd <= 76'd0;
             pending_update <= 1'b0;
             pend_bid_p     <= 32'd0;
             pend_bid_q     <= 32'd0;
@@ -347,6 +369,7 @@ module uart_telemetry #(
                 lat_trace <= storage_trace;
                 lat_price_base <= price_base;
                 lat_price_tick <= price_tick;
+                lat_kbd <= kbd_diag;
                 telem_step     <= 8'd0;
                 telem_busy     <= 1'b1;
                 pending_update <= 1'b0;
@@ -370,9 +393,10 @@ module uart_telemetry #(
                     pend_trace <= storage_trace;
                     pend_price_base <= price_base;
                     pend_price_tick <= price_tick;
+                    pend_kbd <= kbd_diag;
                 end
                 if (hw_wr_en) begin
-                    if (telem_step == 9'd319) begin
+                    if (telem_step == 9'd349) begin
                         if (pending_update) begin
                             lat_bid_p      <= pend_bid_p;
                             lat_bid_q      <= pend_bid_q;
@@ -390,6 +414,7 @@ module uart_telemetry #(
                             lat_trace <= pend_trace;
                             lat_price_base <= pend_price_base;
                             lat_price_tick <= pend_price_tick;
+                            lat_kbd <= pend_kbd;
                             telem_step     <= 8'd0;
                             pending_update <= 1'b0;
                             telem_busy     <= 1'b1;

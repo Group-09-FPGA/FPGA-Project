@@ -32,6 +32,7 @@ module uart_system (
     input  wire [31:0]  ip_csum_errors,
     input  wire [159:0] pipe_stats,
     input  wire [31:0]  done_events,
+    input  wire [75:0]  kbd_diag,
 
     // Readback RAM access (UI clock domain)
     output wire         readback_active,
@@ -93,6 +94,7 @@ module uart_system (
         .pipe_fifo_events(pipe_stats[31:0]), .pipe_done_events(done_events),
         .storage_trace(storage_trace),
         .price_base(price_base), .price_tick(price_tick),
+        .kbd_diag(kbd_diag),
         .readback_valid(tx_valid), .readback_byte(tx_byte), .readback_ready(tx_ready),
         .uart_txd(uart_txd)
     );

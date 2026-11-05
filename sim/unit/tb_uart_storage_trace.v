@@ -27,7 +27,7 @@ module tb_uart_storage_trace;
         .pipe_itch_events(32'd0), .pipe_fifo_events(32'd0),
         .pipe_done_events(32'd1), .storage_trace(TRACE),
         .price_base(32'd900000), .price_tick(32'd1000),
-        .readback_valid(1'b0), .readback_byte(8'd0), .readback_ready(),
+        .kbd_diag(76'd0), .readback_valid(1'b0), .readback_byte(8'd0), .readback_ready(),
         .uart_txd(tx)
     );
 
@@ -43,8 +43,9 @@ module tb_uart_storage_trace;
                 (count == 293 && dut.hw_char !== ":") ||
                 (count == 305 && dut.hw_char !== "T") ||
                 (count == 309 && dut.hw_char !== ":") ||
-                (count == 318 && dut.hw_char !== 8'h0D) ||
-                (count == 319 && dut.hw_char !== 8'h0A)) begin
+                (count == 323 && dut.hw_char !== ":") ||
+                (count == 348 && dut.hw_char !== 8'h0D) ||
+                (count == 349 && dut.hw_char !== 8'h0A)) begin
                 $display("FAIL UART storage trace character %0d: %h", count, dut.hw_char);
                 $fatal(1);
             end
