@@ -31,8 +31,13 @@ module tb_keyboard_controls;
     endtask
     initial begin
         repeat(3) @(negedge clk);reset_n=1;
-        hit(8'h88,0); // F8
-        if(page!=7) $fatal(1,"F8 page");
+        hit(8'h87,0); // F7
+        if(page!=7) $fatal(1,"F7 page");
+        hit(8'h8b,0);hit(8'h85,0); // F5 skips the removed status page
+        if(page!=5) $fatal(1,"F5 page");
+        hit(8'h88,0); // F8 is unused
+        if(page!=5) $fatal(1,"F8 changed page");
+        hit(8'h87,0);
         hit(8'h89,0);hit(8'h89,0); // price
         hit("9",0);hit("0",0);hit(".",0);hit("5",0);
         hit("0",0);hit("0",0);hit("0",0);

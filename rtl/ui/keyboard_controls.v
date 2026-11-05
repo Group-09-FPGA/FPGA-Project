@@ -37,7 +37,7 @@ module keyboard_controls (
     output reg [255:0] event_data,
     input wire event_ready
 );
-    localparam [7:0] K_F1=8'h81,K_F8=8'h88,K_TAB=8'h89,K_ENTER=8'h8a,
+    localparam [7:0] K_F1=8'h81,K_F7=8'h87,K_F8=8'h88,K_TAB=8'h89,K_ENTER=8'h8a,
         K_ESC=8'h8b,K_BS=8'h8c,K_DEL=8'h8d,K_LEFT=8'h8e,
         K_RIGHT=8'h8f,K_UP=8'h90,K_DOWN=8'h91,
         K_PGUP=8'h92,K_PGDN=8'h93;
@@ -58,6 +58,10 @@ module keyboard_controls (
     integer i,j;
     wire [1:0] field_index=focus-3'd2;
     wire numeric_focus=page==7 && focus>=2 && focus<=5;
+    // Pages 0..3 and 5..7; page 4 (status) was removed, so keys 5-7 skip it.
+    wire [3:0] fkey_index=key-K_F1, digit_index=key-"1";
+    wire [3:0] fkey_page=fkey_index<4 ? fkey_index : fkey_index+1'b1;
+    wire [3:0] digit_page=digit_index<4 ? digit_index : digit_index+1'b1;
     wire [75:0] selected_cell=stash_selected ? stash_data :
         (hash_data >> (hash_way*76));
     wire [3:0] operation=action<2 ? 4'd1 : action<4 ? 4'd2 :
@@ -228,12 +232,12 @@ module keyboard_controls (
                 else validate_wait<=0;
             end
             if(key_valid && validate_wait==0) begin
-                if(key>=K_F1 && key<=K_F8) begin
-                    page<=key-K_F1;focus<=0;editing<=0;history_offset<=0;
+                if(key>=K_F1 && key<=K_F7) begin
+                    page<=fkey_page;focus<=0;editing<=0;history_offset<=0;
                 end else if(key=="H" && !(page==7 && numeric_focus)) begin
                     page<=8;focus<=0;editing<=0;history_offset<=0;
-                end else if(key>="1" && key<="8" && !numeric_focus) begin
-                    page<=key-"1";focus<=0;editing<=0;history_offset<=0;
+                end else if(key>="1" && key<="7" && !numeric_focus) begin
+                    page<=digit_page;focus<=0;editing<=0;history_offset<=0;
                 end else if(page!=7 && key==K_TAB) begin
                     if(page==0) focus<=key_shift ? (focus==0 ? 2 : focus-1'b1) :
                                                 (focus==2 ? 0 : focus+1'b1);

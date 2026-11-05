@@ -33,7 +33,7 @@ module tb_keyboard_hotplug;
     endtask
     initial begin
         repeat(3) @(negedge clk);reset_n=1;
-        send(8'h0a); // F8
+        send(8'h83); // F7
         send(8'h0d);release_key(8'h0d);
         send(8'h0d);release_key(8'h0d); // price focus
         send(8'h16); // first digit replaces old price

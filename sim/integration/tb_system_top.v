@@ -515,7 +515,7 @@ module tb_system_top;
         end
 
         // Enter generates one local order from values typed through PS/2.
-        press_ps2(8'h0a); // F8
+        press_ps2(8'h83); // F7
         press_ps2(8'h0d);press_ps2(8'h0d); // price
         press_ps2(8'h46);press_ps2(8'h45);press_ps2(8'h49);
         press_ps2(8'h2e);press_ps2(8'h45);press_ps2(8'h45);press_ps2(8'h45);

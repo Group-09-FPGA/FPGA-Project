@@ -12,14 +12,14 @@ and the [F4/B2 pins](https://github.com/Digilent/digilent-xdc/blob/master/Nexys-
 
 CPU_RESETN is the system reset. SW14/SW15 select the seven-segment content.
 All other switches and the five directional buttons do nothing. The image is
-`build/keyboard_vga_720p/top_system.bit` (build outputs are not in Git).
+`build/ui_redesign_20261105/top_system.bit` (build outputs are not in Git).
 
 ## Keyboard
 
 | Key | Action |
 | --- | --- |
-| F1–F8 or 1–8 outside numeric editing | Market, Orders, Hash, Events, Status, Levels, Slots, Order Entry |
-| H | Quote History; 1–8 or F1–F8 leave History |
+| F1–F7 or 1–7 outside numeric editing | Market, My Orders, Hash Table, Event Log, Price Levels, Order Slots, Place Order |
+| H | Quote History; 1–7 or F1–F7 leave History |
 | Tab / Shift+Tab | Move among controls on the current page; invalid form fields block Tab |
 | Action field: Left/Right or A/F/E/C/X/D/U | Select an ITCH-style action |
 | Side field: Left/Right | Buy/Sell for Add actions |
@@ -80,7 +80,7 @@ unverified on hardware. See [HARDWARE_VALIDATION.md](HARDWARE_VALIDATION.md).
 ## Physical test sequence
 
 1. Program the new bitstream and select the monitor's VGA input. Confirm the
-   1280×720 Market page appears with F1 and Order Entry with F8. SW2–SW13 and
+   1280×720 Market page appears with F1 and Place Order with F7. SW2–SW13 and
    the five direction/Center buttons must have no UI effect.
 2. With a wired keyboard in USB Host J5, use Tab to edit an Add order, press
    Enter once, and verify the local completion result and actual Orders row.

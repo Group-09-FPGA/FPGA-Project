@@ -31,7 +31,7 @@ module tb_keyboard_actions;
     task reset_form;
         begin
             reset_n=0;repeat(3) @(negedge clk);reset_n=1;
-            hit(8'h88,0);
+            hit(8'h87,0);
         end
     endtask
     task choose(input [7:0] letter);

@@ -199,3 +199,12 @@ Image: `build/keyboard_vga_720p/top_system.bit` (routed setup +0.564 ns, hold +0
 
 Next step: try a second wired keyboard; if BUSY still stays dark, add a debug
 LED on `ps2_clk` activity to see whether anything reaches the FPGA.
+
+## UI redesign image (2026-11-05)
+
+Image: `build/ui_redesign_20261105/top_system.bit` (routed setup +0.521 ns, hold +0.023 ns, 0 DRC errors). Not yet programmed or viewed on hardware; the board was disconnected when the build finished.
+
+- Market page: one two-line graph (bid blue, ask orange, shaded spread) with price and event-number axes, plus plain-English panel.
+- Status page removed; F1-F7 / 1-7 select Market, My Orders, Hash Table, Event Log, Price Levels, Order Slots, Place Order.
+- Place Order: live summary, per-field hints and specific error reasons.
+- The same bitstream also reports keyboard counters in the UART `KB:` field. A wired keyboard was verified earlier with `build/kbd_diag_20261105`; the 2.4 GHz Portronics dongle is not a Boot-HID device and did not work.
